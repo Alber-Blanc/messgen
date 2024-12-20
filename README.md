@@ -1,6 +1,14 @@
 ![JS CI](https://github.com/pavletto/messgen/actions/workflows/js.yml/badge.svg)
 ![CPP CI](https://github.com/pavletto/messgen/actions/workflows/cpp.yml/badge.svg)
 
+# History
+
+The initial version (v0) of messgen was developed for the Microavia project and is hosted at [github.com/microavia/messgen](https://github.com/microavia/messgen). It has been successfully used across a wide range of system components, from STM32 microcontrollers to JS frontends.
+
+This repository contains "v1", that represents the next generation of messgen, addressing design issues, adding new features, and maintaining the framework’s simplicity and speed.
+
+The project is still under active development, but its structure and API have largely stabilized.
+
 # Messgen
 
 Lightweight and fast message serialization library.
