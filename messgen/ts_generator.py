@@ -76,7 +76,7 @@ class TypeScriptGenerator:
             code.append(f"  '{proto_name}': {{")
             for message in proto_def.messages.values():
                 ts_struct_name = self._to_camel_case(message.type)
-                code.append(f"    '{message.name}': {message.type};")
+                code.append(f"    '{message.name}': {ts_struct_name};")
                 types.add(ts_struct_name)
             code.append('  }')
             code.append('}')
