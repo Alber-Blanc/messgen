@@ -40,8 +40,14 @@ export interface EnumTypeClass {
 
 export type StructureType = StructTypeClass | EnumTypeClass;
 
+export interface RawMessage {
+  message_id: number;
+  name: IName;
+  type: string;
+}
+
 export interface Protocol {
   name: string;
   proto_id: number;
-  types: Record<string, IName>;
+  messages: Record<string, RawMessage>;
 }

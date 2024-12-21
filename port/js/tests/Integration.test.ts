@@ -33,7 +33,7 @@ describe('integration', () => {
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/simple_struct.bin');
 
-    const buffer = codec.serialize('test_proto', 'messgen/test/simple_struct', rawData);
+    const buffer = codec.serialize('test_proto', 'simple_struct_msg', rawData);
     const result = codec.deserialize(1, 0, new Uint8Array(rawDataBit).buffer);
 
     expect(result).toEqual({ ...rawData, f5: expect.closeTo(rawData.f5, 5) });
@@ -49,7 +49,7 @@ describe('integration', () => {
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/var_size_struct.bin');
 
-    const buffer = codec.serialize('test_proto', 'messgen/test/var_size_struct', rawData);
+    const buffer = codec.serialize('test_proto', 'var_size_struct_msg', rawData);
     const result = codec.deserialize(1, 2, new Uint8Array(rawDataBit).buffer);
 
     expect(result).toEqual(rawData);
@@ -61,7 +61,7 @@ describe('integration', () => {
     const rawData = { f0: bigint, f1: bigint, e0: 1 };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/struct_with_enum.bin');
 
-    const buffer = codec.serialize('test_proto', 'messgen/test/struct_with_enum', rawData);
+    const buffer = codec.serialize('test_proto', 'struct_with_enum_msg', rawData);
     const result = codec.deserialize(1, 3, new Uint8Array(rawDataBit).buffer);
 
     expect(result).toEqual(rawData);
@@ -73,7 +73,7 @@ describe('integration', () => {
     const rawData = {};
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/empty_struct.bin');
 
-    const buffer = codec.serialize('test_proto', 'messgen/test/empty_struct', rawData);
+    const buffer = codec.serialize('test_proto', 'empty_struct_msg', rawData);
     const result = codec.deserialize(1, 4, new Uint8Array(rawDataBit).buffer);
 
     expect(result).toEqual(rawData);
@@ -105,7 +105,7 @@ describe('integration', () => {
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct_with_empty.bin');
 
-    const buffer = codec.serialize('test_proto', 'messgen/test/complex_struct_with_empty', rawData);
+    const buffer = codec.serialize('test_proto', 'complex_struct_with_empty_msg', rawData);
     const result = codec.deserialize(1, 5, new Uint8Array(rawDataBit).buffer);
 
     expect(result).toEqual(rawData);
@@ -162,7 +162,7 @@ describe('integration', () => {
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct_nostl.bin');
 
-    const buffer = codec.serialize('test_proto', 'messgen/test/complex_struct_nostl', rawData);
+    const buffer = codec.serialize('test_proto', 'complex_struct_nostl_msg', rawData);
     const result = codec.deserialize(1, 6, new Uint8Array(rawDataBit).buffer);
 
     simpleStruct.f5 = expect.closeTo(simpleStruct.f5, 4);
@@ -220,7 +220,7 @@ describe('integration', () => {
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct.bin');
 
-    const buffer = codec.serialize('test_proto', 'messgen/test/complex_struct', rawData);
+    const buffer = codec.serialize('test_proto', 'complex_struct_msg', rawData);
     const result = codec.deserialize(1, 1, new Uint8Array(rawDataBit).buffer);
 
     simpleStruct.f5 = expect.closeTo(simpleStruct.f5, 4);
@@ -245,7 +245,7 @@ describe('integration', () => {
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/flat_struct.bin');
 
-    const buffer = codec.serialize('test_proto', 'messgen/test/flat_struct', rawData);
+    const buffer = codec.serialize('test_proto', 'flat_struct_msg', rawData);
     const result = codec.deserialize(1, 7, new Uint8Array(rawDataBit).buffer);
 
     rawData.f5 = expect.closeTo(rawData.f5, 5);

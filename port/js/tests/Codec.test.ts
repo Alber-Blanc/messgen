@@ -38,7 +38,7 @@ describe('Codec', () => {
         f9: true,
       };
 
-      const message = codec.serialize('test_proto', 'messgen/test/simple_struct', rawData);
+      const message = codec.serialize('test_proto', 'simple_struct_msg', rawData);
 
       expect(codec.deserialize(1, 0, message.buffer)).toEqual({
         ...rawData,
@@ -54,7 +54,7 @@ describe('Codec', () => {
 
       const message = codec.serialize(
         'another_proto',
-        'cross_proto',
+        'cross_proto_msg',
         rawData,
       );
 

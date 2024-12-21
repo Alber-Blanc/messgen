@@ -222,7 +222,7 @@ def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], 
     type_desc = type_descriptors.get(type_name)
     assert type_desc
 
-    base_type = type_desc.get("base_type")
+    base_type = type_desc.get("base_type", '')
 
     if base_type:
         type_dependencies.add(_get_dependency_type(type_name, base_type, type_descriptors, type_dependencies)[0])
