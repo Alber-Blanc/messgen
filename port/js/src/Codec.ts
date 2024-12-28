@@ -1,10 +1,10 @@
 import { type RawType, type Protocol, Protocols } from './protocol';
 import { type Converter, ConverterFactory } from './converters';
-import type { ExtractPayload, GenericConfig, TypeToIdMap, TypeToNameMap } from './Codec.types';
+import type { ExtractPayload, TypeToIdMap, TypeToNameMap } from './Codec.types';
 import { Buffer } from './Buffer';
 import type { ProtocolId, MessageId } from './types';
 
-export class Codec<Config extends GenericConfig = GenericConfig> {
+export class Codec<Config extends object = object> {
   private typesByName: TypeToNameMap = new Map();
   private typesById: TypeToIdMap = new Map();
   private protocols = new Protocols();

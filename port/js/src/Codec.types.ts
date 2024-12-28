@@ -3,12 +3,11 @@
 import type { Converter } from './converters/Converter';
 import type { MessageId, ProtocolId, ProtocolName } from './types';
 
-export type GenericConfig = Record<string, Record<string, any>>;
 export type TypeToNameMap = Map<ProtocolName, Map<string, Converter>>;
 export type TypeToIdMap = Map<ProtocolId, Map<MessageId, Converter>>;
 
 export type ExtractPayload<
-  Schema extends Record<string, Record<string, any>>,
+  Schema extends object,
   Name extends keyof Schema,
   MessageType extends keyof Schema[Name],
 > = Schema[Name][MessageType];

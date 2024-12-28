@@ -71,7 +71,8 @@ class TypeScriptGenerator:
         types = set()
         code = []
 
-        for proto_name, proto_def in protocols.items():
+        for proto_def in protocols.values():
+            proto_name = proto_def.name
             code.append(f"export interface {self._to_camel_case(proto_name)} {{")
             code.append(f"  '{proto_name}': {{")
             for message in proto_def.messages.values():
@@ -83,7 +84,7 @@ class TypeScriptGenerator:
             code.append('')
 
         import_statements = self._generate_protocol_imports(types)
-        protocol_types = ' | '.join(self._to_camel_case(proto_name) for proto_name in protocols.keys())
+        protocol_types = ' & '.join(self._to_camel_case(proto_name) for proto_name in protocols.keys())
         final_code = '\n'.join(import_statements + code) + f'export type Protocol = {protocol_types};'
 
 
@@ -92,7 +93,7 @@ class TypeScriptGenerator:
     def _generate_protocol_imports(self, types: set[str]) -> list[str]:
         import_statements = ["import type {"]
         for struct_name in types:
-            import_statements.append(f"    {struct_name},")
+            import_statements.append(f"  {struct_name},")
         import_statements.append("} from './types';")
         import_statements.append('')
         return import_statements
