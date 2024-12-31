@@ -1,7 +1,8 @@
 import type { Converter } from './converters/Converter';
 import type { MessageId, ProtocolId } from './types';
 
-export type TypeToIdMap = Map<ProtocolId, Map<MessageId, Converter>>;
+export type ProtocolMap = Map<ProtocolId, Map<MessageId, Converter>>;
+export type TypeMap = Map<MessageId, Converter>;
 
 export type ExtractPayload<
   Schema extends object,
