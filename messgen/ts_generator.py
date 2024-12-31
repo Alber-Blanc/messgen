@@ -70,24 +70,41 @@ class TypeScriptGenerator:
     def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
         types = set()
         code = []
-
+        
+        code.append("export enum Protocol {")
         for proto_def in protocols.values():
-            proto_name = proto_def.name
-            code.append(f"export interface {self._to_camel_case(proto_name)} {{")
-            code.append(f"  '{proto_name}': {{")
+            code.append(f"  {proto_def.name.upper()} = {proto_def.proto_id},")
+        code.append("}")
+        code.append("")
+        
+        for proto_def in protocols.values():
+            enum_name = self._to_camel_case(proto_def.name)
+            code.append(f"export enum {enum_name} {{")
+            for message in proto_def.messages.values():
+                code.append(f"  {message.name.upper()} = {message.message_id},")
+            code.append("}")
+            code.append("")
+            
+            proto_name = f"{self._to_camel_case(proto_def.name)}Map"
+            code.append(f"export interface {proto_name} {{")
+            code.append(f"  [Protocol.{proto_def.name.upper()}]: {{")
+            
             for message in proto_def.messages.values():
                 ts_struct_name = self._to_camel_case(message.type)
-                code.append(f"    '{message.name}': {ts_struct_name};")
+                code.append(f"    [{enum_name}.{message.name.upper()}]: {ts_struct_name};")
                 types.add(ts_struct_name)
-            code.append('  }')
-            code.append('}')
-            code.append('')
-
+                
+            code.append("  }")
+            code.append("}")
+            code.append("")
+        
+        protocol_types = " & ".join(f"{self._to_camel_case(proto_def.name)}Map" for proto_def in protocols.values())
+        code.append(f"export type ProtocolMap = {protocol_types};")
+        code.append("")
+        
         import_statements = self._generate_protocol_imports(types)
-        protocol_types = ' & '.join(self._to_camel_case(proto_name) for proto_name in protocols.keys())
-        final_code = '\n'.join(import_statements + code) + f'export type Protocol = {protocol_types};'
-
-
+        final_code = "\n".join(import_statements + code)
+        
         self._write_output_file(out_dir, self._PROTOCOLS_FILE, final_code)
 
     def _generate_protocol_imports(self, types: set[str]) -> list[str]:
@@ -95,7 +112,7 @@ class TypeScriptGenerator:
         for struct_name in types:
             import_statements.append(f"  {struct_name},")
         import_statements.append("} from './types';")
-        import_statements.append('')
+        import_statements.append("")
         return import_statements
 
     def generate_types(self, out_dir: Path, types: dict[str, MessgenType]) -> None:
@@ -107,7 +124,7 @@ class TypeScriptGenerator:
             elif type_def.type_class == TypeClass.enum:
                 self._generate_enum(type_name, type_def)
 
-        code = '\n'.join(self._types)
+        code = "\n".join(self._types)
 
         self._write_output_file(out_dir, self._TYPES_FILE, code)
 
@@ -118,14 +135,14 @@ class TypeScriptGenerator:
             if value.comment != None:
                 self._types.append(f"  /** {value.comment} */")
             value_name = self._to_camel_case(value.name)
-            self._types.append(f"  {value_name} = {value.value},")
+            self._types.append(f"  {value_name.upper()} = {value.value},")
 
         self._types.append("}")
         self._types.append("")
 
     def _generate_struct(self, name: str, type_def: MessgenType):
         self._types.append(f"export interface {self._to_camel_case(name)} {{")
-        fields = getattr(type_def, 'fields', []) or []
+        fields = getattr(type_def, "fields", []) or []
 
         for field in fields:
             if field.comment != None:
@@ -143,18 +160,18 @@ class TypeScriptGenerator:
         if typed_array_type:
             return typed_array_type
 
-        if field_type.endswith('[]'):
+        if field_type.endswith("[]"):
             base_type = field_type[:-2]
             ts_base_type = self._get_ts_type(base_type)
             return f"{ts_base_type}[]"
-        if '[' in field_type and field_type.endswith(']'):
-            base_type = field_type[:field_type.find('[')]
+        if "[" in field_type and field_type.endswith("]"):
+            base_type = field_type[:field_type.find("[")]
             ts_base_type = self._get_ts_type(base_type)
             return f"{ts_base_type}[]"
 
-        if '{' in field_type and field_type.endswith('}'):
-            base_type = field_type[:field_type.find('{')]
-            key_type = field_type[field_type.find('{')+1:-1]
+        if "{" in field_type and field_type.endswith("}"):
+            base_type = field_type[:field_type.find("{")]
+            key_type = field_type[field_type.find("{")+1:-1]
             ts_value_type = self._get_ts_type(base_type)
             ts_key_type = self._get_ts_type(key_type)
             return f"Map<{ts_key_type}, {ts_value_type}>"
@@ -165,13 +182,13 @@ class TypeScriptGenerator:
         return self._to_camel_case(field_type)
 
     def _is_typed_array(self, field_type):
-        if field_type.endswith('[]'):
+        if field_type.endswith("[]"):
             base_type = field_type[:-2]
             typed_array = TypeScriptTypes.get_typed_array(base_type)
             if typed_array:
                 return typed_array
-        if '[' in field_type and field_type.endswith(']'):
-            base_type = field_type[:field_type.find('[')]
+        if "[" in field_type and field_type.endswith("]"):
+            base_type = field_type[:field_type.find("[")]
             typed_array = TypeScriptTypes.get_typed_array(base_type)
             if typed_array:
                 return typed_array
@@ -180,12 +197,12 @@ class TypeScriptGenerator:
     def _write_output_file(self, output_path, file, content):
         output_file = os.path.join(output_path, f"{file}")
 
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(content)
 
     @staticmethod
     def _to_camel_case(s: str):
-        name = '_'.join(s.split(SEPARATOR))
-        return ''.join(word.capitalize() for word in name.split('_'))
+        name = "_".join(s.split(SEPARATOR))
+        return "".join(word.capitalize() for word in name.split("_"))
 
 

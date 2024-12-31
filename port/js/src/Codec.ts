@@ -1,11 +1,10 @@
 import { type RawType, type Protocol, Protocols } from './protocol';
 import { type Converter, ConverterFactory } from './converters';
-import type { ExtractPayload, TypeToIdMap, TypeToNameMap } from './Codec.types';
+import type { ExtractPayload, TypeToIdMap } from './Codec.types';
 import { Buffer } from './Buffer';
 import type { ProtocolId, MessageId } from './types';
 
 export class Codec<Config extends object = object> {
-  private typesByName: TypeToNameMap = new Map();
   private typesById: TypeToIdMap = new Map();
   private protocols = new Protocols();
 
@@ -13,35 +12,32 @@ export class Codec<Config extends object = object> {
     this.protocols.load(rawTypes);
     const converterFactory = new ConverterFactory(this.protocols);
 
-    for (const { name: protoName, proto_id: protoId, messages } of protocols) {
-      const typeMap = new Map<string, Converter>();
+    for (const { proto_id: protoId, messages } of protocols) {
       const idMap = new Map<MessageId, Converter>();
 
       for (const message of Object.values(messages)) {
-        const { message_id: messageId, name: messageName, type: typeName } = message;
+        const { message_id: messageId, type: typeName } = message;
         const converter = converterFactory.toConverter(typeName);
 
-        typeMap.set(messageName, converter);
         idMap.set(messageId, converter);
       }
-      this.typesByName.set(protoName, typeMap);
       this.typesById.set(protoId, idMap);
     }
   }
 
   public serialize<N extends keyof Config, T extends keyof Config[N]>(
-    name: N,
-    type: T,
+    protocolId: N,
+    messageId: T,
     data: ExtractPayload<Config, N, T>,
   ): Buffer {
-    const types = this.typesByName.get(name as string);
+    const types = this.typesById.get(Number(protocolId));
     if (!types) {
-      throw new Error(`Protocol not found: ${name as string}`);
+      throw new Error(`Protocol not found with ID: ${protocolId as number}`);
     }
 
-    const converter = types.get(type as string);
+    const converter = types.get(messageId as number);
     if (!converter) {
-      throw new Error(`Converter not found for type: ${type as string}`);
+      throw new Error(`Converter not found for message ID: ${messageId as number}`);
     }
 
     const buffer = new Buffer(new ArrayBuffer(converter.size(data)));
