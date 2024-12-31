@@ -18,7 +18,6 @@ export type IName = string;
 export type IValue = Nominal<'Value', any>;
 export type ProtocolId = Nominal<'ProtocolId', number>;
 export type MessageId = Nominal<'MessageId', number>;
-export type ProtocolName = Nominal<'ProtocolName', string>;
 
 export type INumberType =
   'uint8' |

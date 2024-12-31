@@ -1,47 +1,42 @@
 import { type RawType, type Protocol, Protocols } from './protocol';
-import { type Converter, ConverterFactory } from './converters';
-import type { ExtractPayload, TypeToIdMap, TypeToNameMap } from './Codec.types';
+import { ConverterFactory } from './converters';
+import type { ExtractPayload, ProtocolMap, TypeMap } from './Codec.types';
 import { Buffer } from './Buffer';
-import type { ProtocolId, MessageId } from './types';
 
 export class Codec<Config extends object = object> {
-  private typesByName: TypeToNameMap = new Map();
-  private typesById: TypeToIdMap = new Map();
+  private protocolMap: ProtocolMap = new Map();
   private protocols = new Protocols();
 
   constructor(rawTypes: RawType[] = [], protocols: Protocol[] = []) {
     this.protocols.load(rawTypes);
     const converterFactory = new ConverterFactory(this.protocols);
 
-    for (const { name: protoName, proto_id: protoId, messages } of protocols) {
-      const typeMap = new Map<string, Converter>();
-      const idMap = new Map<MessageId, Converter>();
+    for (const { proto_id: protoId, messages } of protocols) {
+      const typeMap: TypeMap = new Map();
 
       for (const message of Object.values(messages)) {
-        const { message_id: messageId, name: messageName, type: typeName } = message;
+        const { message_id: messageId, type: typeName } = message;
         const converter = converterFactory.toConverter(typeName);
 
-        typeMap.set(messageName, converter);
-        idMap.set(messageId, converter);
+        typeMap.set(messageId, converter);
       }
-      this.typesByName.set(protoName, typeMap);
-      this.typesById.set(protoId, idMap);
+      this.protocolMap.set(protoId, typeMap);
     }
   }
 
-  public serialize<N extends keyof Config, T extends keyof Config[N]>(
-    name: N,
-    type: T,
-    data: ExtractPayload<Config, N, T>,
+  public serialize<P extends keyof Config, T extends keyof Config[P]>(
+    protocolId: P,
+    messageId: T,
+    data: ExtractPayload<Config, P, T>,
   ): Buffer {
-    const types = this.typesByName.get(name as string);
+    const types = this.protocolMap.get(Number(protocolId));
     if (!types) {
-      throw new Error(`Protocol not found: ${name as string}`);
+      throw new Error(`Protocol not found with ID: ${protocolId as number}`);
     }
 
-    const converter = types.get(type as string);
+    const converter = types.get(messageId as number);
     if (!converter) {
-      throw new Error(`Converter not found for type: ${type as string}`);
+      throw new Error(`Converter not found for message ID: ${messageId as number}`);
     }
 
     const buffer = new Buffer(new ArrayBuffer(converter.size(data)));
@@ -50,21 +45,21 @@ export class Codec<Config extends object = object> {
     return buffer;
   }
 
-  public deserialize<N extends keyof Config, T extends keyof Config[N]>(
-    protocolId: ProtocolId,
-    messageId: MessageId,
+  public deserialize<P extends keyof Config, T extends keyof Config[P]>(
+    protocolId: P,
+    messageId: T,
     arrayBuffer: ArrayBufferLike,
-  ): ExtractPayload<Config, N, T> {
-    const types = this.typesById.get(protocolId);
+  ): ExtractPayload<Config, P, T> {
+    const types = this.protocolMap.get(protocolId as number);
     if (!types) {
-      throw new Error(`Protocol not found with ID: ${protocolId}`);
+      throw new Error(`Protocol not found with ID: ${protocolId as number}`);
     }
 
-    const converter = types.get(messageId);
+    const converter = types.get(messageId as number);
     if (!converter) {
-      throw new Error(`Converter not found for message ID: ${messageId}`);
+      throw new Error(`Converter not found for message ID: ${messageId as number}`);
     }
 
-    return converter.deserialize(new Buffer(arrayBuffer)) as ExtractPayload<Config, N, T>;
+    return converter.deserialize(new Buffer(arrayBuffer)) as ExtractPayload<Config, P, T>;
   }
 }

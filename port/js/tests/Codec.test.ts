@@ -5,11 +5,12 @@ import { execSync } from 'child_process';
 import { Codec } from '../src/Codec';
 import { uploadTypes, uploadProtocols } from './utils';
 import type { Protocol, RawType } from '../src/protocol';
+import type { ProtocolMap } from './protocols';
 
 describe('Codec', () => {
   let types: RawType[];
   let protocols: Protocol[];
-  let codec: Codec;
+  let codec: Codec<ProtocolMap>;
 
   beforeAll(() => {
     execSync('npm run gen:json');
@@ -38,7 +39,7 @@ describe('Codec', () => {
         f9: true,
       };
 
-      const message = codec.serialize('test_proto', 'simple_struct_msg', rawData);
+      const message = codec.serialize(1, 0, rawData);
 
       expect(codec.deserialize(1, 0, message.buffer)).toEqual({
         ...rawData,
@@ -52,11 +53,7 @@ describe('Codec', () => {
         cross0: 1,
       };
 
-      const message = codec.serialize(
-        'another_proto',
-        'cross_proto_msg',
-        rawData,
-      );
+      const message = codec.serialize(2, 0, rawData);
 
       expect(codec.deserialize(2, 0, message.buffer)).toEqual(rawData);
     });

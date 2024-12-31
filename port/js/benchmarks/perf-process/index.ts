@@ -89,20 +89,22 @@ const run = async (): Promise<void> => {
   structConverter.serialize(srcData, buffer);
   let counter = 0;
   while (true) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     counter += 1;
 
     buffer.offset = 0;
     structConverter.deserialize(buffer);
-    console.log('Counter:', counter);
   }
 };
 
 process.on('uncaughtException', (error) => {
+  // eslint-disable-next-line no-console
   console.error('Uncaught Exception:', error);
   process.exit(1);
 });
 
 run().catch((error) => {
+  // eslint-disable-next-line no-console
   console.error('Fatal error:', error);
   process.exit(1);
 });

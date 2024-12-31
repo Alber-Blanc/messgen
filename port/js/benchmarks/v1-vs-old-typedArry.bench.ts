@@ -122,10 +122,9 @@ const schema: StructTypeDefinition = {
     { name: 'type_Double_as', type: 'float64[1000]' },
   ],
 };
-const name = 'testStruct';
 
 const getType = initGetType();
-const structConverter = new StructConverter('testStruct', schema, getType);
+const structConverter = new StructConverter(schema, getType);
 const size = structConverter.size(srcData);
 const buffer = new Buffer(new ArrayBuffer(size));
 
@@ -144,7 +143,9 @@ describe('serialize Obj with typedArray', () => {
     Buffer.serializeObj(srcStruct.schema.fields, srcDataFn());
   }, { time: 1000 });
   bench('v1', () => {
+    // @ts-ignore
     buffer.offset = 0;
+    // @ts-ignore
     structConverter.serialize(srcDataFn(), buffer);
   });
 });
@@ -155,7 +156,9 @@ describe('deserialize object with typedArray', () => {
   }, { time: 1000 });
 
   bench('v1', () => {
+    // @ts-ignore
     buffer.offset = 0;
+    // @ts-ignore
     structConverter.deserialize(buffer);
   });
 });

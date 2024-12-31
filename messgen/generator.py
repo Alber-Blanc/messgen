@@ -8,5 +8,5 @@ def get_generator(lang: str, options):
         return JsonGenerator(options)
     elif lang == "cpp":
         return CppGenerator(options)
-    elif lang == 'ts':
+    elif lang == "ts":
         return TypeScriptGenerator(options)
