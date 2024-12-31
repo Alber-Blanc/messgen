@@ -53,11 +53,7 @@ describe('Codec', () => {
         cross0: 1,
       };
 
-      const message = codec.serialize(
-        2,
-        0,
-        rawData,
-      );
+      const message = codec.serialize(2, 0, rawData);
 
       expect(codec.deserialize(2, 0, message.buffer)).toEqual(rawData);
     });
