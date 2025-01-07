@@ -1,9 +1,9 @@
 import { type RawType, type Protocol, Protocols } from './protocol';
 import { ConverterFactory } from './converters';
-import type { ExtractPayload, ProtocolMap, TypeMap } from './Codec.types';
+import type { ProtocolMap, TypeMap } from './Codec.types';
 import { Buffer } from './Buffer';
 
-export class Codec<Config extends object = object> {
+export class Codec {
   private protocolMap: ProtocolMap = new Map();
   private protocols = new Protocols();
 
@@ -24,11 +24,7 @@ export class Codec<Config extends object = object> {
     }
   }
 
-  public serialize<P extends keyof Config, T extends keyof Config[P]>(
-    protocolId: P,
-    messageId: T,
-    data: ExtractPayload<Config, P, T>,
-  ): Buffer {
+  public serialize<T = unknown>(protocolId: number, messageId: number, data: T): Buffer {
     const types = this.protocolMap.get(Number(protocolId));
     if (!types) {
       throw new Error(`Protocol not found with ID: ${protocolId as number}`);
@@ -45,11 +41,7 @@ export class Codec<Config extends object = object> {
     return buffer;
   }
 
-  public deserialize<P extends keyof Config, T extends keyof Config[P]>(
-    protocolId: P,
-    messageId: T,
-    arrayBuffer: ArrayBufferLike,
-  ): ExtractPayload<Config, P, T> {
+  public deserialize<T = unknown>(protocolId: number, messageId: number, arrayBuffer: ArrayBufferLike): T {
     const types = this.protocolMap.get(protocolId as number);
     if (!types) {
       throw new Error(`Protocol not found with ID: ${protocolId as number}`);
@@ -60,6 +52,6 @@ export class Codec<Config extends object = object> {
       throw new Error(`Converter not found for message ID: ${messageId as number}`);
     }
 
-    return converter.deserialize(new Buffer(arrayBuffer)) as ExtractPayload<Config, P, T>;
+    return converter.deserialize(new Buffer(arrayBuffer));
   }
 }
