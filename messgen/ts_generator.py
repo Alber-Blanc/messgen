@@ -70,7 +70,8 @@ class TypeScriptGenerator:
     def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
         types = set()
         code = []
-        
+        messages = []
+
         code.append("export enum Protocol {")
         for proto_def in protocols.values():
             code.append(f"  {proto_def.name.upper()} = {proto_def.proto_id},")
@@ -78,8 +79,10 @@ class TypeScriptGenerator:
         code.append("")
         
         for proto_def in protocols.values():
-            enum_name = self._to_camel_case(proto_def.name)
-            code.append(f"export enum {enum_name} {{")
+            message_enum = self._to_camel_case(proto_def.name)
+            messages.append(message_enum)
+            
+            code.append(f"export enum {message_enum} {{")
             for message in proto_def.messages.values():
                 code.append(f"  {message.name.upper()} = {message.message_id},")
             code.append("}")
@@ -91,12 +94,16 @@ class TypeScriptGenerator:
             
             for message in proto_def.messages.values():
                 ts_struct_name = self._to_camel_case(message.type)
-                code.append(f"    [{enum_name}.{message.name.upper()}]: {ts_struct_name};")
+                code.append(f"    [{message_enum}.{message.name.upper()}]: {ts_struct_name};")
                 types.add(ts_struct_name)
                 
             code.append("  }")
             code.append("}")
             code.append("")
+        
+        messages_union = " | ".join(messages)
+        code.append(f"export type Message = {messages_union};")
+        code.append("")
         
         protocol_types = " & ".join(f"{self._to_camel_case(proto_def.name)}Map" for proto_def in protocols.values())
         code.append(f"export type ProtocolMap = {protocol_types};")

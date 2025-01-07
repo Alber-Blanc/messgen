@@ -1,6 +1,6 @@
 {
   "name": "messgen",
-  "version": "0.0.10",
+  "version": "0.0.1",
   "scripts": {
     "build": "bunchee",
     "test": "vitest",
