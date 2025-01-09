@@ -130,10 +130,20 @@ class TypeScriptGenerator:
                 self._generate_struct(type_name, type_def)
             elif type_def.type_class == TypeClass.enum:
                 self._generate_enum(type_name, type_def)
-
+                
+        self._generate_type_name(types)
+        
         code = "\n".join(self._types)
-
         self._write_output_file(out_dir, self._TYPES_FILE, code)
+        
+    def _generate_type_name(self, types: dict[str, MessgenType]) -> None:
+        self._types.append("export enum TypeName {")
+        for type_name, type_def in types.items():
+            if type_def.type_class == TypeClass.struct:
+                enum_name = self._to_enum_key(type_name)
+                self._types.append(f"  {enum_name} = '{type_name}',")
+        self._types.append("}")
+        self._types.append("")
 
     def _generate_enum(self, enum_name, type_def):
         self._types.append(f"export enum {self._to_camel_case(enum_name)} {{")
@@ -141,11 +151,16 @@ class TypeScriptGenerator:
         for value in type_def.values or []:
             if value.comment != None:
                 self._types.append(f"  /** {value.comment} */")
-            value_name = self._to_camel_case(value.name)
+            value_name = self._to_enum_key(value.name)
             self._types.append(f"  {value_name.upper()} = {value.value},")
 
         self._types.append("}")
         self._types.append("")
+    
+    def _to_enum_key(self, name: str):
+        words = [word for part in name.split(SEPARATOR) for word in part.split('_')]
+        return '_'.join(word.lower() for word in words if word).upper()
+    
 
     def _generate_struct(self, name: str, type_def: MessgenType):
         self._types.append(f"export interface {self._to_camel_case(name)} {{")

@@ -1,11 +1,12 @@
 import { type RawType, type Protocol, Protocols } from './protocol';
 import { ConverterFactory } from './converters';
-import type { ProtocolMap, TypeMap } from './Codec.types';
+import type { ProtocolMap, TypeMap, TypeByName } from './Codec.types';
 import { Buffer } from './Buffer';
 
 export class Codec {
-  private protocolMap: ProtocolMap = new Map();
   private protocols = new Protocols();
+  private protocolMap: ProtocolMap = new Map();
+  private typesMap: TypeByName = new Map();
 
   constructor(rawTypes: RawType[] = [], protocols: Protocol[] = []) {
     this.protocols.load(rawTypes);
@@ -19,6 +20,7 @@ export class Codec {
         const converter = converterFactory.toConverter(typeName);
 
         typeMap.set(messageId, converter);
+        this.typesMap.set(typeName, converter);
       }
       this.protocolMap.set(protoId, typeMap);
     }
@@ -32,7 +34,7 @@ export class Codec {
 
     const converter = types.get(messageId as number);
     if (!converter) {
-      throw new Error(`Converter not found for message ID: ${messageId as number}`);
+      throw new Error(`Converter not found for message Id ${messageId as number}`);
     }
 
     const buffer = new Buffer(new ArrayBuffer(converter.size(data)));
@@ -49,7 +51,16 @@ export class Codec {
 
     const converter = types.get(messageId as number);
     if (!converter) {
-      throw new Error(`Converter not found for message ID: ${messageId as number}`);
+      throw new Error(`Converter not found for message Id: ${messageId as number}`);
+    }
+
+    return converter.deserialize(new Buffer(arrayBuffer));
+  }
+
+  public deserializeType<T = unknown>(typeName: string, arrayBuffer: ArrayBufferLike): T {
+    const converter = this.typesMap.get(typeName);
+    if (!converter) {
+      throw new Error(`Converter not found for type: ${typeName}`);
     }
 
     return converter.deserialize(new Buffer(arrayBuffer));

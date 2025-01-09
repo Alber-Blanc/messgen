@@ -106,7 +106,7 @@ export const SCALAR_TYPES = new Map<IBasicType, ScalarTypeConfig>([
     read: (v, o) => {
       const length = v.getUint32(o, IS_LITTLE_ENDIAN);
       o += 4;
-      return new Uint8Array(v.buffer, v.byteOffset + o, length);
+      return new Uint8Array(v.buffer, v.byteOffset + o, length).slice();
     },
     write: (v, o, a) => {
       const bytes = a as Uint8Array;
