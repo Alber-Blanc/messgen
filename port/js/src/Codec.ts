@@ -12,18 +12,21 @@ export class Codec {
     this.protocols.load(rawTypes);
     const converterFactory = new ConverterFactory(this.protocols);
 
-    for (const { proto_id: protoId, messages } of protocols) {
+    rawTypes.forEach(({ type: typeName }) => {
+      const converter = converterFactory.toConverter(typeName);
+      this.typesMap.set(typeName, converter);
+    });
+
+    protocols.forEach(({ proto_id: protoId, messages }) => {
       const typeMap: TypeMap = new Map();
 
       for (const message of Object.values(messages)) {
         const { message_id: messageId, type: typeName } = message;
         const converter = converterFactory.toConverter(typeName);
-
         typeMap.set(messageId, converter);
-        this.typesMap.set(typeName, converter);
       }
       this.protocolMap.set(protoId, typeMap);
-    }
+    });
   }
 
   public serialize<T = unknown>(protocolId: number, messageId: number, data: T): Buffer {
