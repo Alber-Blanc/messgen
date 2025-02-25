@@ -16,3 +16,6 @@ pythonpath = ["messgen"]
 mypy_path = ["tests/python"]
 ignore_missing_imports = true
 explicit_package_bases = true
+
+[tool.ruff]
+line-length = 150

@@ -306,3 +306,33 @@ TEST_F(CppTest, MessageConcept) {
     EXPECT_FALSE(message<int>);
     EXPECT_TRUE(message<test_proto::simple_struct_msg>);
 }
+
+TEST_F(CppTest, ProtoConcept) {
+    using namespace messgen;
+
+    struct not_a_message {};
+
+    EXPECT_FALSE(message<test::simple_struct>);
+    EXPECT_FALSE(protocol<test_proto::simple_struct_msg>);
+    EXPECT_FALSE(protocol<int>);
+    EXPECT_TRUE(protocol<test_proto>);
+}
+
+TEST_F(CppTest, ProtoHash) {
+    using namespace messgen;
+
+    auto hash_test_proto = hash_of(reflect_type<test_proto>);
+    auto hash_another_proto = hash_of<nested::another_proto>();
+    EXPECT_NE(hash_another_proto, hash_test_proto);
+
+    auto expected_hash = size_t{test_proto::PROTO_ID} ^                    //
+                         test_proto::simple_struct_msg::HASH ^             //
+                         test_proto::complex_struct_msg::HASH ^            //
+                         test_proto::var_size_struct_msg::HASH ^           //
+                         test_proto::struct_with_enum_msg::HASH ^          //
+                         test_proto::empty_struct_msg::HASH ^              //
+                         test_proto::complex_struct_with_empty_msg::HASH ^ //
+                         test_proto::complex_struct_nostl_msg::HASH ^      //
+                         test_proto::flat_struct_msg::HASH;
+    EXPECT_EQ(expected_hash, hash_test_proto);
+}

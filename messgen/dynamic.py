@@ -12,11 +12,9 @@ from .model import (
     StructType,
     TypeClass,
     VectorType,
+    hash_model_type,
 )
-from .yaml_parser import (
-    parse_protocols,
-    parse_types
-)
+from .yaml_parser import parse_protocols, parse_types
 
 STRUCT_TYPES_MAP = {
     "uint8": "B",
@@ -38,17 +36,17 @@ class MessgenError(Exception):
 
 
 class TypeConverter(ABC):
-
     def __init__(self, types: dict[str, MessgenType], type_name: str):
         self._type_name = type_name
         self._type_def = types[type_name]
         self._type_class = self._type_def.type_class
+        self._type_hash = hash_model_type(self._type_def, types)
 
     def type_name(self) -> str:
         return self._type_name
 
     def type_hash(self) -> int:
-        return hash(self._type_def)
+        return self._type_hash
 
     def serialize(self, data: dict) -> bytes:
         return self._serialize(data)
@@ -56,8 +54,7 @@ class TypeConverter(ABC):
     def deserialize(self, data: bytes) -> dict:
         msg, sz = self._deserialize(data)
         if sz != len(data):
-            raise MessgenError(
-                f"Invalid message size: expected={sz} actual={len(data)} type_name={self._type_name}")
+            raise MessgenError(f"Invalid message size: expected={sz} actual={len(data)} type_name={self._type_name}")
         return msg
 
     @abstractmethod
@@ -75,7 +72,7 @@ class ScalarConverter(TypeConverter):
         assert self._type_class == TypeClass.scalar
         self.struct_fmt = STRUCT_TYPES_MAP.get(type_name)
         if self.struct_fmt is None:
-            raise RuntimeError("Unsupported scalar type \"%s\"" % type_name)
+            raise RuntimeError('Unsupported scalar type "%s"' % type_name)
         self.struct_fmt = "<" + self.struct_fmt
         self.size = struct.calcsize(self.struct_fmt)
         self.def_value: bool | float | int = 0
@@ -88,21 +85,21 @@ class ScalarConverter(TypeConverter):
         return struct.pack(self.struct_fmt, data)
 
     def _deserialize(self, data):
-        return struct.unpack(self.struct_fmt, data[:self.size])[0], self.size
+        return struct.unpack(self.struct_fmt, data[: self.size])[0], self.size
 
     def default_value(self):
         return self.def_value
 
 
 class EnumConverter(TypeConverter):
-    def __init__(self, types: dict[str, MessgenType], type_name:str):
+    def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
         assert self._type_class == TypeClass.enum
         assert isinstance(self._type_def, EnumType)
         self.base_type = self._type_def.base_type
         self.struct_fmt = STRUCT_TYPES_MAP.get(self.base_type, None)
         if self.struct_fmt is None:
-            raise RuntimeError("Unsupported base type \"%s\" in %s" % (self.base_type, type_name))
+            raise RuntimeError('Unsupported base type "%s" in %s' % (self.base_type, type_name))
         self.struct_fmt = "<" + self.struct_fmt
         self.size = struct.calcsize(self.struct_fmt)
         self.mapping = {}
@@ -115,7 +112,7 @@ class EnumConverter(TypeConverter):
         return struct.pack(self.struct_fmt, v)
 
     def _deserialize(self, data):
-        v, = struct.unpack(self.struct_fmt, data[:self.size])
+        (v,) = struct.unpack(self.struct_fmt, data[: self.size])
         return self.mapping[v], self.size
 
     def default_value(self):
@@ -123,12 +120,11 @@ class EnumConverter(TypeConverter):
 
 
 class StructConverter(TypeConverter):
-    def __init__(self, types: dict[str, MessgenType], type_name:str):
+    def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
         assert self._type_class == TypeClass.struct
         assert isinstance(self._type_def, StructType)
-        self.fields = [(field.name, create_type_converter(types, field.type))
-                       for field in self._type_def.fields]
+        self.fields = [(field.name, create_type_converter(types, field.type)) for field in self._type_def.fields]
 
     def _serialize(self, data):
         out = []
@@ -149,12 +145,11 @@ class StructConverter(TypeConverter):
         return out, offset
 
     def default_value(self):
-        return {field_name : field_type.default_value()
-                for field_name, field_type in self.fields}
+        return {field_name: field_type.default_value() for field_name, field_type in self.fields}
 
 
 class ArrayConverter(TypeConverter):
-    def __init__(self, types: dict[str, MessgenType], type_name:str):
+    def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
         assert self._type_class == TypeClass.array
         assert isinstance(self._type_def, ArrayType)
@@ -216,7 +211,7 @@ class VectorConverter(TypeConverter):
 
 
 class MapConverter(TypeConverter):
-    def __init__(self, types: dict[str, MessgenType], type_name:str):
+    def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
         assert self._type_class == TypeClass.map
         assert isinstance(self._type_def, MapType)
@@ -250,7 +245,7 @@ class MapConverter(TypeConverter):
 
 
 class StringConverter(TypeConverter):
-    def __init__(self, types: dict[str, MessgenType], type_name:str):
+    def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
         assert self._type_class == TypeClass.string
         self.size_type = create_type_converter(types, "uint32")
@@ -262,7 +257,7 @@ class StringConverter(TypeConverter):
     def _deserialize(self, data):
         n, n_size = self.size_type._deserialize(data)
         offset = n_size
-        value = struct.unpack(self.struct_fmt % n, data[offset:offset + n])[0]
+        value = struct.unpack(self.struct_fmt % n, data[offset : offset + n])[0]
         offset += n
         return value.decode("utf-8"), offset
 
@@ -271,7 +266,7 @@ class StringConverter(TypeConverter):
 
 
 class BytesConverter(TypeConverter):
-    def __init__(self, types: dict[str, MessgenType], type_name:str):
+    def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
         assert self._type_class == TypeClass.bytes
         self.size_type = create_type_converter(types, "uint32")
@@ -283,7 +278,7 @@ class BytesConverter(TypeConverter):
     def _deserialize(self, data):
         n, n_size = self.size_type._deserialize(data)
         offset = n_size
-        value = struct.unpack(self.struct_fmt % n, data[offset:offset + n])[0]
+        value = struct.unpack(self.struct_fmt % n, data[offset : offset + n])[0]
         offset += n
         return value, offset
 
@@ -310,11 +305,10 @@ def create_type_converter(types: dict[str, MessgenType], type_name: str) -> Type
         return StringConverter(types, type_name)
     elif type_class == TypeClass.bytes:
         return BytesConverter(types, type_name)
-    raise RuntimeError("Unsupported field type class \"%s\" in %s" % (type_class, type_def.type))
+    raise RuntimeError('Unsupported field type class "%s" in %s' % (type_class, type_def.type))
 
 
 class MessageInfo:
-
     def __init__(self, proto_id: int, message_id: int, proto_name: str, message_name: str, type_converter: TypeConverter):
         self._proto_id = proto_id
         self._message_id = message_id
@@ -344,8 +338,31 @@ class MessageInfo:
         return self._type_converter
 
 
-class Codec:
+class ProtocolInfo:
+    def __init__(self, messages: list[MessageInfo]):
+        assert messages
 
+        self._proto_id = next(iter(messages)).proto_id()
+        self._proto_name = next(iter(messages)).proto_name()
+        self._messages = messages
+
+    def proto_id(self) -> int:
+        return self._proto_id
+
+    def proto_name(self) -> str:
+        return self._proto_name
+
+    def proto_hash(self) -> int:
+        hash = self.proto_id()
+        for msg in self._messages:
+            hash ^= msg.type_hash()
+        return hash
+
+    def messages(self) -> list[MessageInfo]:
+        return self._messages
+
+
+class Codec:
     def __init__(self) -> None:
         self._converters_by_name: dict[str, TypeConverter] = {}
         self._id_by_name: dict[tuple[str, str], tuple[int, int, str]] = {}
@@ -370,9 +387,31 @@ class Codec:
             return converter
         raise MessgenError(f"Unsupported type_name={type_name}")
 
+    def protocol_info_by_name(self, proto_name: str) -> ProtocolInfo:
+        messages = []
+        for p_name, message_name in self._id_by_name.keys():
+            if p_name == proto_name:
+                messages.append(self.message_info_by_name(proto_name, message_name))
+
+        if not messages:
+            raise MessgenError(f"Unsupported proto_name={proto_name}")
+
+        return ProtocolInfo(messages)
+
+    def protocol_info_by_id(self, proto_id: int) -> ProtocolInfo:
+        messages = []
+        for p_id, msg_id in self._name_by_id.keys():
+            if p_id == proto_id:
+                messages.append(self.message_info_by_id(proto_id, msg_id))
+
+        if not messages:
+            raise MessgenError(f"Unsupported proto_id={proto_id}")
+
+        return ProtocolInfo(messages)
+
     def message_info_by_id(self, proto_id: int, message_id: int) -> MessageInfo:
         key = (proto_id, message_id)
-        if not key in self._name_by_id:
+        if key not in self._name_by_id:
             raise MessgenError(f"Unsupported proto_id={proto_id} message_id={message_id}")
 
         proto_name, message_name, type_name = self._name_by_id[key]
@@ -380,7 +419,7 @@ class Codec:
 
     def message_info_by_name(self, proto_name: str, message_name: str) -> MessageInfo:
         key = (proto_name, message_name)
-        if not key in self._id_by_name:
+        if key not in self._id_by_name:
             raise MessgenError(f"Unsupported proto_name={proto_name} message_name={message_name}")
 
         proto_id, message_id, type_name = self._id_by_name[key]

@@ -26,6 +26,7 @@ from .model import (
     StructType,
     TypeClass,
     VectorType,
+    hash_model_type,
 )
 
 
@@ -43,7 +44,7 @@ def _split_last_name(type_name) -> tuple[str, str]:
 
 
 @contextmanager
-def _namespace(name: str, code:list[str]):
+def _namespace(name: str, code: list[str]):
     ns_name = None
     try:
         ns_name = _qual_name(name)
@@ -132,13 +133,13 @@ class CppGenerator:
                 continue
             file_name = out_dir / (type_name + self._EXT_HEADER)
             file_name.parent.mkdir(parents=True, exist_ok=True)
-            write_file_if_diff(file_name, self._generate_type_file(type_name, type_def))
+            write_file_if_diff(file_name, self._generate_type_file(type_name, type_def, types))
 
-    def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
+    def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol], types: dict[str, MessgenType] | None = None) -> None:
         for proto_name, proto_def in protocols.items():
             file_name = out_dir / (proto_name + self._EXT_HEADER)
             file_name.parent.mkdir(parents=True, exist_ok=True)
-            write_file_if_diff(file_name, self._generate_proto_file(proto_name, proto_def))
+            write_file_if_diff(file_name, self._generate_proto_file(proto_name, proto_def, types or {}))
 
     def _get_mode(self):
         return self._options.get("mode", "stl")
@@ -149,7 +150,7 @@ class CppGenerator:
     def _reset_file(self):
         self._includes.clear()
 
-    def _generate_type_file(self, type_name: str, type_def: MessgenType) -> list:
+    def _generate_type_file(self, type_name: str, type_def: MessgenType, types: dict[str, MessgenType]) -> list:
         print(f"Generate type: {type_name}")
         self._reset_file()
         code: list[str] = []
@@ -159,14 +160,14 @@ class CppGenerator:
                 code.extend(self._generate_type_enum(type_name, type_def))
 
             elif isinstance(type_def, StructType):
-                code.extend(self._generate_type_struct(type_name, type_def))
+                code.extend(self._generate_type_struct(type_name, type_def, types))
                 code.extend(self._generate_type_members_of(type_name, type_def))
 
         code = self._PREAMBLE_HEADER + self._generate_includes() + code
 
         return code
 
-    def _generate_proto_file(self, proto_name: str, proto_def: Protocol) -> list[str]:
+    def _generate_proto_file(self, proto_name: str, proto_def: Protocol, types: dict[str, MessgenType]) -> list[str]:
         print("Generate protocol file: %s" % proto_name)
 
         self._reset_file()
@@ -184,7 +185,6 @@ class CppGenerator:
                 proto_id = proto_def.proto_id
                 if proto_id is not None:
                     code.append(f"    constexpr static inline int PROTO_ID = {proto_id};")
-                    code.append(f"    constexpr static inline uint32_t HASH = {hash(proto_def)};")
 
                 code.extend(self._generate_messages(class_name, proto_def))
                 code.extend(self._generate_reflect_message_decl())
@@ -197,18 +197,22 @@ class CppGenerator:
 
         return self._PREAMBLE_HEADER + self._generate_includes() + code
 
-
     def _generate_messages(self, class_name: str, proto_def: Protocol):
         self._add_include("tuple")
         code: list[str] = []
         for message in proto_def.messages.values():
-            code.extend(textwrap.indent(textwrap.dedent(f"""
+            code.extend(
+                textwrap.indent(
+                    textwrap.dedent(f"""
             struct {message.name} : {_qual_name(message.type)} {{
                 using data_type = {_qual_name(message.type)};
                 using protocol_type = {class_name};
                 constexpr inline static int PROTO_ID = protocol_type::PROTO_ID;
                 constexpr inline static int MESSAGE_ID = {message.message_id};
-            }};"""), "    ").splitlines())
+            }};"""),
+                    "    ",
+                ).splitlines()
+            )
         return code
 
     def _generate_protocol_members_of(self, class_name: str, proto_def: Protocol):
@@ -217,7 +221,7 @@ class CppGenerator:
         code.append(f"[[nodiscard]] consteval auto members_of(::messgen::reflect_t<{class_name}>) noexcept {{")
         code.append("    return std::tuple{")
         for message in proto_def.messages.values():
-            code.append(f"        ::messgen::member<{class_name}, {class_name}::{message.name}>{{\"{message.name}\"}},")
+            code.append(f'        ::messgen::member<{class_name}, {class_name}::{message.name}>{{"{message.name}"}},')
         code.append("    };")
         code.append("}")
         code.append("")
@@ -225,45 +229,51 @@ class CppGenerator:
 
     @staticmethod
     def _generate_reflect_message_decl() -> list[str]:
-        return textwrap.indent(textwrap.dedent("""
+        return textwrap.indent(
+            textwrap.dedent("""
             template <class Fn>
-            constexpr static auto reflect_message(int msg_id, Fn &&fn);
-            """), "    ").splitlines()
+            constexpr static void reflect_message(int msg_id, Fn &&fn);
+            """),
+            "    ",
+        ).splitlines()
 
     @staticmethod
     def _generate_reflect_message(class_name: str, proto: Protocol) -> list[str]:
         code: list[str] = []
         code.append("template <class Fn>")
-        code.append(f"constexpr auto {class_name}::reflect_message(int msg_id, Fn &&fn) {{")
+        code.append(f"constexpr void {class_name}::reflect_message(int msg_id, Fn &&fn) {{")
         code.append("    switch (msg_id) {")
         for message in proto.messages.values():
             msg_type = f"{class_name}::{_unqual_name(message.name)}"
             code.append(f"        case {msg_type}::MESSAGE_ID:")
             code.append(f"            std::forward<Fn>(fn)(::messgen::reflect_type<{msg_type}>);")
-            code.append(f"            return;")
+            code.append("            return;")
         code.append("    }")
         code.append("}")
         return code
 
     @staticmethod
     def _generate_dispatcher_decl() -> list[str]:
-        return textwrap.indent(textwrap.dedent("""
-            template <class T>
-            constexpr static bool dispatch_message(int msg_id, const uint8_t *payload, T handler);
-            """), "    ").splitlines()
+        return textwrap.indent(
+            textwrap.dedent("""
+            template <class Fn>
+            constexpr static bool dispatch_message(int msg_id, const uint8_t *payload, Fn &&fn);
+            """),
+            "    ",
+        ).splitlines()
 
     @staticmethod
     def _generate_dispatcher(class_name: str) -> list[str]:
         return textwrap.dedent(f"""
-            template <class T>
-            constexpr bool {class_name}::dispatch_message(int msg_id, const uint8_t *payload, T handler) {{
+            template <class Fn>
+            constexpr bool {class_name}::dispatch_message(int msg_id, const uint8_t *payload, Fn &&fn) {{
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
                     using message_type = messgen::splice_t<R>;
-                    if constexpr (requires(message_type msg) {{ handler(msg); }}) {{
+                    if constexpr (requires(message_type msg) {{ std::forward<Fn>(fn).operator()(msg); }}) {{
                         auto msg = message_type{{}};
                         msg.deserialize(payload);
-                        handler(std::move(msg));
+                        std::forward<Fn>(fn).operator()(std::move(msg));
                         result = true;
                     }}
                 }});
@@ -296,7 +306,7 @@ class CppGenerator:
 
         code.append("")
         code.append(f"[[nodiscard]] inline constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
-        code.append(f"    return \"{qual_name}\";")
+        code.append(f'    return "{qual_name}";')
         code.append("}")
 
         return code
@@ -346,7 +356,7 @@ class CppGenerator:
         align = self._get_alignment(type_def)
         return offs % align == 0
 
-    def _generate_type_struct(self, type_name: str, type_def: StructType):
+    def _generate_type_struct(self, type_name: str, type_def: StructType, types: dict[str, MessgenType]):
         fields = type_def.fields
 
         self._add_include("cstddef")
@@ -361,8 +371,7 @@ class CppGenerator:
 
         groups = self._field_groups(fields)
         if len(groups) > 1 and self._all_fields_scalar(fields):
-            print("Warn: padding in '%s' after '%s' causes extra memcpy call during serialization." % (
-                type_name, groups[0].fields[0].name))
+            print("Warn: padding in '%s' after '%s' causes extra memcpy call during serialization." % (type_name, groups[0].fields[0].name))
 
         # IS_FLAT flag
         is_flat_str = "false"
@@ -372,9 +381,10 @@ class CppGenerator:
             code.append(_indent("constexpr static inline size_t FLAT_SIZE = %d;" % (0 if is_empty else groups[0].size)))
             is_flat_str = "true"
         code.append(_indent(f"constexpr static inline bool IS_FLAT = {is_flat_str};"))
-        code.append(_indent(f"constexpr static inline uint32_t HASH = {hash(type_def)};"))
-        code.append(_indent(f"constexpr static inline const char* NAME = \"{_qual_name(type_name)}\";"))
-        code.append(_indent(f"constexpr static inline const char* SCHEMA = R\"_({self._generate_schema(type_def)})_\";"))
+        if type_hash := hash_model_type(type_def, types):
+            code.append(_indent(f"constexpr static inline uint32_t HASH = {type_hash};"))
+        code.append(_indent(f'constexpr static inline const char* NAME = "{_qual_name(type_name)}";'))
+        code.append(_indent(f'constexpr static inline const char* SCHEMA = R"_({self._generate_schema(type_def)})_";'))
         code.append("")
 
         for field in type_def.fields:
@@ -384,11 +394,13 @@ class CppGenerator:
         # Serialize function
         code_ser = []
 
-        code_ser.extend([
-            "size_t _size = 0;",
-            "[[maybe_unused]] size_t _field_size;",
-            "",
-        ])
+        code_ser.extend(
+            [
+                "size_t _size = 0;",
+                "[[maybe_unused]] size_t _field_size;",
+                "",
+            ]
+        )
 
         for group in groups:
             if len(group.fields) > 1:
@@ -404,20 +416,26 @@ class CppGenerator:
             code_ser.append("")
         code_ser.append("return _size;")
 
-        code_ser = ["",
-                    "size_t serialize(uint8_t *" + ("_buf" if not is_empty else "") + ") const {",
-                    ] + _indent(code_ser) + [
-                    "}"]
+        code_ser = (
+            [
+                "",
+                "size_t serialize(uint8_t *" + ("_buf" if not is_empty else "") + ") const {",
+            ]
+            + _indent(code_ser)
+            + ["}"]
+        )
         code.extend(_indent(code_ser))
 
         # Deserialize function
         code_deser = []
 
-        code_deser.extend([
-            "size_t _size = 0;",
-            "[[maybe_unused]] size_t _field_size;",
-            "",
-        ])
+        code_deser.extend(
+            [
+                "size_t _size = 0;",
+                "[[maybe_unused]] size_t _field_size;",
+                "",
+            ]
+        )
 
         groups = self._field_groups(fields)
         for group in groups:
@@ -436,10 +454,14 @@ class CppGenerator:
         alloc = ""
         if self._get_mode() == "nostl":
             alloc = ", messgen::Allocator &_alloc"
-        code_deser = ["",
-                      "size_t deserialize(const uint8_t *" + ("_buf" if not is_empty else "") + alloc + ") {",
-                      ] + _indent(code_deser) + [
-                      "}"]
+        code_deser = (
+            [
+                "",
+                "size_t deserialize(const uint8_t *" + ("_buf" if not is_empty else "") + alloc + ") {",
+            ]
+            + _indent(code_deser)
+            + ["}"]
+        )
         code.extend(_indent(code_deser))
 
         # Size function
@@ -460,16 +482,18 @@ class CppGenerator:
 
         code_ss.append("return _size;")
 
-        code_ss = ["",
-                   "[[nodiscard]] size_t serialized_size() const {",
-                   _indent("// %s" % ", ".join(fixed_fields)),
-                   _indent("size_t _size = %d;" % fixed_size),
-                   "",
-                   ] + _indent(code_ss) + [
-                      "}"]
+        code_ss = (
+            [
+                "",
+                "[[nodiscard]] size_t serialized_size() const {",
+                _indent("// %s" % ", ".join(fixed_fields)),
+                _indent("size_t _size = %d;" % fixed_size),
+                "",
+            ]
+            + _indent(code_ss)
+            + ["}"]
+        )
         code.extend(_indent(code_ss))
-
-
 
         if self._get_cpp_standard() >= 20:
             # Operator <=>
@@ -491,12 +515,14 @@ class CppGenerator:
                 code_eq.append("return true")
             code_eq[-1] += ";"
 
-            code.extend([
-                            "",
-                            f"bool operator==(const {unqual_name}& l, const {unqual_name}& r) {{",
-                        ] + _indent(code_eq) + [
-                            "}"
-                        ])
+            code.extend(
+                [
+                    "",
+                    f"bool operator==(const {unqual_name}& l, const {unqual_name}& r) {{",
+                ]
+                + _indent(code_eq)
+                + ["}"]
+            )
 
         return code
 
@@ -511,7 +537,7 @@ class CppGenerator:
         code = []
         for inc in sorted(list(self._includes)):
             if inc[1] == "local":
-                code.append("#include \"%s\"" % inc[0])
+                code.append('#include "%s"' % inc[0])
             else:
                 code.append("#include <%s>" % inc[0])
         if len(code) > 0:
@@ -528,7 +554,7 @@ class CppGenerator:
         code.append(f"[[nodiscard]] consteval auto members_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
         code.append("    return std::tuple{")
         for field in type_def.fields:
-            code.append(f"        ::messgen::member_variable{{{{\"{field.name}\"}}, &{unqual_name}::{field.name}}},")
+            code.append(f'        ::messgen::member_variable{{{{"{field.name}"}}, &{unqual_name}::{field.name}}},')
         code.append("    };")
         code.append("}")
 
@@ -539,7 +565,6 @@ class CppGenerator:
         mode = self._get_mode()
 
         if isinstance(type_def, BasicType):
-
             if type_def.type_class == TypeClass.scalar:
                 self._add_include("cstdint")
                 return self._CPP_TYPES_MAP[type_name]
@@ -591,17 +616,14 @@ class CppGenerator:
                 raise RuntimeError("Unsupported mode for map: %s" % mode)
 
         elif isinstance(type_def, (EnumType, StructType)):
-            scope = ("global"
-                     if SEPARATOR in type_name
-                     else "local")
+            scope = "global" if SEPARATOR in type_name else "local"
             self._add_include("%s.h" % type_name, scope)
             return _qual_name(type_name)
 
         raise RuntimeError("Can't get c++ type for %s" % type_name)
 
     def _all_fields_scalar(self, fields: list[FieldType]):
-        return all(self._types[field.type].type_class != TypeClass.scalar
-                   for field in fields)
+        return all(self._types[field.type].type_class != TypeClass.scalar for field in fields)
 
     def _field_groups(self, fields):
         groups = [FieldsGroup()] if len(fields) > 0 else []
@@ -611,11 +633,7 @@ class CppGenerator:
             size = field_def.size
 
             # Check if there is padding before this field
-            if len(groups[-1].fields) > 0 and (
-                    (size is None) or
-                    (groups[-1].size is None) or
-                    (groups[-1].size % align != 0) or
-                    (size % align != 0)):
+            if len(groups[-1].fields) > 0 and ((size is None) or (groups[-1].size is None) or (groups[-1].size % align != 0) or (size % align != 0)):
                 # Start next group
                 groups.append(FieldsGroup())
 
@@ -670,10 +688,8 @@ class CppGenerator:
             key_type_def = self._types.get(field_type_def.key_type)
             value_type_def = self._types.get(field_type_def.value_type)
             c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
-            c.extend(
-                _indent(self._serialize_field("_i%d.first" % level_n, key_type_def, level_n + 1)))
-            c.extend(_indent(
-                self._serialize_field("_i%d.second" % level_n, value_type_def, level_n + 1)))
+            c.extend(_indent(self._serialize_field("_i%d.first" % level_n, key_type_def, level_n + 1)))
+            c.extend(_indent(self._serialize_field("_i%d.second" % level_n, value_type_def, level_n + 1)))
             c.append("}")
 
         elif type_class == TypeClass.string:
@@ -775,17 +791,12 @@ class CppGenerator:
             key_type_def = self._types.get(field_type_def.key_type)
             value_c_type = self._cpp_type(field_type_def.value_type)
             value_type_def = self._types.get(field_type_def.value_type)
-            c.append(
-                _indent(
-                    "for (size_t _i%d = 0; _i%d < _map_size%d; ++_i%d) {" % (level_n, level_n, level_n, level_n)))
+            c.append(_indent("for (size_t _i%d = 0; _i%d < _map_size%d; ++_i%d) {" % (level_n, level_n, level_n, level_n)))
             c.append(_indent(_indent("%s _key%d;" % (key_c_type, level_n))))
             c.append(_indent(_indent("%s _value%d;" % (value_c_type, level_n))))
             c.append("")
-            c.extend(_indent(
-                _indent(
-                    self._deserialize_field("_key%d" % level_n, key_type_def, level_n + 1))))
-            c.extend(_indent(_indent(
-                self._deserialize_field("_value%d" % level_n, value_type_def, level_n + 1))))
+            c.extend(_indent(_indent(self._deserialize_field("_key%d" % level_n, key_type_def, level_n + 1))))
+            c.extend(_indent(_indent(self._deserialize_field("_value%d" % level_n, value_type_def, level_n + 1))))
             c.append(_indent(_indent("%s[_key%d] = _value%d;" % (field_name, level_n, level_n))))
             c.append(_indent("}"))
             c.append("}")
@@ -862,13 +873,7 @@ class CppGenerator:
         return c
 
     def _memcpy_to_buf(self, src: str, size) -> list:
-        return [
-            "::memcpy(&_buf[_size], reinterpret_cast<const uint8_t *>(%s), %s);" % (src, size),
-            "_size += %s;" % size
-        ]
+        return ["::memcpy(&_buf[_size], reinterpret_cast<const uint8_t *>(%s), %s);" % (src, size), "_size += %s;" % size]
 
     def _memcpy_from_buf(self, dst: str, size) -> list:
-        return [
-            "::memcpy(reinterpret_cast<uint8_t *>(%s), &_buf[_size], %s);" % (dst, size),
-            "_size += %s;" % size
-        ]
+        return ["::memcpy(reinterpret_cast<uint8_t *>(%s), &_buf[_size], %s);" % (dst, size), "_size += %s;" % size]

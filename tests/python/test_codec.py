@@ -6,14 +6,14 @@ from messgen.dynamic import Codec
 @pytest.fixture
 def codec():
     codec_ = Codec()
-    codec_.load(type_dirs=['tests/data/types'], protocols=["tests/data/protocols:test_proto"])
+    codec_.load(type_dirs=["tests/data/types"], protocols=["tests/data/protocols:test_proto"])
     yield codec_
 
 
 @pytest.fixture
 def simple_struct():
     return {
-        "f0": 0x1234567890abcdef,
+        "f0": 0x1234567890ABCDEF,
         "f2": 1.2345678901234567890,
         "f3": 0x12345678,
         "f5": 1.2345678901234567890,
@@ -38,8 +38,8 @@ def test_serialization1(codec, simple_struct):
 def test_serialization2(codec):
     type_def = codec.type_converter("messgen/test/var_size_struct")
     expected_msg = {
-        "f0": 0x1234567890abcdef,
-        "f1_vec": [-0x1234567890abcdef, 5, 1],
+        "f0": 0x1234567890ABCDEF,
+        "f1_vec": [-0x1234567890ABCDEF, 5, 1],
         "str": "Hello messgen!",
     }
 
@@ -72,3 +72,26 @@ def test_protocol_deserialization(codec, simple_struct):
 
     for key in simple_struct:
         assert actual_msg[key] == pytest.approx(simple_struct[key])
+
+
+def test_protocol_info(codec):
+    protocol_by_name = codec.protocol_info_by_name("test_proto")
+    assert len(protocol_by_name.messages()) == 8
+    assert protocol_by_name.proto_name() == "test_proto"
+    assert protocol_by_name.proto_id() == 1
+    assert protocol_by_name.proto_hash() == (
+        protocol_by_name.proto_id()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="simple_struct_msg").type_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="complex_struct_msg").type_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="var_size_struct_msg").type_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="struct_with_enum_msg").type_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="empty_struct_msg").type_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="complex_struct_with_empty_msg").type_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="complex_struct_nostl_msg").type_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="flat_struct_msg").type_hash()
+    )
+
+    protocol_by_id = codec.protocol_info_by_name("test_proto")
+    assert protocol_by_id.proto_name() == protocol_by_name.proto_name()
+    assert protocol_by_id.proto_id() == protocol_by_name.proto_id()
+    assert protocol_by_id.proto_hash() == protocol_by_name.proto_hash()
