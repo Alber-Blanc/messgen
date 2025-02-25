@@ -81,15 +81,15 @@ def test_enum_value_hash_ignores_comment():
         comment="This is a differen comment",
     )
 
-    assert model.hash_model_type(enum_value1, types={}) == model.hash_model_type(enum_value2, types={})
+    assert model.hash_type(enum_value1, types={}) == model.hash_type(enum_value2, types={})
 
 
 def test_simple_struct_hash_ignores_field_comment(simple_struct_type):
     simple_struct, types = simple_struct_type
 
-    expected = model.hash_model_type(simple_struct, types)
+    expected = model.hash_type(simple_struct, types)
     simple_struct.fields[0].comment = "This is a modified comment"
-    actual = model.hash_model_type(simple_struct, types)
+    actual = model.hash_type(simple_struct, types)
 
     assert actual == expected
 
@@ -98,8 +98,8 @@ def test_outer_struct_hash_is_affected_by_nested_changes(nested_struct_type):
     outer_struct, types = nested_struct_type
     nested_struct = types[outer_struct.fields[0].type]
 
-    expected = model.hash_model_type(outer_struct, types)
+    expected = model.hash_type(outer_struct, types)
     nested_struct.fields[0].name += "_modified"
-    actual = model.hash_model_type(outer_struct, types)
+    actual = model.hash_type(outer_struct, types)
 
     assert actual != expected

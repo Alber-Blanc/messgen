@@ -13,13 +13,13 @@ consteval auto members_of() {
 }
 
 template <message Message>
-consteval size_t hash_of(reflect_t<Message>) {
+consteval int hash_of(reflect_t<Message>) {
     return Message::HASH;
 }
 
 template <protocol Protocol>
-consteval size_t hash_of(reflect_t<Protocol>) {
-    auto hash = size_t{Protocol::PROTO_ID};
+consteval int hash_of(reflect_t<Protocol>) {
+    auto hash = 0;
     auto combine = [&hash](auto... members) { hash ^= (hash_of(type_of(members)) ^ ...); };
     std::apply(combine, members_of(reflect_type<Protocol>));
     return hash;
@@ -27,7 +27,7 @@ consteval size_t hash_of(reflect_t<Protocol>) {
 
 template <class T>
     requires(protocol<T> || message<T>)
-consteval size_t hash_of() {
+consteval int hash_of() {
     return hash_of(reflect_type<T>);
 }
 

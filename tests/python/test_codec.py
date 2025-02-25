@@ -80,15 +80,14 @@ def test_protocol_info(codec):
     assert protocol_by_name.proto_name() == "test_proto"
     assert protocol_by_name.proto_id() == 1
     assert protocol_by_name.proto_hash() == (
-        protocol_by_name.proto_id()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="simple_struct_msg").type_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="complex_struct_msg").type_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="var_size_struct_msg").type_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="struct_with_enum_msg").type_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="empty_struct_msg").type_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="complex_struct_with_empty_msg").type_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="complex_struct_nostl_msg").type_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="flat_struct_msg").type_hash()
+        codec.message_info_by_name(proto_name="test_proto", message_name="simple_struct_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="complex_struct_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="var_size_struct_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="struct_with_enum_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="empty_struct_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="complex_struct_with_empty_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="complex_struct_nostl_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name="test_proto", message_name="flat_struct_msg").message_hash()
     )
 
     protocol_by_id = codec.protocol_info_by_name("test_proto")

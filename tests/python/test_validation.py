@@ -29,8 +29,10 @@ def test_validate_protocol_correct():
     proto = model.Protocol(
         name="test",
         proto_id=1,
-        messages={0: model.Message(message_id=0, name="some_msg", type=test_type.type, comment=""),
-                  1: model.Message(message_id=1, name="other_msg", type=test_type.type, comment="")},
+        messages={
+            0: model.Message(proto_id=1, message_id=0, name="some_msg", type=test_type.type, comment=""),
+            1: model.Message(proto_id=1, message_id=1, name="other_msg", type=test_type.type, comment=""),
+        },
     )
 
     validation.validate_protocol(protocol=proto, types={test_type.type: test_type.type})
@@ -41,8 +43,10 @@ def test_validate_protocol_id_mismatch():
     proto = model.Protocol(
         name="test",
         proto_id=1,
-        messages={0: model.Message(message_id=0, name="some_msg", type=test_type.type, comment=""),
-                  1: model.Message(message_id=0, name="other_msg", type=test_type.type, comment="")},
+        messages={
+            0: model.Message(proto_id=1, message_id=0, name="some_msg", type=test_type.type, comment=""),
+            1: model.Message(proto_id=1, message_id=0, name="other_msg", type=test_type.type, comment=""),
+        },
     )
 
     with pytest.raises(RuntimeError, match="Message other_msg has different message_id=0 than key=1 in protocol=test"):
@@ -54,7 +58,7 @@ def test_validate_protocol_missing_type():
     proto = model.Protocol(
         name="test",
         proto_id=1,
-        messages={0: model.Message(message_id=0, name="some_msg", type="types/missing", comment="")},
+        messages={0: model.Message(proto_id=1, message_id=0, name="some_msg", type="types/missing", comment="")},
     )
 
     with pytest.raises(RuntimeError, match="Type types/missing required by message=some_msg protocol=test not found"):
@@ -66,8 +70,10 @@ def test_validate_protocol_duplicated_msg_name():
     proto = model.Protocol(
         name="test",
         proto_id=1,
-        messages={0: model.Message(message_id=0, name="some_msg", type=test_type.type, comment=""),
-                  1: model.Message(message_id=1, name="some_msg", type=test_type.type, comment="")},
+        messages={
+            0: model.Message(proto_id=1, message_id=0, name="some_msg", type=test_type.type, comment=""),
+            1: model.Message(proto_id=1, message_id=1, name="some_msg", type=test_type.type, comment=""),
+        },
     )
 
     with pytest.raises(RuntimeError, match="Message with name=some_msg appears multiple times in protocol=test"):

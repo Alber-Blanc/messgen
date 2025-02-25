@@ -2,7 +2,7 @@ from typing import Any
 
 from .model import (
     EnumType,
-    hash_model_type,
+    hash_type,
     MessgenType,
     Protocol,
     StructType,
@@ -137,7 +137,7 @@ def validate_protocol(protocol: Protocol, types: dict[str, MessgenType]):
 def validate_types(types: dict[str, MessgenType]):
     seen_hashes: dict[int, Any] = {}
     for type_name, type_def in types.items():
-        type_hash = hash_model_type(type_def, types)
+        type_hash = hash_type(type_def, types)
         if not type_hash:
             continue
         if hash_conflict := seen_hashes.get(type_hash):

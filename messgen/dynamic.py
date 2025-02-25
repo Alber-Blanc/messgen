@@ -12,7 +12,9 @@ from .model import (
     StructType,
     TypeClass,
     VectorType,
-    hash_model_type,
+    Message,
+    hash_type,
+    hash_message,
 )
 from .yaml_parser import parse_protocols, parse_types
 
@@ -40,7 +42,7 @@ class TypeConverter(ABC):
         self._type_name = type_name
         self._type_def = types[type_name]
         self._type_class = self._type_def.type_class
-        self._type_hash = hash_model_type(self._type_def, types)
+        self._type_hash = hash_type(self._type_def, types)
         if not self._type_hash:
             raise MessgenError(f"Invalid type_name={type_name}")
 
@@ -312,30 +314,29 @@ def create_type_converter(types: dict[str, MessgenType], type_name: str) -> Type
 
 
 class MessageInfo:
-    def __init__(self, proto_id: int, message_id: int, proto_name: str, message_name: str, type_converter: TypeConverter):
+    def __init__(self, proto_id: int, proto_name: str, message: Message, type_converter: TypeConverter):
         self._proto_id = proto_id
-        self._message_id = message_id
         self._proto_name = proto_name
-        self._message_name = message_name
+        self._message = message
         self._type_converter = type_converter
+
+    def proto_id(self) -> int:
+        return self._message.proto_id
 
     def proto_name(self) -> str:
         return self._proto_name
 
-    def message_name(self) -> str:
-        return self._message_name
-
-    def proto_id(self) -> int:
-        return self._proto_id
-
     def message_id(self) -> int:
-        return self._message_id
+        return self._message.message_id
+
+    def message_name(self) -> str:
+        return self._message.name
+
+    def message_hash(self) -> int:
+        return hash_message(self._message) ^ self._type_converter.type_hash()
 
     def type_name(self) -> str:
         return self._type_converter.type_name()
-
-    def type_hash(self) -> int:
-        return self._type_converter.type_hash()
 
     def type_converter(self) -> TypeConverter:
         return self._type_converter
@@ -356,9 +357,9 @@ class ProtocolInfo:
         return self._proto_name
 
     def proto_hash(self) -> int:
-        hash = self.proto_id()
+        hash = 0
         for msg in self._messages:
-            hash ^= msg.type_hash()
+            hash ^= msg.message_hash()
         return hash
 
     def messages(self) -> list[MessageInfo]:
@@ -368,8 +369,8 @@ class ProtocolInfo:
 class Codec:
     def __init__(self) -> None:
         self._converters_by_name: dict[str, TypeConverter] = {}
-        self._id_by_name: dict[tuple[str, str], tuple[int, int, str]] = {}
-        self._name_by_id: dict[tuple[int, int], tuple[str, str, str]] = {}
+        self._id_by_name: dict[tuple[str, str], tuple[int, Message]] = {}
+        self._name_by_id: dict[tuple[int, int], tuple[str, Message]] = {}
 
     def load(self, type_dirs: list[str | Path], protocols: list[str] | None = None):
         parsed_types = parse_types(type_dirs)
@@ -382,8 +383,8 @@ class Codec:
         parsed_protocols = parse_protocols(protocols)
         for proto_name, proto_def in parsed_protocols.items():
             for msg_id, message in proto_def.messages.items():
-                self._id_by_name[(proto_name, message.name)] = (proto_def.proto_id, msg_id, message.type)
-                self._name_by_id[(proto_def.proto_id, msg_id)] = (proto_name, message.name, message.type)
+                self._id_by_name[(proto_name, message.name)] = (proto_def.proto_id, message)
+                self._name_by_id[(proto_def.proto_id, msg_id)] = (proto_name, message)
 
     def type_converter(self, type_name: str) -> TypeConverter:
         if converter := self._converters_by_name.get(type_name):
@@ -417,13 +418,13 @@ class Codec:
         if key not in self._name_by_id:
             raise MessgenError(f"Unsupported proto_id={proto_id} message_id={message_id}")
 
-        proto_name, message_name, type_name = self._name_by_id[key]
-        return MessageInfo(proto_id, message_id, proto_name, message_name, self._converters_by_name[type_name])
+        proto_name, message = self._name_by_id[key]
+        return MessageInfo(proto_id, proto_name, message, self._converters_by_name[message.type])
 
     def message_info_by_name(self, proto_name: str, message_name: str) -> MessageInfo:
         key = (proto_name, message_name)
         if key not in self._id_by_name:
             raise MessgenError(f"Unsupported proto_name={proto_name} message_name={message_name}")
 
-        proto_id, message_id, type_name = self._id_by_name[key]
-        return MessageInfo(proto_id, message_id, proto_name, message_name, self._converters_by_name[type_name])
+        proto_id, message = self._id_by_name[key]
+        return MessageInfo(proto_id, proto_name, message, self._converters_by_name[message.type])

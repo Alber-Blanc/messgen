@@ -75,16 +75,22 @@ def _parse_protocol(protocol_file: Path) -> Protocol:
 
 
 def _get_protocol(proto_name, protocol_desc: dict[str, Any]) -> Protocol:
-    return Protocol(name=proto_name,
-                    proto_id=int(protocol_desc["proto_id"]),
-                    messages={msg_id: _get_message_type(msg_id, msg) for msg_id, msg in protocol_desc.get("messages", {}).items()})
+    proto_id = int(protocol_desc["proto_id"])
+    return Protocol(
+        name=proto_name,
+        proto_id=proto_id,
+        messages={msg_id: _get_message_type(proto_id, msg_id, msg) for msg_id, msg in protocol_desc.get("messages", {}).items()},
+    )
 
 
-def _get_message_type(msg_id: int, message_desc: dict[str, Any]) -> Message:
-    return Message(message_id=msg_id,
-                   name=message_desc["name"],
-                   type=message_desc["type"],
-                   comment=message_desc.get("comment"))
+def _get_message_type(proto_id: int, msg_id: int, message_desc: dict[str, Any]) -> Message:
+    return Message(
+        proto_id=proto_id,
+        message_id=msg_id,
+        name=message_desc["name"],
+        type=message_desc["type"],
+        comment=message_desc.get("comment"),
+    )
 
 
 def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType]:
@@ -102,18 +108,12 @@ def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType]:
                 type_descriptors[_type_name(type_file, base_dir)] = item
 
     type_dependencies: set[str] = set()
-    parsed_types = {
-        type_name: _get_type(type_name, type_descriptors, type_dependencies)
-        for type_name in type_descriptors
-    }
+    parsed_types = {type_name: _get_type(type_name, type_descriptors, type_dependencies) for type_name in type_descriptors}
 
     ignore_dependencies: set[str] = set()
     type_dependencies -= set(parsed_types.keys())
 
-    parsed_types.update({
-        type_name: _get_type(type_name, type_descriptors, ignore_dependencies)
-        for type_name in type_dependencies
-    })
+    parsed_types.update({type_name: _get_type(type_name, type_descriptors, ignore_dependencies) for type_name in type_dependencies})
 
     return parsed_types
 
@@ -155,15 +155,19 @@ def _get_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_
 
 
 def _get_scalar_type(type_name: str, scalar_type: dict[str, Any]) -> BasicType:
-        return BasicType(type=type_name,
-                         type_class=TypeClass.scalar,
-                         size=scalar_type["size"])
+    return BasicType(
+        type=type_name,
+        type_class=TypeClass.scalar,
+        size=scalar_type["size"],
+    )
 
 
 def _get_basic_type(type_name: str) -> BasicType:
-        return BasicType(type=type_name,
-                         type_class=TypeClass[type_name],
-                         size=None)
+    return BasicType(
+        type=type_name,
+        type_class=TypeClass[type_name],
+        size=None,
+    )
 
 
 def _get_vector_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> VectorType:
@@ -172,10 +176,12 @@ def _get_vector_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
     element_type = type_name[:-2]
     type_dependencies.add(_get_dependency_type(type_name, element_type, type_descriptors, type_dependencies)[0])
 
-    return VectorType(type=type_name,
-                      type_class=TypeClass.vector,
-                      element_type=element_type,
-                      size=None)
+    return VectorType(
+        type=type_name,
+        type_class=TypeClass.vector,
+        element_type=element_type,
+        size=None,
+    )
 
 
 def _get_array_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> ArrayType:
@@ -187,11 +193,13 @@ def _get_array_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
     if array_size > 0x10000:
         print("Warn: %s array size is too large and may cause SIGSEGV on init" % type_name)
 
-    res = ArrayType(type=type_name,
-                    type_class=TypeClass.array,
-                    element_type=element_type,
-                    array_size=array_size,
-                    size=None)
+    res = ArrayType(
+        type=type_name,
+        type_class=TypeClass.array,
+        element_type=element_type,
+        array_size=array_size,
+        size=None,
+    )
 
     element_type_def = _get_type(element_type, type_descriptors, type_dependencies)
     assert element_type_def
@@ -211,50 +219,51 @@ def _get_map_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], t
     type_dependencies.add(_get_dependency_type(type_name, key_type, type_descriptors, type_dependencies)[0])
     type_dependencies.add(_get_dependency_type(type_name, value_type, type_descriptors, type_dependencies)[0])
 
-    return MapType(type=type_name,
-                    type_class=TypeClass.map,
-                    key_type=key_type,
-                    value_type=value_type,
-                    size=None)
+    return MapType(
+        type=type_name,
+        type_class=TypeClass.map,
+        key_type=key_type,
+        value_type=value_type,
+        size=None,
+    )
 
 
 def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> EnumType:
     type_desc = type_descriptors.get(type_name)
     assert type_desc
 
-    base_type = type_desc.get("base_type", '')
+    base_type = type_desc.get("base_type", "")
 
     if base_type:
         type_dependencies.add(_get_dependency_type(type_name, base_type, type_descriptors, type_dependencies)[0])
         dependency = _get_type(base_type, type_descriptors, type_dependencies)
         assert dependency
 
-    values = [ EnumValue(name=item.get("name"),
-                         value=item.get("value"),
-                         comment=item.get("comment"))
-               for item in type_desc.get("values", {}) ]
+    values = [EnumValue(name=item.get("name"), value=item.get("value"), comment=item.get("comment")) for item in type_desc.get("values", {})]
 
-    return EnumType(type=type_name,
-                    type_class=TypeClass.enum,
-                    base_type=base_type,
-                    comment=type_desc.get("comment"),
-                    values=values,
-                    size=dependency.size or _SCALAR_TYPES_INFO["int"]["size"])
+    return EnumType(
+        type=type_name,
+        type_class=TypeClass.enum,
+        base_type=base_type,
+        comment=type_desc.get("comment"),
+        values=values,
+        size=dependency.size or _SCALAR_TYPES_INFO["int"]["size"],
+    )
 
 
 def _get_struct_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> StructType:
     type_desc = type_descriptors[type_name]
     type_class = type_desc.get("type_class")
 
-    struct_type = StructType(type=type_name,
-                             type_class=TypeClass.struct,
-                             comment=type_desc.get("comment"),
-                             fields=[],
-                             size=None)
+    struct_type = StructType(
+        type=type_name,
+        type_class=TypeClass.struct,
+        comment=type_desc.get("comment"),
+        fields=[],
+        size=None,
+    )
 
-    fields = (type_desc.get("fields", [])
-              if isinstance(type_desc.get("fields"), list)
-              else [])
+    fields = type_desc.get("fields", []) if isinstance(type_desc.get("fields"), list) else []
 
     sz = 0
     fixed_size = True
@@ -285,7 +294,9 @@ def _get_struct_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
     return struct_type
 
 
-def _get_dependency_type(type_name: str, dependency_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> tuple[str, MessgenType]:
+def _get_dependency_type(
+    type_name: str, dependency_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]
+) -> tuple[str, MessgenType]:
     if dependency := _value_or_none(_get_type, dependency_name, type_descriptors, type_dependencies):
         return dependency_name, dependency
 

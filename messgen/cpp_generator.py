@@ -26,7 +26,8 @@ from .model import (
     StructType,
     TypeClass,
     VectorType,
-    hash_model_type,
+    hash_message,
+    hash_type,
 )
 
 
@@ -209,6 +210,7 @@ class CppGenerator:
                 using protocol_type = {class_name};
                 constexpr inline static int PROTO_ID = protocol_type::PROTO_ID;
                 constexpr inline static int MESSAGE_ID = {message.message_id};
+                constexpr inline static int HASH = {hash_message(message)} ^ data_type::HASH;
             }};"""),
                     "    ",
                 ).splitlines()
@@ -381,8 +383,8 @@ class CppGenerator:
             code.append(_indent("constexpr static inline size_t FLAT_SIZE = %d;" % (0 if is_empty else groups[0].size)))
             is_flat_str = "true"
         code.append(_indent(f"constexpr static inline bool IS_FLAT = {is_flat_str};"))
-        if type_hash := hash_model_type(type_def, types):
-            code.append(_indent(f"constexpr static inline uint32_t HASH = {type_hash};"))
+        if type_hash := hash_type(type_def, types):
+            code.append(_indent(f"constexpr static inline int HASH = {type_hash};"))
         code.append(_indent(f'constexpr static inline const char* NAME = "{_qual_name(type_name)}";'))
         code.append(_indent(f'constexpr static inline const char* SCHEMA = R"_({self._generate_schema(type_def)})_";'))
         code.append("")

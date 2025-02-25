@@ -119,6 +119,7 @@ MessgenType = Union[
 
 @dataclass
 class Message:
+    proto_id: int
     message_id: int
     name: str
     type: str
@@ -141,29 +142,36 @@ class Protocol:
 def hash_bytes(payload: bytes) -> int:
     hash_object = hashlib.md5(payload)
     hex_digest = hash_object.hexdigest()
-    hash_32_bits = int(hex_digest[:8], 16)
+    hash_32_bits = int(hex_digest[:8], 16) >> 1
     return hash_32_bits
 
 
-def hash_model_type(dt: MessgenType | Message | Protocol, types: dict[str, MessgenType]) -> int | None:
-    def to_bytes(value: int) -> bytes:
-        return value.to_bytes((value.bit_length() + 7) // 8, byteorder="big")
-
+def hash_dataclass(dt) -> int:
     type_dict = asdict(dt)
     _remove_keys(type_dict, "comment")
-    combined_bytes = json.dumps(type_dict).replace(" ", "").encode()
+    return hash_bytes(json.dumps(sorted(type_dict.items()), separators=(",", ":")).encode())
+
+
+def hash_type(dt: MessgenType, types: dict[str, MessgenType]) -> int | None:
+    type_dict = asdict(dt)
+    _remove_keys(type_dict, "comment")
+    combined_hash = hash_bytes(json.dumps(sorted(type_dict.items()), separators=(",", ":")).encode())
 
     for dependency in dt.dependencies():
         if dependency not in types:
             return None
 
-        dependency_hash = hash_model_type(types[dependency], types)
+        dependency_hash = hash_type(types[dependency], types)
         if dependency_hash is None:
             return None
 
-        combined_bytes += to_bytes(dependency_hash)
+        combined_hash ^= dependency_hash
 
-    return hash_bytes(combined_bytes)
+    return combined_hash
+
+
+def hash_message(dt: Message) -> int:
+    return hash_dataclass(dt)
 
 
 def _remove_keys(container: dict | list, key: str):

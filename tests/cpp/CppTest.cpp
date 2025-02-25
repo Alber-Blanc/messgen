@@ -325,8 +325,7 @@ TEST_F(CppTest, ProtoHash) {
     auto hash_another_proto = hash_of<nested::another_proto>();
     EXPECT_NE(hash_another_proto, hash_test_proto);
 
-    auto expected_hash = size_t{test_proto::PROTO_ID} ^                    //
-                         test_proto::simple_struct_msg::HASH ^             //
+    auto expected_hash = test_proto::simple_struct_msg::HASH ^             //
                          test_proto::complex_struct_msg::HASH ^            //
                          test_proto::var_size_struct_msg::HASH ^           //
                          test_proto::struct_with_enum_msg::HASH ^          //
