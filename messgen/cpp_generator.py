@@ -135,11 +135,11 @@ class CppGenerator:
             file_name.parent.mkdir(parents=True, exist_ok=True)
             write_file_if_diff(file_name, self._generate_type_file(type_name, type_def, types))
 
-    def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol], types: dict[str, MessgenType] | None = None) -> None:
+    def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
         for proto_name, proto_def in protocols.items():
             file_name = out_dir / (proto_name + self._EXT_HEADER)
             file_name.parent.mkdir(parents=True, exist_ok=True)
-            write_file_if_diff(file_name, self._generate_proto_file(proto_name, proto_def, types or {}))
+            write_file_if_diff(file_name, self._generate_proto_file(proto_name, proto_def))
 
     def _get_mode(self):
         return self._options.get("mode", "stl")
@@ -167,7 +167,7 @@ class CppGenerator:
 
         return code
 
-    def _generate_proto_file(self, proto_name: str, proto_def: Protocol, types: dict[str, MessgenType]) -> list[str]:
+    def _generate_proto_file(self, proto_name: str, proto_def: Protocol) -> list[str]:
         print("Generate protocol file: %s" % proto_name)
 
         self._reset_file()

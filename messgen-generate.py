@@ -35,7 +35,7 @@ def generate(args: argparse.Namespace):
             gen.generate_types(Path(args.outdir), parsed_types)
 
         if parsed_protocols:
-            gen.generate_protocols(Path(args.outdir), parsed_protocols, parsed_types)
+            gen.generate_protocols(Path(args.outdir), parsed_protocols)
 
     else:
         raise RuntimeError('Unsupported language "%s"' % args.lang)
