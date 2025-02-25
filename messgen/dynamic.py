@@ -41,11 +41,14 @@ class TypeConverter(ABC):
         self._type_def = types[type_name]
         self._type_class = self._type_def.type_class
         self._type_hash = hash_model_type(self._type_def, types)
+        if not self._type_hash:
+            raise MessgenError(f"Invalid type_name={type_name}")
 
     def type_name(self) -> str:
         return self._type_name
 
     def type_hash(self) -> int:
+        assert self._type_hash
         return self._type_hash
 
     def serialize(self, data: dict) -> bytes:
