@@ -11,9 +11,15 @@ namespace messgen {
  */
 class Allocator {
 public:
-    Allocator() noexcept: _ptr(nullptr), _size(0) {}
+    Allocator() noexcept
+        : _ptr(nullptr),
+          _size(0) {
+    }
 
-    Allocator(uint8_t *ptr, size_t size) noexcept: _ptr(ptr), _size(size) {}
+    Allocator(uint8_t *ptr, size_t size) noexcept
+        : _ptr(ptr),
+          _size(size) {
+    }
 
     /**
      * @brief Allocates memory for num objects of type T
@@ -21,7 +27,7 @@ public:
      * @param num   -   number of objects
      * @return pointer to allocated memory or nullptr if not enough memory
      */
-    template<class T>
+    template <class T>
     T *alloc(size_t n) noexcept {
         if (n == 0) {
             return reinterpret_cast<T *>(_ptr);
@@ -30,7 +36,7 @@ public:
         const size_t alloc_size = sizeof(T) * n;
         if (align(alignof(T), alloc_size, _ptr, _size)) {
             T *ptr = reinterpret_cast<T *>(_ptr);
-            _ptr = (uint8_t *) _ptr + alloc_size;
+            _ptr = (uint8_t *)_ptr + alloc_size;
             _size -= alloc_size;
 
             return ptr;
@@ -70,11 +76,12 @@ private:
  * @warning Each parse call on this class will clear memory, so if you want to do multiple parse calls
  *          store it into temporary MemoryAllocator& variable.
  */
-template<size_t MEM_SIZE>
+template <size_t MEM_SIZE>
 class StaticAllocator {
 public:
-    explicit StaticAllocator() noexcept:
-            _alloc(_memory, MEM_SIZE) {}
+    explicit StaticAllocator() noexcept
+        : _alloc(_memory, MEM_SIZE) {
+    }
 
     operator Allocator &() noexcept {
         return get();
@@ -90,4 +97,4 @@ private:
     Allocator _alloc;
 };
 
-}
+} // namespace messgen
