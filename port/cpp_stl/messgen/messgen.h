@@ -20,7 +20,7 @@ consteval int hash_of(reflect_t<Message>) {
 template <protocol Protocol>
 consteval int hash_of(reflect_t<Protocol>) {
     auto hash = 0;
-    auto combine = [&hash](auto... members) { hash ^= (hash_of(type_of(members)) ^ ...); };
+    auto combine = [&hash](auto... members) { hash = (hash_of(type_of(members)) ^ ...); };
     std::apply(combine, members_of(reflect_type<Protocol>));
     return hash;
 }
