@@ -139,23 +139,8 @@ class Protocol:
         return {message.type for message in self.messages.values()}
 
 
-def hash_bytes(payload: bytes) -> int:
-    hash_object = hashlib.md5(payload)
-    hex_digest = hash_object.hexdigest()
-    hash_32_bits = int(hex_digest[:8], 16) >> 1
-    return hash_32_bits
-
-
-def hash_dataclass(dt) -> int:
-    type_dict = asdict(dt)
-    _remove_keys(type_dict, "comment")
-    return hash_bytes(json.dumps(sorted(type_dict.items()), separators=(",", ":")).encode())
-
-
 def hash_type(dt: MessgenType, types: dict[str, MessgenType]) -> int | None:
-    type_dict = asdict(dt)
-    _remove_keys(type_dict, "comment")
-    combined_hash = hash_bytes(json.dumps(sorted(type_dict.items()), separators=(",", ":")).encode())
+    combined_hash = _hash_dataclass(dt)
 
     for dependency in dt.dependencies():
         if dependency not in types:
@@ -171,7 +156,20 @@ def hash_type(dt: MessgenType, types: dict[str, MessgenType]) -> int | None:
 
 
 def hash_message(dt: Message) -> int:
-    return hash_dataclass(dt)
+    return _hash_dataclass(dt)
+
+
+def _hash_dataclass(dt) -> int:
+    type_dict = asdict(dt)
+    _remove_keys(type_dict, "comment")
+    return _hash_bytes(json.dumps(sorted(type_dict.items()), separators=(",", ":")).encode())
+
+
+def _hash_bytes(payload: bytes) -> int:
+    hash_object = hashlib.md5(payload)
+    hex_digest = hash_object.hexdigest()
+    hash_32_bits = int(hex_digest[:8], 16) >> 1
+    return hash_32_bits
 
 
 def _remove_keys(container: dict | list, key: str):
