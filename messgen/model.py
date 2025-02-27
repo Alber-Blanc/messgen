@@ -168,6 +168,7 @@ def _hash_dataclass(dt) -> int:
 def _hash_bytes(payload: bytes) -> int:
     hash_object = hashlib.md5(payload)
     hex_digest = hash_object.hexdigest()
+    # shift to avoid negative values
     hash_32_bits = int(hex_digest[:8], 16) >> 1
     return hash_32_bits
 

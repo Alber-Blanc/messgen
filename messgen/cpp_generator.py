@@ -185,7 +185,7 @@ class CppGenerator:
 
                 proto_id = proto_def.proto_id
                 if proto_id is not None:
-                    code.append(f"    constexpr static inline int PROTO_ID = {proto_id};")
+                    code.append(f"    constexpr static inline int16_t PROTO_ID = {proto_id};")
 
                 code.extend(self._generate_messages(class_name, proto_def))
                 code.extend(self._generate_reflect_message_decl())
@@ -208,9 +208,9 @@ class CppGenerator:
             struct {message.name} : {_qual_name(message.type)} {{
                 using data_type = {_qual_name(message.type)};
                 using protocol_type = {class_name};
-                constexpr inline static int PROTO_ID = protocol_type::PROTO_ID;
-                constexpr inline static int MESSAGE_ID = {message.message_id};
-                constexpr inline static int HASH = {hash_message(message)} ^ data_type::HASH;
+                constexpr inline static int16_t PROTO_ID = protocol_type::PROTO_ID;
+                constexpr inline static int16_t MESSAGE_ID = {message.message_id};
+                constexpr inline static int32_t HASH = {hash_message(message)} ^ data_type::HASH;
             }};"""),
                     "    ",
                 ).splitlines()
@@ -234,7 +234,7 @@ class CppGenerator:
         return textwrap.indent(
             textwrap.dedent("""
             template <class Fn>
-            constexpr static void reflect_message(int msg_id, Fn &&fn);
+            constexpr static void reflect_message(int16_t msg_id, Fn &&fn);
             """),
             "    ",
         ).splitlines()
@@ -243,7 +243,7 @@ class CppGenerator:
     def _generate_reflect_message(class_name: str, proto: Protocol) -> list[str]:
         code: list[str] = []
         code.append("template <class Fn>")
-        code.append(f"constexpr void {class_name}::reflect_message(int msg_id, Fn &&fn) {{")
+        code.append(f"constexpr void {class_name}::reflect_message(int16_t msg_id, Fn &&fn) {{")
         code.append("    switch (msg_id) {")
         for message in proto.messages.values():
             msg_type = f"{class_name}::{_unqual_name(message.name)}"
@@ -259,7 +259,7 @@ class CppGenerator:
         return textwrap.indent(
             textwrap.dedent("""
             template <class Fn>
-            constexpr static bool dispatch_message(int msg_id, const uint8_t *payload, Fn &&fn);
+            constexpr static bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn);
             """),
             "    ",
         ).splitlines()
@@ -268,7 +268,7 @@ class CppGenerator:
     def _generate_dispatcher(class_name: str) -> list[str]:
         return textwrap.dedent(f"""
             template <class Fn>
-            constexpr bool {class_name}::dispatch_message(int msg_id, const uint8_t *payload, Fn &&fn) {{
+            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn) {{
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
                     using message_type = messgen::splice_t<R>;
@@ -384,7 +384,7 @@ class CppGenerator:
             is_flat_str = "true"
         code.append(_indent(f"constexpr static inline bool IS_FLAT = {is_flat_str};"))
         if type_hash := hash_type(type_def, types):
-            code.append(_indent(f"constexpr static inline int HASH = {type_hash};"))
+            code.append(_indent(f"constexpr static inline int32_t HASH = {type_hash};"))
         code.append(_indent(f'constexpr static inline const char* NAME = "{_qual_name(type_name)}";'))
         code.append(_indent(f'constexpr static inline const char* SCHEMA = R"_({self._generate_schema(type_def)})_";'))
         code.append("")
