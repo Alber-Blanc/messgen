@@ -334,5 +334,5 @@ TEST_F(CppTest, ProtoHash) {
                          test_proto::complex_struct_nostl_msg::HASH ^      //
                          test_proto::flat_struct_msg::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
-    EXPECT_EQ(1805099730, hash_test_proto);
+    EXPECT_EQ(15505688617215257648ULL, hash_test_proto);
 }

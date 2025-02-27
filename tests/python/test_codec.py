@@ -94,4 +94,4 @@ def test_protocol_info(codec):
     assert protocol_by_id.proto_name() == protocol_by_name.proto_name()
     assert protocol_by_id.proto_id() == protocol_by_name.proto_id()
     assert protocol_by_id.proto_hash() == protocol_by_name.proto_hash()
-    assert protocol_by_id.proto_hash() == 1805099730
+    assert protocol_by_id.proto_hash() == 15505688617215257648
