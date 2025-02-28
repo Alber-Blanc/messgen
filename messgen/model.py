@@ -1,6 +1,5 @@
 import hashlib
 import json
-import struct
 
 from dataclasses import dataclass, asdict
 from enum import Enum, auto
