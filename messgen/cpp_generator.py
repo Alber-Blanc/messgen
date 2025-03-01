@@ -1,5 +1,4 @@
 import json
-import os
 import textwrap
 
 from contextlib import contextmanager
