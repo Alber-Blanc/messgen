@@ -204,13 +204,13 @@ class CppGenerator:
             code.extend(
                 textwrap.indent(
                     textwrap.dedent(f"""
-            struct {message.name} : {_qual_name(message.type)} {{
-                using data_type = {_qual_name(message.type)};
-                using protocol_type = {class_name};
-                constexpr inline static int16_t PROTO_ID = protocol_type::PROTO_ID;
-                constexpr inline static int16_t MESSAGE_ID = {message.message_id};
-                constexpr inline static uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
-            }};"""),
+                        struct {message.name} : {_qual_name(message.type)} {{
+                            using data_type = {_qual_name(message.type)};
+                            using protocol_type = {class_name};
+                            constexpr inline static int16_t PROTO_ID = protocol_type::PROTO_ID;
+                            constexpr inline static int16_t MESSAGE_ID = {message.message_id};
+                            constexpr inline static uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
+                        }};"""),
                     "    ",
                 ).splitlines()
             )
@@ -232,9 +232,9 @@ class CppGenerator:
     def _generate_reflect_message_decl() -> list[str]:
         return textwrap.indent(
             textwrap.dedent("""
-            template <class Fn>
-            constexpr static void reflect_message(int16_t msg_id, Fn &&fn);
-            """),
+                template <class Fn>
+                constexpr static void reflect_message(int16_t msg_id, Fn &&fn);
+                """),
             "    ",
         ).splitlines()
 
@@ -306,9 +306,12 @@ class CppGenerator:
         code.append("};")
 
         code.append("")
-        code.append(f"[[nodiscard]] inline constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
-        code.append(f'    return "{qual_name}";')
-        code.append("}")
+        code.extend(
+            textwrap.dedent(f"""
+                [[nodiscard]] inline constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                    return "{qual_name}";
+                }}""").splitlines()
+        )
 
         code.append("")
         code.append(f"[[nodiscard]] consteval auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
