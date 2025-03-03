@@ -310,6 +310,14 @@ class CppGenerator:
         code.append(f'    return "{qual_name}";')
         code.append("}")
 
+        code.append("")
+        code.append(f"[[nodiscard]] consteval auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
+        code.append("    return std::tuple{")
+        for enum_value in type_def.values:
+            code.append(f'        ::messgen::enumerator_value{{{{"{enum_value.name}"}}, {unqual_name}::{enum_value.name}}},')
+        code.append("    };")
+        code.append("}")
+
         return code
 
     def _get_alignment(self, type_def: MessgenType):
