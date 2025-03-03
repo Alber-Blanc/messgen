@@ -305,10 +305,9 @@ class CppGenerator:
             code.append("    %s = %s,%s" % (enum_value.name, enum_value.value, _inline_comment(enum_value)))
         code.append("};")
 
-        code.append("")
         code.extend(
             textwrap.dedent(f"""
-                [[nodiscard]] inline constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
                     return "{qual_name}";
                 }}""").splitlines()
         )
