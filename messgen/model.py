@@ -6,14 +6,6 @@ from enum import Enum, auto
 from typing import Union
 
 
-def _hash_model_type(dt) -> int:
-    input_string = json.dumps(asdict(dt)).replace(" ", "")
-    hash_object = hashlib.md5(input_string.encode())
-    hex_digest = hash_object.hexdigest()
-    hash_32_bits = int(hex_digest[:8], 16)
-    return hash_32_bits
-
-
 class TypeClass(str, Enum):
     scalar = auto()
     string = auto()
@@ -31,8 +23,8 @@ class BasicType:
     type_class: TypeClass
     size: int | None
 
-    def __hash__(self):
-        return _hash_model_type(self)
+    def dependencies(self) -> set[str]:
+        return set()
 
 
 @dataclass
@@ -43,8 +35,8 @@ class ArrayType:
     array_size: int
     size: int | None
 
-    def __hash__(self):
-        return _hash_model_type(self)
+    def dependencies(self) -> set[str]:
+        return {self.element_type}
 
 
 @dataclass
@@ -54,8 +46,8 @@ class VectorType:
     element_type: str
     size: None
 
-    def __hash__(self):
-        return _hash_model_type(self)
+    def dependencies(self) -> set[str]:
+        return {self.element_type}
 
 
 @dataclass
@@ -66,8 +58,8 @@ class MapType:
     value_type: str
     size: None
 
-    def __hash__(self):
-        return _hash_model_type(self)
+    def dependencies(self) -> set[str]:
+        return {self.key_type, self.value_type}
 
 
 @dataclass
@@ -76,8 +68,8 @@ class EnumValue:
     value: int
     comment: str
 
-    def __hash__(self):
-        return _hash_model_type(self)
+    def dependencies(self) -> set[str]:
+        return set()
 
 
 @dataclass
@@ -89,8 +81,8 @@ class EnumType:
     values: list[EnumValue]
     size: int
 
-    def __hash__(self):
-        return _hash_model_type(self)
+    def dependencies(self) -> set[str]:
+        return set()
 
 
 @dataclass
@@ -99,8 +91,8 @@ class FieldType:
     type: str
     comment: str | None
 
-    def __hash__(self):
-        return _hash_model_type(self)
+    def dependencies(self) -> set[str]:
+        return set()
 
 
 @dataclass
@@ -111,8 +103,8 @@ class StructType:
     fields: list[FieldType]
     size: int | None
 
-    def __hash__(self):
-        return _hash_model_type(self)
+    def dependencies(self) -> set[str]:
+        return {field.type for field in self.fields}
 
 
 MessgenType = Union[
@@ -127,13 +119,14 @@ MessgenType = Union[
 
 @dataclass
 class Message:
+    proto_id: int
     message_id: int
     name: str
     type: str
     comment: str | None
 
-    def __hash__(self):
-        return _hash_model_type(self)
+    def dependencies(self) -> set[str]:
+        return set()
 
 
 @dataclass
@@ -142,5 +135,46 @@ class Protocol:
     proto_id: int
     messages: dict[int, Message]
 
-    def __hash__(self):
-        return _hash_model_type(self)
+    def dependencies(self) -> set[str]:
+        return {message.type for message in self.messages.values()}
+
+
+def hash_type(dt: MessgenType, types: dict[str, MessgenType]) -> int | None:
+    combined_hash = _hash_dataclass(dt)
+
+    for dependency in dt.dependencies():
+        if dependency not in types:
+            return None
+
+        dependency_hash = hash_type(types[dependency], types)
+        if dependency_hash is None:
+            return None
+
+        combined_hash ^= dependency_hash
+
+    return combined_hash
+
+
+def hash_message(dt: Message) -> int:
+    return _hash_dataclass(dt)
+
+
+def _hash_dataclass(dt) -> int:
+    type_dict = asdict(dt)
+    _remove_keys(type_dict, "comment")
+    return _hash_bytes(json.dumps(sorted(type_dict.items()), separators=(",", ":")).encode())
+
+
+def _hash_bytes(payload: bytes) -> int:
+    hash_object = hashlib.md5(payload)
+    return int.from_bytes(hash_object.digest()[:8], byteorder="big", signed=False)
+
+
+def _remove_keys(container: dict | list, key: str):
+    if isinstance(container, dict):
+        container.pop(key, None)
+        for k, v in container.items():
+            _remove_keys(v, key)
+    elif isinstance(container, list):
+        for item in container:
+            _remove_keys(item, key)

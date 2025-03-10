@@ -4,7 +4,6 @@
 #include <messgen/test/var_size_struct.h>
 #include <messgen/test/empty_struct.h>
 #include <messgen/test/flat_struct.h>
-
 #include <gtest/gtest.h>
 
 class CppNostlTest : public ::testing::Test {

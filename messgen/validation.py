@@ -2,6 +2,7 @@ from typing import Any
 
 from .model import (
     EnumType,
+    hash_type,
     MessgenType,
     Protocol,
     StructType,
@@ -136,7 +137,9 @@ def validate_protocol(protocol: Protocol, types: dict[str, MessgenType]):
 def validate_types(types: dict[str, MessgenType]):
     seen_hashes: dict[int, Any] = {}
     for type_name, type_def in types.items():
-        type_hash = hash(type_def)
+        type_hash = hash_type(type_def, types)
+        if not type_hash:
+            continue
         if hash_conflict := seen_hashes.get(type_hash):
             raise RuntimeError(f"Type {type_name} has the same hash as {hash_conflict.type}")
         seen_hashes[type_hash] = type_def
@@ -147,10 +150,10 @@ def is_valid_name(name: str):
     if not isinstance(name, str) or not name:
         return False
 
-    if not (name[0].isalpha() or name[0] == '_'):
+    if not (name[0].isalpha() or name[0] == "_"):
         return False
 
-    if not all(c.isalnum() or c == '_' for c in name[1:]):
+    if not all(c.isalnum() or c == "_" for c in name[1:]):
         return False
 
     if name in _CPP_KEYWORDS:

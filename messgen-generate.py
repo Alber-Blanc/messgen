@@ -38,15 +38,15 @@ def generate(args: argparse.Namespace):
             gen.generate_protocols(Path(args.outdir), parsed_protocols)
 
     else:
-        raise RuntimeError("Unsupported language \"%s\"" % args.lang)
+        raise RuntimeError('Unsupported language "%s"' % args.lang)
 
     print("Successfully generated to %s" % args.outdir)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--types", action='append', help="Type directory to load, may repeat")
-    parser.add_argument("--protocol", action='append', help="Protocol to load in format /path/of/basedir:namespace/of/proto, may repeat")
+    parser.add_argument("--types", action="append", help="Type directory to load, may repeat")
+    parser.add_argument("--protocol", action="append", help="Protocol to load in format /path/of/basedir:namespace/of/proto, may repeat")
     parser.add_argument("--lang", required=True, help="Output language")
     parser.add_argument("--outdir", required=True, help="Output directory")
     parser.add_argument("--options", default="", help="Generator options")

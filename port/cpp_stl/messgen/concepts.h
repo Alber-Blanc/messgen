@@ -6,6 +6,15 @@
 #include <type_traits>
 
 namespace messgen {
+namespace detail {
+
+struct noop_fn {
+    template <typename T>
+    void operator()(T) const noexcept {
+    }
+};
+
+} // namespace detail
 
 template <class Type>
 concept serializable = requires(std::remove_cvref_t<Type> msg, uint8_t *buf) {
@@ -28,6 +37,13 @@ template <class Message>
 concept message = type<typename std::remove_cvref_t<Message>::data_type> && requires(std::remove_cvref_t<Message> msg) {
     { msg.PROTO_ID } -> std::convertible_to<int>;
     { msg.MESSAGE_ID } -> std::convertible_to<int>;
+};
+
+template <class Protocol>
+concept protocol = requires(std::remove_cvref_t<Protocol> proto, int msg_id, const uint8_t *payload, detail::noop_fn fn) {
+    { proto.PROTO_ID } -> std::convertible_to<int>;
+    { proto.reflect_message(msg_id, fn) } -> std::same_as<void>;
+    { proto.dispatch_message(msg_id, payload, fn) } -> std::same_as<bool>;
 };
 
 } // namespace messgen
