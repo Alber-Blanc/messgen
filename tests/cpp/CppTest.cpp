@@ -247,6 +247,7 @@ TEST_F(CppTest, MessageReflectionFieldTypes) {
 
 TEST_F(CppTest, EnumReflection) {
     using namespace messgen;
+    using namespace std::literals;
 
     auto enum_name = messgen::name_of(messgen::reflect_type<messgen::test::simple_enum>);
     EXPECT_STREQ(enum_name.data(), "messgen::test::simple_enum");
@@ -255,10 +256,14 @@ TEST_F(CppTest, EnumReflection) {
 
     EXPECT_STREQ(std::get<0>(enums).name, "one_value");
     EXPECT_EQ(std::get<0>(enums).value, messgen::test::simple_enum{0});
+
+    EXPECT_EQ(name_of(std::get<0>(enums)), "one_value"sv);
     EXPECT_EQ(value_of(std::get<0>(enums)), messgen::test::simple_enum{0});
 
     EXPECT_STREQ(std::get<1>(enums).name, "another_value");
     EXPECT_EQ(std::get<1>(enums).value, messgen::test::simple_enum{1});
+
+    EXPECT_EQ(name_of(std::get<1>(enums)), "another_value"sv);
     EXPECT_EQ(value_of(std::get<1>(enums)), messgen::test::simple_enum{1});
 }
 
