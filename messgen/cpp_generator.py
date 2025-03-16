@@ -128,6 +128,15 @@ class CppGenerator:
 
     def generate_types(self, out_dir: Path, types: dict[str, MessgenType]) -> None:
         self._types = types
+        # Workaround #8: it is possible that set of type generated has no any uint32 field
+        # but contains some variable-length types. In a such case code below requires 
+        # SIZE_TYPE(uint32) descriptor which is not in _types as not used in schemas
+        if SIZE_TYPE not in self._types:
+            self._types[SIZE_TYPE] = BasicType(
+                type=SIZE_TYPE,
+                type_class=TypeClass.scalar,
+                size=4,
+            )
         for type_name, type_def in types.items():
             if type_def.type_class not in [TypeClass.struct, TypeClass.enum]:
                 continue
