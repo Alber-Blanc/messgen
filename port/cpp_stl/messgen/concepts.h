@@ -1,5 +1,7 @@
 #pragma once
 
+#include "reflection.h"
+
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -9,12 +11,17 @@ namespace messgen {
 namespace detail {
 
 struct noop_fn {
-    template <typename T>
+    template <class T>
     void operator()(T) const noexcept {
     }
 };
 
 } // namespace detail
+
+template <class T>
+concept enumaration = std::is_enum_v<T> && requires(T t) {
+    { enumerators_of(messgen::reflect_object(t)) };
+};
 
 template <class Type>
 concept serializable = requires(std::remove_cvref_t<Type> msg, uint8_t *buf) {
