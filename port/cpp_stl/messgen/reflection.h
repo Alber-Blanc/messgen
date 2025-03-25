@@ -33,8 +33,17 @@ struct member {
     const char *name;
 };
 
+template <class T>
+struct enumerator_value : member<T, T> {
+    T value;
+};
+
+template <class T>
+enumerator_value(const char *, T) -> enumerator_value<T>;
+
 template <class C, class M>
 struct member_variable : member<C, M> {
+    using member<C, M>::name;
     M C::*ptr;
 };
 
@@ -45,6 +54,11 @@ template <class S, class C, class M>
     requires std::same_as<std::remove_cvref_t<S>, std::remove_cvref_t<C>>
 [[nodiscard]] constexpr decltype(auto) value_of(S &&obj, const member_variable<C, M> &m) noexcept {
     return std::forward<S>(obj).*m.ptr;
+}
+
+template <class E>
+[[nodiscard]] constexpr decltype(auto) value_of(const enumerator_value<E> &e) noexcept {
+    return e.value;
 }
 
 template <class C, class M>
