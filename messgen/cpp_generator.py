@@ -71,10 +71,9 @@ def _struct(name: str, code: list[str]):
 
 
 def _inline_comment(type_def: FieldType | EnumValue):
-    try:
-        return "  ///< %s" % type_def.comment
-    finally:
-        return ""
+    if type_def.comment:
+        return " ///< %s" % type_def.comment
+    return ""
 
 
 def _indent(c):
