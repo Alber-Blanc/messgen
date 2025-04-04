@@ -1,3 +1,21 @@
+[project]
+name = "messgen"
+description = "Cross language serialization cod generator"
+dynamic = ["version"]
+authors = [
+    {name = "Anton Babushkin", email = "anton.babushkin@alberblanc.com"},
+    {name = "Adam Lach", email = "adam.lach@alberblanc.com"},
+    {name = "Philipp Andronov", email = "philip.andronov@alberblanc.com"},
+]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = ["pyyaml"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["messgen"]
+exclude = []
+
 [tool.pylint.master]
 disable = ["C0114", "C0115", "C0116"]
 
@@ -19,3 +37,4 @@ explicit_package_bases = true
 
 [tool.ruff]
 line-length = 150
+
