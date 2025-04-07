@@ -209,6 +209,7 @@ class CppGenerator:
                             constexpr inline static int16_t PROTO_ID = protocol_type::PROTO_ID;
                             constexpr inline static int16_t MESSAGE_ID = {message.message_id};
                             constexpr inline static uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
+                            constexpr inline static const char* NAME = "{_qual_name(class_name)}::{message.name}";
                         }};"""),
                     "    ",
                 ).splitlines()
@@ -392,9 +393,9 @@ class CppGenerator:
             is_flat_str = "true"
         code.append(_indent(f"constexpr static inline bool IS_FLAT = {is_flat_str};"))
         if type_hash := hash_type(type_def, types):
-            code.append(_indent(f"constexpr static inline uint64_t HASH = {type_hash}ULL;"))
-        code.append(_indent(f'constexpr static inline const char* NAME = "{_qual_name(type_name)}";'))
-        code.append(_indent(f'constexpr static inline const char* SCHEMA = R"_({self._generate_schema(type_def)})_";'))
+            code.append(_indent(f"constexpr inline static uint64_t HASH = {type_hash}ULL;"))
+        code.append(_indent(f'constexpr inline static const char* NAME = "{_qual_name(type_name)}";'))
+        code.append(_indent(f'constexpr inline static const char* SCHEMA = R"_({self._generate_schema(type_def)})_";'))
         code.append("")
 
         for field in type_def.fields:

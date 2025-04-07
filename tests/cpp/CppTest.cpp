@@ -245,6 +245,13 @@ TEST_F(CppTest, MessageReflectionFieldTypes) {
     EXPECT_EQ(expected_types, types);
 }
 
+TEST_F(CppTest, MessageReflection) {
+    using namespace messgen;
+
+    auto message = test_proto::complex_struct_msg{};
+    EXPECT_EQ("test_proto::complex_struct_msg", name_of(reflect_object(message)));
+}
+
 TEST_F(CppTest, EnumReflection) {
     using namespace messgen;
     using namespace std::literals;
