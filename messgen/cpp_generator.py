@@ -203,13 +203,18 @@ class CppGenerator:
             code.extend(
                 textwrap.indent(
                     textwrap.dedent(f"""
-                        struct {message.name} : {_qual_name(message.type)} {{
+                        struct {message.name} {{
                             using data_type = {_qual_name(message.type)};
                             using protocol_type = {class_name};
+
                             constexpr inline static int16_t PROTO_ID = protocol_type::PROTO_ID;
                             constexpr inline static int16_t MESSAGE_ID = {message.message_id};
                             constexpr inline static uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
                             constexpr inline static const char* NAME = "{_qual_name(class_name)}::{message.name}";
+
+                            auto operator<=>(const {message.name} &) const = default;
+
+                            data_type data;
                         }};"""),
                     "    ",
                 ).splitlines()
@@ -273,7 +278,7 @@ class CppGenerator:
                     using message_type = messgen::splice_t<R>;
                     if constexpr (requires(message_type msg) {{ std::forward<Fn>(fn).operator()(msg); }}) {{
                         auto msg = message_type{{}};
-                        msg.deserialize(payload);
+                        msg.data.deserialize(payload);
                         std::forward<Fn>(fn).operator()(std::move(msg));
                         result = true;
                     }}

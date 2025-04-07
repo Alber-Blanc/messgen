@@ -60,7 +60,7 @@ TEST_F(CppTest, SimpleStruct) {
         .f8 = 9,
     }};
 
-    test_serialization(msg);
+    test_serialization(msg.data);
 }
 
 TEST_F(CppTest, StructWithEnum) {
@@ -289,8 +289,8 @@ TEST_F(CppTest, DispatchMessage) {
         using ActualType = std::decay_t<decltype(actual)>;
 
         if constexpr (std::is_same_v<ActualType, test_proto::simple_struct_msg>) {
-            EXPECT_EQ(expected.f0, actual.f0);
-            EXPECT_EQ(expected.f1, actual.f1);
+            EXPECT_EQ(expected.f0, actual.data.f0);
+            EXPECT_EQ(expected.f1, actual.data.f1);
             invoked = true;
         } else {
             FAIL() << "Unexpected message type handled.";
@@ -308,7 +308,7 @@ TEST_F(CppTest, TypeConcept) {
     struct not_a_message {};
 
     EXPECT_TRUE(type<test::simple_struct>);
-    EXPECT_TRUE(type<test_proto::simple_struct_msg>);
+    EXPECT_FALSE(type<test_proto::simple_struct_msg>);
     EXPECT_FALSE(type<not_a_message>);
     EXPECT_FALSE(type<int>);
 }
