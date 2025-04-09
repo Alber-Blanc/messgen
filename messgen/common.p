@@ -23,7 +23,6 @@ from .model import (
     MessgenType,
     Protocol,
     StructType,
-    ExternalType,
     TypeClass,
     VectorType,
     hash_message,
@@ -186,7 +185,7 @@ class CppGenerator:
                 if proto_id is not None:
                     code.append(f"    constexpr static inline int16_t PROTO_ID = {proto_id};")
 
-                code.extend(self._generate_messages(proto_name, class_name, proto_def))
+                code.extend(self._generate_messages(namespace_name, class_name, proto_def))
                 code.extend(self._generate_reflect_message_decl())
                 code.extend(self._generate_dispatcher_decl())
 
@@ -197,7 +196,7 @@ class CppGenerator:
 
         return self._PREAMBLE_HEADER + self._generate_includes() + code
 
-    def _generate_messages(self, proto_name: str, class_name: str, proto_def: Protocol):
+    def _generate_messages(self, namespace_name: str, class_name: str, proto_def: Protocol):
         self._add_include("tuple")
         code: list[str] = []
         for message in proto_def.messages.values():
@@ -211,7 +210,7 @@ class CppGenerator:
                             constexpr inline static int16_t PROTO_ID = protocol_type::PROTO_ID;
                             constexpr inline static int16_t MESSAGE_ID = {message.message_id};
                             constexpr inline static uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
-                            constexpr inline static const char* NAME = "{_qual_name(proto_name)}::{message.name}";
+                            constexpr inline static const char* NAME = "{namespace_name}::{message.name}";
 
                             auto operator<=>(const {message.name} &) const = default;
 
@@ -348,10 +347,6 @@ class CppGenerator:
                 if a > a_max:
                     a_max = a
             return a_max
-
-        elif isinstance(type_def, ExternalType):
-            # Worst cast assumption about alignment of external type
-            return 8
 
         elif isinstance(type_def, ArrayType):
             # Alignment of array is equal to alignment of element
@@ -641,12 +636,6 @@ class CppGenerator:
             self._add_include("%s.h" % type_name, scope)
             return _qual_name(type_name)
 
-        elif isinstance(type_def, (ExternalType)):
-            scope = "global" if SEPARATOR in type_name else "local"
-            assert scope == "global", "External type must be in global scope"
-            self._add_include("%s.h" % type_name, scope)
-            return _qual_name(type_name)
-
         raise RuntimeError("Can't get c++ type for %s" % type_name)
 
     def _all_fields_scalar(self, fields: list[FieldType]):
@@ -686,7 +675,7 @@ class CppGenerator:
             c.append("*reinterpret_cast<%s *>(&_buf[_size]) = %s;" % (c_type, field_name))
             c.append("_size += %s;" % size)
 
-        elif type_class in [TypeClass.struct, TypeClass.external]:
+        elif type_class == TypeClass.struct:
             c.append("_size += %s.serialize(&_buf[_size]);" % field_name)
 
         elif type_class in [TypeClass.array, TypeClass.vector]:
@@ -749,7 +738,7 @@ class CppGenerator:
             c.append("%s = *reinterpret_cast<const %s *>(&_buf[_size]);" % (field_name, c_type))
             c.append("_size += %s;" % size)
 
-        elif type_class in [TypeClass.struct, TypeClass.external]:
+        elif type_class == TypeClass.struct:
             alloc = ""
             if mode == "nostl":
                 alloc = ", _alloc"
@@ -857,7 +846,7 @@ class CppGenerator:
             size = field_type_def.size
             c.append("_size += %d;" % size)
 
-        elif type_class in [TypeClass.struct, TypeClass.external]:
+        elif type_class == TypeClass.struct:
             c.append("_size += %s.serialized_size();" % field_name)
 
         elif type_class in [TypeClass.array, TypeClass.vector]:

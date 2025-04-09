@@ -44,6 +44,7 @@ template <class Message>
 concept message = type<typename std::remove_cvref_t<Message>::data_type> && requires(std::remove_cvref_t<Message> msg) {
     { msg.PROTO_ID } -> std::convertible_to<int>;
     { msg.MESSAGE_ID } -> std::convertible_to<int>;
+    { msg.data } -> std::convertible_to<typename std::remove_cvref_t<Message>::data_type>;
 };
 
 template <class Protocol>
