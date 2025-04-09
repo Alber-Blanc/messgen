@@ -185,7 +185,7 @@ class CppGenerator:
                 if proto_id is not None:
                     code.append(f"    constexpr static inline int16_t PROTO_ID = {proto_id};")
 
-                code.extend(self._generate_messages(proto_name, class_name, proto_def))
+                code.extend(self._generate_messages(namespace_name, class_name, proto_def))
                 code.extend(self._generate_reflect_message_decl())
                 code.extend(self._generate_dispatcher_decl())
 
@@ -196,7 +196,7 @@ class CppGenerator:
 
         return self._PREAMBLE_HEADER + self._generate_includes() + code
 
-    def _generate_messages(self, proto_name: str, class_name: str, proto_def: Protocol):
+    def _generate_messages(self, namespace_name: str, class_name: str, proto_def: Protocol):
         self._add_include("tuple")
         code: list[str] = []
         for message in proto_def.messages.values():
@@ -210,7 +210,7 @@ class CppGenerator:
                             constexpr inline static int16_t PROTO_ID = protocol_type::PROTO_ID;
                             constexpr inline static int16_t MESSAGE_ID = {message.message_id};
                             constexpr inline static uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
-                            constexpr inline static const char* NAME = "{_qual_name(proto_name)}::{message.name}";
+                            constexpr inline static const char* NAME = "{namespace_name}::{message.name}";
 
                             auto operator<=>(const {message.name} &) const = default;
 
