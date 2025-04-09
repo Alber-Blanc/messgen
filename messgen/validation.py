@@ -172,5 +172,5 @@ def validate_type_dict(item_name: str, item: dict[str, StructType | EnumType]) -
     if "type_class" not in item:
         raise RuntimeError("type_class missing in '%s': %s" % (item_name, item))
 
-    if (type_class := item.get("type_class")) not in ["struct", "enum"]:
+    if (type_class := item.get("type_class")) not in ["struct", "enum", "external"]:
         raise RuntimeError("type_class '%s' in '%s' is not supported %s" % (type_class, item_name, item))

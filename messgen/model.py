@@ -15,6 +15,7 @@ class TypeClass(str, Enum):
     map = auto()
     enum = auto()
     struct = auto()
+    external = auto()
 
 
 @dataclass
@@ -105,6 +106,17 @@ class StructType:
 
     def dependencies(self) -> set[str]:
         return {field.type for field in self.fields}
+
+
+@dataclass
+class ExternalType:
+    type: str
+    type_class: TypeClass
+    comment: str | None
+    size: int | None
+
+    def dependencies(self) -> set[str]:
+        return set()
 
 
 MessgenType = Union[
