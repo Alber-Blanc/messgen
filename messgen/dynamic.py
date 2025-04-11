@@ -1,8 +1,15 @@
 import struct
 
-from functools import singledispatchmethod
-from abc import ABC, abstractmethod
-from pathlib import Path
+from abc import (
+    ABC,
+    abstractmethod,
+)
+from decimal import (
+    Decimal,
+)
+from pathlib import (
+    Path,
+)
 
 from .model import (
     ArrayType,
@@ -16,7 +23,10 @@ from .model import (
     hash_type,
     hash_message,
 )
-from .yaml_parser import parse_protocols, parse_types
+from .yaml_parser import (
+    parse_protocols,
+    parse_types,
+)
 
 STRUCT_TYPES_MAP = {
     "uint8": "B",
@@ -31,6 +41,100 @@ STRUCT_TYPES_MAP = {
     "float64": "d",
     "bool": "?",
 }
+
+
+def _bid64_to_decimal(byte_data: bytes) -> Decimal:
+    def _digits_of(n) -> tuple:
+        if n == 0:
+            return (0,)
+
+        result = []
+        while n > 0:
+            n, remainder = divmod(n, 10)
+            result.append(remainder)
+
+        return tuple(reversed(result))
+
+    # Convert bytes to 64-bit integer
+    bits = int.from_bytes(byte_data, byteorder="big")
+
+    # Extract sign bit (bit 63)
+    sign = bits >> 63
+
+    # Extract combination field (bits 58-62) an clear sign
+    combination = (bits >> 58) & 0b11111
+
+    # Check for special values (NaN, Infinity)
+    if combination >= 0b11110:
+        if combination == 0b11110:
+            return Decimal("Infinity") if sign == 0 else Decimal("-Infinity")
+        else:
+            return Decimal("NaN")
+
+    # Extract exponent information
+    if (combination >> 3) == 0b11:  # If bits 62-61 are '11'
+        coefficient_bits = 51
+        coefficient_implicit_prefix = 0b100
+    else:  # All other combination field values
+        coefficient_bits = 53
+        coefficient_implicit_prefix = 0
+
+    exponent_bias = 398
+    exponent_mask = (1 << 10) - 1  # 10 bits
+    exponent = ((bits >> coefficient_bits) & exponent_mask) - exponent_bias
+
+    coefficient = coefficient_implicit_prefix | bits & ((1 << coefficient_bits) - 1)
+
+    return Decimal((sign, _digits_of(coefficient), exponent))
+
+
+def _decimal_to_bid64(value: Decimal) -> bytes:
+    # Handle special values
+    if value.is_nan():
+        return int(0b11111 << 58).to_bytes(8, byteorder="big")
+
+    if value.is_infinite():
+        sign_bit = 1 if value < 0 else 0
+        return int((sign_bit << 63) | (0b11110 << 58)).to_bytes(8, byteorder="big")
+
+    # Extract components from Decimal
+    sign, digits, exponent = value.as_tuple()
+    assert isinstance(exponent, int)
+
+    # Convert digits to coefficient
+    coefficient = 0
+    for digit in digits:
+        coefficient = coefficient * 10 + digit
+
+    # Check if within range
+    if coefficient > ((1 << 54) - 1):
+        raise ValueError(f"Coefficient too large for BID64: {coefficient}")
+
+    bits = sign
+
+    # Determine encoding format based on coefficient size
+    if coefficient > ((1 << 53) - 1):
+        coefficient_bits = 51
+        bits << 2
+        bits |= 0b11  # Top 2 bits of combination field
+
+    else:
+        coefficient_bits = 53
+
+    # Apply exponent bias
+    bits << 10
+    exponent_bias = 398
+    bits |= exponent + exponent_bias
+
+    # Apply the coefficient
+    bits << coefficient_bits
+    bits |= coefficient & ((1 << coefficient_bits) - 1)
+
+    return bits.to_bytes(8, byteorder="big")
+
+
+# 0000 0000 0000 0100 0110 0010 1101 0101 0011 1100 1000 1010 1011 1011 1100 0100  (000462d53c8abbc4)
+# 0011 0000 1000 0100 0110 0010 1101 0101 0011 1100 1000 1010 1011 1010 1100 0000  (308462d53c8abac0)
 
 
 class MessgenError(Exception):

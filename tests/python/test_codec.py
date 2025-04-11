@@ -1,6 +1,14 @@
 import pytest
 
-from messgen.dynamic import Codec
+from decimal import (
+    Decimal,
+)
+
+from messgen.dynamic import (
+    Codec,
+    _bid64_to_decimal,
+    _decimal_to_bid64,
+)
 
 
 @pytest.fixture
@@ -51,11 +59,17 @@ def test_serialization2(codec):
 
 
 def test_protocol_deserialization(codec, simple_struct):
-    message_info_by_name = codec.message_info_by_name(proto_name="test_proto", message_name="simple_struct_msg")
+    message_info_by_name = codec.message_info_by_name(
+        proto_name="test_proto",
+        message_name="simple_struct_msg",
+    )
     expected_bytes = message_info_by_name.type_converter().serialize(simple_struct)
     assert expected_bytes
 
-    message_info_by_id = codec.message_info_by_id(proto_id=message_info_by_name.proto_id(), message_id=message_info_by_name.message_id())
+    message_info_by_id = codec.message_info_by_id(
+        proto_id=message_info_by_name.proto_id(),
+        message_id=message_info_by_name.message_id(),
+    )
     actual_msg = message_info_by_id.type_converter().deserialize(expected_bytes)
 
     assert message_info_by_name.proto_id() == 1
@@ -95,3 +109,64 @@ def test_protocol_info(codec):
     assert protocol_by_id.proto_id() == protocol_by_name.proto_id()
     assert protocol_by_id.proto_hash() == protocol_by_name.proto_hash()
     assert protocol_by_id.proto_hash() == 15505688617215257648
+
+
+def test_decimal_decoding():
+    assert _bid64_to_decimal(bytes.fromhex("308462d53c8abac0")) == Decimal("123456.7890123456")
+    assert _bid64_to_decimal(bytes.fromhex("31c0000000000001")) == Decimal("1")
+    assert _bid64_to_decimal(bytes.fromhex("31c000000000007b")) == Decimal("123")
+    assert _bid64_to_decimal(bytes.fromhex("318000000000007b")) == Decimal("1.23")
+    assert _bid64_to_decimal(bytes.fromhex("320000000000007b")) == Decimal("12300")
+    assert _bid64_to_decimal(bytes.fromhex("b1c000000000007b")) == Decimal("-123")
+    assert _bid64_to_decimal(bytes.fromhex("b1a000000000007b")) == Decimal("-12.3")
+    assert _bid64_to_decimal(bytes.fromhex("31c0000000000000")) == Decimal("0")
+    assert _bid64_to_decimal(bytes.fromhex("3e40000000000000")) == Decimal("0")
+    assert _bid64_to_decimal(bytes.fromhex("2540000000000000")) == Decimal("0")
+    assert _bid64_to_decimal(bytes.fromhex("31c000000098967f")) == Decimal("9999999")
+    assert _bid64_to_decimal(bytes.fromhex("2e40000000000001")) == Decimal("0.0000000000000000000000000001")
+    assert _bid64_to_decimal(bytes.fromhex("3540000000000009")) == Decimal("90000000000000000000000000000")
+    assert _bid64_to_decimal(bytes.fromhex("2fe38d7ea4c67fff")) == Decimal("0.999999999999999")
+    assert _bid64_to_decimal(bytes.fromhex("31a0000000000005")) == Decimal("0.5")
+    assert _bid64_to_decimal(bytes.fromhex("318000000000000f")) == Decimal("0.15")
+    assert _bid64_to_decimal(bytes.fromhex("316000000000007d")) == Decimal("0.125")
+    assert _bid64_to_decimal(bytes.fromhex("316000000000007e")) == Decimal("0.126")
+    assert _bid64_to_decimal(bytes.fromhex("7800000000000000")) == Decimal("Infinity")
+    assert _bid64_to_decimal(bytes.fromhex("f800000000000000")) == Decimal("-Infinity")
+    assert _bid64_to_decimal(bytes.fromhex("0000000000000000")) == Decimal("0")
+    assert _bid64_to_decimal(bytes.fromhex("2e00000000000001")) == Decimal("0.000000000000000000000000000001")
+    assert _bid64_to_decimal(bytes.fromhex("3d0000000098967f")) == Decimal("9.999999e+96")
+    assert _bid64_to_decimal(bytes.fromhex("256000000098967f")) == Decimal("9.999999e-93")
+    assert _bid64_to_decimal(bytes.fromhex("31a0000000000005")) == Decimal("0.5")
+    assert _bid64_to_decimal(bytes.fromhex("3100000000000001")) == Decimal("0.000001")
+    assert _bid64_to_decimal(bytes.fromhex("6c7386f26fc0ffff")) == Decimal("992800745259007")
+    assert _bid64_to_decimal(bytes.fromhex("5fe05af3107a4000")) == Decimal("1e+383")
+    assert _bid64_to_decimal(bytes.fromhex("7800000000000000")) == Decimal("Infinity")
+    assert _bid64_to_decimal(bytes.fromhex("607b86f26fc0ffff")) == Decimal("9.92800745259007E-369")
+
+
+def test_decimal_encoding():
+    assert bytes.fromhex("308462d53c8abac0") == _decimal_to_bid64(Decimal("123456.7890123456"))
+    assert bytes.fromhex("31c0000000000001") == _decimal_to_bid64(Decimal("1"))
+    assert bytes.fromhex("31c000000000007b") == _decimal_to_bid64(Decimal("123"))
+    assert bytes.fromhex("318000000000007b") == _decimal_to_bid64(Decimal("1.23"))
+    assert bytes.fromhex("320000000000007b") == _decimal_to_bid64(Decimal("12300"))
+    assert bytes.fromhex("b1c000000000007b") == _decimal_to_bid64(Decimal("-123"))
+    assert bytes.fromhex("b1a000000000007b") == _decimal_to_bid64(Decimal("-12.3"))
+    assert bytes.fromhex("31c0000000000000") == _decimal_to_bid64(Decimal("0"))
+    assert bytes.fromhex("31c000000098967f") == _decimal_to_bid64(Decimal("9999999"))
+    assert bytes.fromhex("2e40000000000001") == _decimal_to_bid64(Decimal("0.0000000000000000000000000001"))
+    assert bytes.fromhex("3540000000000009") == _decimal_to_bid64(Decimal("90000000000000000000000000000"))
+    assert bytes.fromhex("2fe38d7ea4c67fff") == _decimal_to_bid64(Decimal("0.999999999999999"))
+    assert bytes.fromhex("31a0000000000005") == _decimal_to_bid64(Decimal("0.5"))
+    assert bytes.fromhex("318000000000000f") == _decimal_to_bid64(Decimal("0.15"))
+    assert bytes.fromhex("316000000000007d") == _decimal_to_bid64(Decimal("0.125"))
+    assert bytes.fromhex("316000000000007e") == _decimal_to_bid64(Decimal("0.126"))
+    assert bytes.fromhex("7800000000000000") == _decimal_to_bid64(Decimal("Infinity"))
+    assert bytes.fromhex("f800000000000000") == _decimal_to_bid64(Decimal("-Infinity"))
+    assert bytes.fromhex("2e00000000000001") == _decimal_to_bid64(Decimal("0.000000000000000000000000000001"))
+    assert bytes.fromhex("3d0000000098967f") == _decimal_to_bid64(Decimal("9.999999e+96"))
+    assert bytes.fromhex("256000000098967f") == _decimal_to_bid64(Decimal("9.999999e-93"))
+    assert bytes.fromhex("3100000000000001") == _decimal_to_bid64(Decimal("0.000001"))
+    assert bytes.fromhex("31dfffffffffffff") == _decimal_to_bid64(Decimal("9007199254740991"))
+    assert bytes.fromhex("5fe05af3107a4000") == _decimal_to_bid64(Decimal("1e+383"))
+    assert bytes.fromhex("607b86f26fc0ffff") == _decimal_to_bid64(Decimal("9.92800745259007E-369"))
