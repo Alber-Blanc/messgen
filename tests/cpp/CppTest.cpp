@@ -6,6 +6,7 @@
 #include <messgen/test/flat_struct.h>
 #include <messgen/test/struct_with_enum.h>
 #include <messgen/test/var_size_struct.h>
+#include <messgen/test/name_clash_struct.h>
 
 #include <gtest/gtest.h>
 

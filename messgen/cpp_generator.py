@@ -212,7 +212,7 @@ class CppGenerator:
                             constexpr inline static uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
                             constexpr inline static const char* NAME = "{_qual_name(proto_name)}::{message.name}";
 
-                            auto operator<=>(const {message.name} &) const = default;
+                            auto operator<=>(const struct {message.name} &) const = default;
 
                             data_type data;
                         }};"""),
@@ -514,7 +514,7 @@ class CppGenerator:
         if self._get_cpp_standard() >= 20:
             # Operator <=>
             code.append("")
-            code.append(_indent("auto operator<=>(const %s &) const = default;" % unqual_name))
+            code.append(_indent("auto operator<=>(const struct %s &) const = default;" % unqual_name))
 
         code.append("};")
 
@@ -534,7 +534,7 @@ class CppGenerator:
             code.extend(
                 [
                     "",
-                    f"bool operator==(const {unqual_name}& l, const {unqual_name}& r) {{",
+                    f"bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{",
                 ]
                 + _indent(code_eq)
                 + ["}"]
