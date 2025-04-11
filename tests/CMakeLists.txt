@@ -13,6 +13,10 @@ messgen_add_proto_library(msgs_another_proto "${MESSGEN_PROTO_DIR}" "nested/anot
 target_link_libraries(test_cpp gtest msgs_test_proto msgs_another_proto GTest::gtest_main)
 gtest_discover_tests(test_cpp)
 
+add_executable(test_decimal "cpp/DecimalTest.cpp")
+target_link_libraries(test_decimal gtest GTest::gtest_main)
+gtest_discover_tests(test_decimal)
+
 add_executable(test_cpp_nostl "cpp/CppNostlTest.cpp")
 messgen_add_types_library(msgs_test_types_nostl "${MESSGEN_TYPE_DIR}" "nostl" "cpp_standard=20")
 messgen_add_proto_library(msgs_test_proto_nostl "${MESSGEN_PROTO_DIR}" "test_proto" msgs_test_types_nostl)
