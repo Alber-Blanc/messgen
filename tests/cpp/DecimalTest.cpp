@@ -211,7 +211,9 @@ TEST_F(CppDecimalTest, MakeDecimal) {
     // Boundary Cases
     EXPECT_EQ("0x6c7386f26fc0ffff", decimal_to_hex(std::decimal::make_decimal64(9999999999999999LL, 0)));
     EXPECT_EQ("0x77fb86f26fc0ffff", decimal_to_hex(std::decimal::make_decimal64(9999999999999999LL, 369)));
+    EXPECT_EQ("0x7800000000000000", decimal_to_hex(std::decimal::make_decimal64(999999999999999999LL, 369)));
     EXPECT_EQ("0x7800000000000000", decimal_to_hex(std::decimal::make_decimal64(9999999999999999LL, 370)));
+    EXPECT_EQ("0xf800000000000000", decimal_to_hex(std::decimal::make_decimal64(-9999999999999999LL, 370)));
     EXPECT_EQ("0x600386f26fc0ffff", decimal_to_hex(std::decimal::make_decimal64(9999999999999999LL, -398)));
     EXPECT_EQ("0xe00386f26fc0ffff", decimal_to_hex(std::decimal::make_decimal64(-9999999999999999LL, -398)));
     EXPECT_EQ("0x0000000000000000", decimal_to_hex(std::decimal::make_decimal64(9999999999999999LL, -399)));

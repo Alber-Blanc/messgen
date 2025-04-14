@@ -15,10 +15,21 @@ class TypeClass(str, Enum):
     map = auto()
     enum = auto()
     struct = auto()
+    decimal = auto()
 
 
 @dataclass
 class BasicType:
+    type: str
+    type_class: TypeClass
+    size: int | None
+
+    def dependencies(self) -> set[str]:
+        return set()
+
+
+@dataclass
+class DecimalType:
     type: str
     type_class: TypeClass
     size: int | None

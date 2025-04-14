@@ -8,6 +8,7 @@ from .common import SEPARATOR
 from .model import (
     ArrayType,
     BasicType,
+    DecimalType,
     EnumType,
     EnumValue,
     FieldType,
@@ -26,7 +27,7 @@ from .validation import (
 
 
 _CONFIG_EXT = ".yaml"
-_SCALAR_TYPES_INFO = {
+_CPP_TYPES_INFO = {
     "bool": {"size": 1},
     "int8": {"size": 1},
     "uint8": {"size": 1},
@@ -39,6 +40,7 @@ _SCALAR_TYPES_INFO = {
     "float32": {"size": 4},
     "float64": {"size": 8},
     "int": {"size": 4},
+    "dec64": {"size": 8},
 }
 
 
@@ -124,11 +126,14 @@ def _type_name(type_file: Path, base_dir: Path) -> str:
 
 def _get_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> MessgenType:
     # Scalar
-    if scalar_type := _SCALAR_TYPES_INFO.get(type_name):
+    if scalar_type := _CPP_TYPES_INFO.get(type_name):
         return _get_scalar_type(type_name, scalar_type)
 
     if type_name in ["string", "bytes"]:
         return _get_basic_type(type_name)
+
+    if type_name == "dec64":
+        return _get_decimal_type(type_name)
 
     if len(type_name) > 2:
         if type_name.endswith("[]"):
@@ -167,6 +172,15 @@ def _get_basic_type(type_name: str) -> BasicType:
         type=type_name,
         type_class=TypeClass[type_name],
         size=None,
+    )
+
+
+def _get_decimal_type(type_name: str) -> BasicType:
+    assert type_name == "dec64"
+    return BasicType(
+        type=type_name,
+        type_class=TypeClass.decimal,
+        size=_CPP_TYPES_INFO[type_name]["size"],
     )
 
 
@@ -247,7 +261,7 @@ def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], 
         base_type=base_type,
         comment=type_desc.get("comment"),
         values=values,
-        size=dependency.size or _SCALAR_TYPES_INFO["int"]["size"],
+        size=dependency.size or _CPP_TYPES_INFO["int"]["size"],
     )
 
 

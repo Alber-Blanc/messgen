@@ -4,10 +4,13 @@ from decimal import (
     Decimal,
 )
 
+from messgen.model import (
+    TypeClass,
+    DecimalType,
+)
 from messgen.dynamic import (
     Codec,
-    _bid64_to_decimal,
-    _decimal_to_bid64,
+    DecimalConverter,
 )
 
 
@@ -112,98 +115,106 @@ def test_protocol_info(codec):
 
 
 def test_decimal_decoding():
+    dec64_type = DecimalType(type="dec64", type_class=TypeClass.decimal, size=8)
+    converter = DecimalConverter({"dec64": dec64_type}, "dec64")
+
     # Basic Values
-    assert _bid64_to_decimal(bytes.fromhex("308462d53c8abac0")) == Decimal("123456.7890123456")
-    assert _bid64_to_decimal(bytes.fromhex("31c0000000000001")) == Decimal("1")
-    assert _bid64_to_decimal(bytes.fromhex("31c000000000007b")) == Decimal("123")
-    assert _bid64_to_decimal(bytes.fromhex("318000000000007b")) == Decimal("1.23")
-    assert _bid64_to_decimal(bytes.fromhex("320000000000007b")) == Decimal("12300")
-    assert _bid64_to_decimal(bytes.fromhex("b1c000000000007b")) == Decimal("-123")
-    assert _bid64_to_decimal(bytes.fromhex("b1a000000000007b")) == Decimal("-12.3")
+    assert converter.deserialize(bytes.fromhex("308462d53c8abac0")) == Decimal("123456.7890123456")
+    assert converter.deserialize(bytes.fromhex("31c0000000000001")) == Decimal("1")
+    assert converter.deserialize(bytes.fromhex("31c000000000007b")) == Decimal("123")
+    assert converter.deserialize(bytes.fromhex("318000000000007b")) == Decimal("1.23")
+    assert converter.deserialize(bytes.fromhex("320000000000007b")) == Decimal("12300")
+    assert converter.deserialize(bytes.fromhex("b1c000000000007b")) == Decimal("-123")
+    assert converter.deserialize(bytes.fromhex("b1a000000000007b")) == Decimal("-12.3")
 
     # Zero Values
-    assert _bid64_to_decimal(bytes.fromhex("31c0000000000000")) == Decimal("0")
-    assert _bid64_to_decimal(bytes.fromhex("3e40000000000000")) == Decimal("0e+100")
-    assert _bid64_to_decimal(bytes.fromhex("2540000000000000")) == Decimal("0e-100")
+    assert converter.deserialize(bytes.fromhex("31c0000000000000")) == Decimal("0")
+    assert converter.deserialize(bytes.fromhex("3e40000000000000")) == Decimal("0e+100")
+    assert converter.deserialize(bytes.fromhex("2540000000000000")) == Decimal("0e-100")
 
     # Precision Edge Cases
-    assert _bid64_to_decimal(bytes.fromhex("31c000000098967f")) == Decimal("9999999")
-    assert _bid64_to_decimal(bytes.fromhex("2e40000000000001")) == Decimal("1e-28")
-    assert _bid64_to_decimal(bytes.fromhex("3540000000000009")) == Decimal("9e+28")
-    assert _bid64_to_decimal(bytes.fromhex("2fe38d7ea4c67fff")) == Decimal("999999999999999e-15")
+    assert converter.deserialize(bytes.fromhex("31c000000098967f")) == Decimal("9999999")
+    assert converter.deserialize(bytes.fromhex("2e40000000000001")) == Decimal("1e-28")
+    assert converter.deserialize(bytes.fromhex("3540000000000009")) == Decimal("9e+28")
+    assert converter.deserialize(bytes.fromhex("2fe38d7ea4c67fff")) == Decimal("999999999999999e-15")
 
     # Rounding Cases
-    assert _bid64_to_decimal(bytes.fromhex("31a0000000000005")) == Decimal("0.5")
-    assert _bid64_to_decimal(bytes.fromhex("318000000000000f")) == Decimal("0.15")
-    assert _bid64_to_decimal(bytes.fromhex("316000000000007d")) == Decimal("0.125")
-    assert _bid64_to_decimal(bytes.fromhex("316000000000007e")) == Decimal("0.126")
+    assert converter.deserialize(bytes.fromhex("31a0000000000005")) == Decimal("0.5")
+    assert converter.deserialize(bytes.fromhex("318000000000000f")) == Decimal("0.15")
+    assert converter.deserialize(bytes.fromhex("316000000000007d")) == Decimal("0.125")
+    assert converter.deserialize(bytes.fromhex("316000000000007e")) == Decimal("0.126")
 
     # Operation Testing Values
-    assert _bid64_to_decimal(bytes.fromhex("3d0000000098967f")) == Decimal("9999999e+90")
-    assert _bid64_to_decimal(bytes.fromhex("256000000098967f")) == Decimal("9999999e-99")
-    assert _bid64_to_decimal(bytes.fromhex("31a0000000000005")) == Decimal("5e-1")
-    assert _bid64_to_decimal(bytes.fromhex("3100000000000001")) == Decimal("1e-6")
+    assert converter.deserialize(bytes.fromhex("3d0000000098967f")) == Decimal("9999999e+90")
+    assert converter.deserialize(bytes.fromhex("256000000098967f")) == Decimal("9999999e-99")
+    assert converter.deserialize(bytes.fromhex("31a0000000000005")) == Decimal("5e-1")
+    assert converter.deserialize(bytes.fromhex("3100000000000001")) == Decimal("1e-6")
 
     # Boundary Cases
-    assert _bid64_to_decimal(bytes.fromhex("6c7386f26fc0ffff")) == Decimal("9999999999999999e0")
-    assert _bid64_to_decimal(bytes.fromhex("7800000000000000")) == Decimal("Infinity")
-    assert _bid64_to_decimal(bytes.fromhex("607b86f26fc0ffff")) == Decimal("9999999999999999e-383")
-    assert _bid64_to_decimal(bytes.fromhex("0000000000000000")) == Decimal("0")
-    assert _bid64_to_decimal(bytes.fromhex("5fe05af3107a4000")) == Decimal("1e+383")
-    assert _bid64_to_decimal(bytes.fromhex("5fe38d7ea4c68000")) == Decimal("1e+384")
+    assert converter.deserialize(bytes.fromhex("6c7386f26fc0ffff")) == Decimal("9999999999999999e0")
+    assert converter.deserialize(bytes.fromhex("7800000000000000")) == Decimal("Infinity")
+    assert converter.deserialize(bytes.fromhex("607b86f26fc0ffff")) == Decimal("9999999999999999e-383")
+    assert converter.deserialize(bytes.fromhex("0000000000000000")) == Decimal("0")
+    assert converter.deserialize(bytes.fromhex("5fe05af3107a4000")) == Decimal("1e+383")
+    assert converter.deserialize(bytes.fromhex("5fe38d7ea4c68000")) == Decimal("1e+384")
 
     # Special Values (implementation-dependent)
-    assert _bid64_to_decimal(bytes.fromhex("7800000000000000")) == Decimal("Infinity")
-    assert _bid64_to_decimal(bytes.fromhex("f800000000000000")) == Decimal("-Infinity")
-    assert _bid64_to_decimal(bytes.fromhex("0000000000000000")) == Decimal("0e-999")
+    assert converter.deserialize(bytes.fromhex("7800000000000000")) == Decimal("Infinity")
+    assert converter.deserialize(bytes.fromhex("f800000000000000")) == Decimal("-Infinity")
+    assert converter.deserialize(bytes.fromhex("0000000000000000")) == Decimal("0e-999")
 
 
 def test_decimal_encoding():
+    dec64_type = DecimalType(type="dec64", type_class=TypeClass.decimal, size=8)
+    converter = DecimalConverter({"dec64": dec64_type}, "dec64")
+
     # Basic Values
-    assert bytes.fromhex("308462d53c8abac0") == _decimal_to_bid64(Decimal("123456.7890123456"))
-    assert bytes.fromhex("31c0000000000001") == _decimal_to_bid64(Decimal("1"))
-    assert bytes.fromhex("31c000000000007b") == _decimal_to_bid64(Decimal("123"))
-    assert bytes.fromhex("318000000000007b") == _decimal_to_bid64(Decimal("1.23"))
-    assert bytes.fromhex("320000000000007b") == _decimal_to_bid64(Decimal("12300"))
-    assert bytes.fromhex("b1c000000000007b") == _decimal_to_bid64(Decimal("-123"))
-    assert bytes.fromhex("b1a000000000007b") == _decimal_to_bid64(Decimal("-12.3"))
+    assert bytes.fromhex("308462d53c8abac0") == converter.serialize(Decimal("123456.7890123456"))
+    assert bytes.fromhex("31c0000000000001") == converter.serialize(Decimal("1"))
+    assert bytes.fromhex("31c000000000007b") == converter.serialize(Decimal("123"))
+    assert bytes.fromhex("318000000000007b") == converter.serialize(Decimal("1.23"))
+    assert bytes.fromhex("320000000000007b") == converter.serialize(Decimal("12300"))
+    assert bytes.fromhex("b1c000000000007b") == converter.serialize(Decimal("-123"))
+    assert bytes.fromhex("b1a000000000007b") == converter.serialize(Decimal("-12.3"))
 
     # Zero Values
-    assert bytes.fromhex("31c0000000000000") == _decimal_to_bid64(Decimal("0"))
-    assert bytes.fromhex("3e40000000000000") == _decimal_to_bid64(Decimal("0e+100"))
-    assert bytes.fromhex("2540000000000000") == _decimal_to_bid64(Decimal("0e-100"))
+    assert bytes.fromhex("31c0000000000000") == converter.serialize(Decimal("0"))
+    assert bytes.fromhex("3e40000000000000") == converter.serialize(Decimal("0e+100"))
+    assert bytes.fromhex("2540000000000000") == converter.serialize(Decimal("0e-100"))
 
     # Precision Edge Cases
-    assert bytes.fromhex("31c000000098967f") == _decimal_to_bid64(Decimal("9999999"))
-    assert bytes.fromhex("2e40000000000001") == _decimal_to_bid64(Decimal("1e-28"))
-    assert bytes.fromhex("3540000000000009") == _decimal_to_bid64(Decimal("9e+28"))
-    assert bytes.fromhex("2fe38d7ea4c67fff") == _decimal_to_bid64(Decimal("999999999999999e-15"))
+    assert bytes.fromhex("31c000000098967f") == converter.serialize(Decimal("9999999"))
+    assert bytes.fromhex("2e40000000000001") == converter.serialize(Decimal("1e-28"))
+    assert bytes.fromhex("3540000000000009") == converter.serialize(Decimal("9e+28"))
+    assert bytes.fromhex("2fe38d7ea4c67fff") == converter.serialize(Decimal("999999999999999e-15"))
 
     # Rounding Cases
-    assert bytes.fromhex("31a0000000000005") == _decimal_to_bid64(Decimal("5e-1"))
-    assert bytes.fromhex("318000000000000f") == _decimal_to_bid64(Decimal("15e-2"))
-    assert bytes.fromhex("316000000000007d") == _decimal_to_bid64(Decimal("125e-3"))
-    assert bytes.fromhex("316000000000007e") == _decimal_to_bid64(Decimal("126e-3"))
+    assert bytes.fromhex("31a0000000000005") == converter.serialize(Decimal("5e-1"))
+    assert bytes.fromhex("318000000000000f") == converter.serialize(Decimal("15e-2"))
+    assert bytes.fromhex("316000000000007d") == converter.serialize(Decimal("125e-3"))
+    assert bytes.fromhex("316000000000007e") == converter.serialize(Decimal("126e-3"))
 
     # Operation Testing Values
-    assert bytes.fromhex("3d0000000098967f") == _decimal_to_bid64(Decimal("9999999e90"))
-    assert bytes.fromhex("256000000098967f") == _decimal_to_bid64(Decimal("9999999e-99"))
-    assert bytes.fromhex("31a0000000000005") == _decimal_to_bid64(Decimal("5e-1"))
-    assert bytes.fromhex("3100000000000001") == _decimal_to_bid64(Decimal("1e-6"))
+    assert bytes.fromhex("3d0000000098967f") == converter.serialize(Decimal("9999999e90"))
+    assert bytes.fromhex("256000000098967f") == converter.serialize(Decimal("9999999e-99"))
+    assert bytes.fromhex("31a0000000000005") == converter.serialize(Decimal("5e-1"))
+    assert bytes.fromhex("3100000000000001") == converter.serialize(Decimal("1e-6"))
 
     # Boundary Cases
-    assert bytes.fromhex("6c7386f26fc0ffff") == _decimal_to_bid64(Decimal("9999999999999999"))
-    assert bytes.fromhex("77fb86f26fc0ffff") == _decimal_to_bid64(Decimal("9999999999999999e369"))
-    assert bytes.fromhex("7800000000000000") == _decimal_to_bid64(Decimal("9999999999999999e370"))
-    assert bytes.fromhex("607b86f26fc0ffff") == _decimal_to_bid64(Decimal("9999999999999999e-383"))
-    assert bytes.fromhex("600386f26fc0ffff") == _decimal_to_bid64(Decimal("9999999999999999e-398"))
-    assert bytes.fromhex("e00386f26fc0ffff") == _decimal_to_bid64(Decimal("-9999999999999999e-398"))
-    assert bytes.fromhex("0000000000000000") == _decimal_to_bid64(Decimal("9999999999999999e-399"))
-    assert bytes.fromhex("8000000000000000") == _decimal_to_bid64(Decimal("-9999999999999999e-399"))
-    assert bytes.fromhex("5fe05af3107a4000") == _decimal_to_bid64(Decimal("1e+383"))
-    assert bytes.fromhex("5fe38d7ea4c68000") == _decimal_to_bid64(Decimal("1e+384"))
+    assert bytes.fromhex("6c7386f26fc0ffff") == converter.serialize(Decimal("9999999999999999"))
+    assert bytes.fromhex("77fb86f26fc0ffff") == converter.serialize(Decimal("9999999999999999e369"))
+    assert bytes.fromhex("7800000000000000") == converter.serialize(Decimal("999999999999999999e369"))
+    assert bytes.fromhex("7800000000000000") == converter.serialize(Decimal("9999999999999999e370"))
+    assert bytes.fromhex("f800000000000000") == converter.serialize(Decimal("-9999999999999999e370"))
+    assert bytes.fromhex("607b86f26fc0ffff") == converter.serialize(Decimal("9999999999999999e-383"))
+    assert bytes.fromhex("600386f26fc0ffff") == converter.serialize(Decimal("9999999999999999e-398"))
+    assert bytes.fromhex("e00386f26fc0ffff") == converter.serialize(Decimal("-9999999999999999e-398"))
+    assert bytes.fromhex("0000000000000000") == converter.serialize(Decimal("9999999999999999e-399"))
+    assert bytes.fromhex("8000000000000000") == converter.serialize(Decimal("-9999999999999999e-399"))
+    assert bytes.fromhex("5fe05af3107a4000") == converter.serialize(Decimal("1e+383"))
+    assert bytes.fromhex("5fe38d7ea4c68000") == converter.serialize(Decimal("1e+384"))
 
     # Special Values (implementation-dependent)
-    assert bytes.fromhex("7800000000000000") == _decimal_to_bid64(Decimal("1e999"))
-    assert bytes.fromhex("f800000000000000") == _decimal_to_bid64(Decimal("-1e999"))
-    assert bytes.fromhex("0000000000000000") == _decimal_to_bid64(Decimal("0e-999"))
+    assert bytes.fromhex("7800000000000000") == converter.serialize(Decimal("1e999"))
+    assert bytes.fromhex("f800000000000000") == converter.serialize(Decimal("-1e999"))
+    assert bytes.fromhex("0000000000000000") == converter.serialize(Decimal("0e-999"))
