@@ -57,6 +57,8 @@ def _bid64_to_decimal(byte_data: bytes) -> Decimal:
 
     # Convert bytes to 64-bit integer
     bits = int.from_bytes(byte_data, byteorder="big")
+    if bits == 0:
+        return Decimal((0, (0,), 0))
 
     # Extract sign bit (bit 63)
     sign = bits >> 63
@@ -79,11 +81,12 @@ def _bid64_to_decimal(byte_data: bytes) -> Decimal:
         coefficient_bits = 53
         coefficient_implicit_prefix = 0
 
-    exponent_bias = 398
+    min_exponent = -398
     exponent_mask = (1 << 10) - 1  # 10 bits
-    exponent = ((bits >> coefficient_bits) & exponent_mask) - exponent_bias
+    exponent = ((bits >> coefficient_bits) & exponent_mask) + min_exponent
 
-    coefficient = coefficient_implicit_prefix | bits & ((1 << coefficient_bits) - 1)
+    coefficient_mask = (1 << coefficient_bits) - 1
+    coefficient = (coefficient_implicit_prefix << coefficient_bits) | (bits & coefficient_mask)
 
     return Decimal((sign, _digits_of(coefficient), exponent))
 
@@ -95,7 +98,7 @@ def _decimal_to_bid64(value: Decimal) -> bytes:
 
     if value.is_infinite():
         sign_bit = 1 if value < 0 else 0
-        return int((sign_bit << 63) | (0b11110 << 58)).to_bytes(8, byteorder="big")
+        return ((sign_bit << 63) | (0b11110 << 58)).to_bytes(8, byteorder="big")
 
     # Extract components from Decimal
     sign, digits, exponent = value.as_tuple()
@@ -106,35 +109,49 @@ def _decimal_to_bid64(value: Decimal) -> bytes:
     for digit in digits:
         coefficient = coefficient * 10 + digit
 
-    # Check if within range
-    if coefficient > ((1 << 54) - 1):
-        raise ValueError(f"Coefficient too large for BID64: {coefficient}")
+    # Normalize the coefficient
+    max_coefficient = 10**16 - 1
+    max_exponent = 369
+    min_exponent = -398
 
+    while coefficient != 0 and coefficient % 10 == 0 and exponent < max_exponent:
+        coefficient //= 10
+        exponent += 1
+
+    # Normalize the exponent
+    while exponent > max_exponent and coefficient * 10 <= max_coefficient:
+        coefficient *= 10
+        exponent -= 1
+
+    # Check if exponent within range
+    if exponent > max_exponent:
+        return ((sign << 63) | (0b11110 << 58)).to_bytes(8, byteorder="big")
+
+    # Check if coeficient within range
+    if coefficient > max_coefficient or exponent < min_exponent:
+        return int(sign << 63).to_bytes(8, byteorder="big")
+
+    # Store the sign
     bits = sign
 
     # Determine encoding format based on coefficient size
     if coefficient > ((1 << 53) - 1):
         coefficient_bits = 51
-        bits << 2
+        bits <<= 2
         bits |= 0b11  # Top 2 bits of combination field
 
     else:
         coefficient_bits = 53
 
     # Apply exponent bias
-    bits << 10
-    exponent_bias = 398
-    bits |= exponent + exponent_bias
+    bits <<= 10
+    bits |= exponent - min_exponent
 
     # Apply the coefficient
-    bits << coefficient_bits
+    bits <<= coefficient_bits
     bits |= coefficient & ((1 << coefficient_bits) - 1)
 
     return bits.to_bytes(8, byteorder="big")
-
-
-# 0000 0000 0000 0100 0110 0010 1101 0101 0011 1100 1000 1010 1011 1011 1100 0100  (000462d53c8abbc4)
-# 0011 0000 1000 0100 0110 0010 1101 0101 0011 1100 1000 1010 1011 1010 1100 0000  (308462d53c8abac0)
 
 
 class MessgenError(Exception):
