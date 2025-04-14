@@ -111,9 +111,14 @@ class ScalarConverter(TypeConverter):
 
 
 class DecimalConverter(TypeConverter):
+    _MAX_COEFFICIENT = 10**16 - 1
+    _MAX_EXPONENT = 369
+    _MIN_EXPONENT = -398
+
     def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
         assert self._type_class == TypeClass.decimal
+        assert self._type_def.size == 8  # only dec64 is supported
 
         self.def_value: Decimal = Decimal("0")
         self.size = self._type_def.size
@@ -137,25 +142,21 @@ class DecimalConverter(TypeConverter):
             coefficient = coefficient * 10 + digit
 
         # Normalize the coefficient
-        max_coefficient = 10**16 - 1
-        max_exponent = 369
-        min_exponent = -398
-
-        while coefficient != 0 and coefficient % 10 == 0 and exponent < max_exponent:
+        while coefficient != 0 and coefficient % 10 == 0 and exponent < self._MAX_EXPONENT:
             coefficient //= 10
             exponent += 1
 
         # Normalize the exponent
-        while exponent > max_exponent and coefficient * 10 <= max_coefficient:
+        while exponent > self._MAX_EXPONENT and coefficient * 10 <= self._MAX_COEFFICIENT:
             coefficient *= 10
             exponent -= 1
 
         # Check if dec64 is inifity
-        if (sign == 0 and coefficient > max_coefficient) or exponent > max_exponent:
+        if (sign == 0 and coefficient > self._MAX_COEFFICIENT) or exponent > self._MAX_EXPONENT:
             return ((sign << 63) | (0b11110 << 58)).to_bytes(8, byteorder="big")
 
         # Check if dec64 trimms to zero
-        if coefficient > max_coefficient or exponent < min_exponent:
+        if coefficient > self._MAX_COEFFICIENT or exponent < self._MIN_EXPONENT:
             return int(sign << 63).to_bytes(8, byteorder="big")
 
         # Store the sign
@@ -172,7 +173,7 @@ class DecimalConverter(TypeConverter):
 
         # Apply exponent bias
         bits <<= 10
-        bits |= exponent - min_exponent
+        bits |= exponent - self._MIN_EXPONENT
 
         # Apply the coefficient
         bits <<= coefficient_bits
@@ -207,9 +208,8 @@ class DecimalConverter(TypeConverter):
             coefficient_bits = 53
             coefficient_implicit_prefix = 0
 
-        min_exponent = -398
         exponent_mask = (1 << 10) - 1  # 10 bits
-        exponent = ((bits >> coefficient_bits) & exponent_mask) + min_exponent
+        exponent = ((bits >> coefficient_bits) & exponent_mask) + self._MIN_EXPONENT
 
         coefficient_mask = (1 << coefficient_bits) - 1
         coefficient = (coefficient_implicit_prefix << coefficient_bits) | (bits & coefficient_mask)
