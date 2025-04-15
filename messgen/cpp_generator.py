@@ -678,7 +678,7 @@ class CppGenerator:
         type_class = field_type_def.type_class
 
         c.append("// %s" % field_name)
-        if type_class in [TypeClass.scalar, TypeClass.enum]:
+        if type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.decimal]:
             c_type = self._cpp_type(field_type_def.type)
             size = field_type_def.size
             c.append("*reinterpret_cast<%s *>(&_buf[_size]) = %s;" % (c_type, field_name))
@@ -741,7 +741,7 @@ class CppGenerator:
         mode = self._get_mode()
 
         c.append("// %s" % field_name)
-        if type_class in [TypeClass.scalar, TypeClass.enum]:
+        if type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.decimal]:
             c_type = self._cpp_type(field_type_def.type)
             size = field_type_def.size
             c.append("%s = *reinterpret_cast<const %s *>(&_buf[_size]);" % (field_name, c_type))
