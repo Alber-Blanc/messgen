@@ -30,7 +30,7 @@ TEST_F(CppDecimalTest, Construction) {
     // UDL
     auto d4 = 0.001_dd;
     auto d4_str = d4.to_string();
-    EXPECT_EQ("0.001", d4_str);
+    EXPECT_EQ("0.1e-2", d4_str);
 }
 
 TEST_F(CppDecimalTest, Addition) {
@@ -263,6 +263,50 @@ TEST_F(CppDecimalTest, ConsistencyCheck) {
     auto result2 = Decimal64::from_double(15.0, 10.0_dd, RoundMode::mid);
 
     EXPECT_DOUBLE_EQ(result1.to_double() * 10.0, result2.to_double());
+}
+
+TEST_F(CppDecimalTest, StringConversion) {
+    // Basic integer values
+    EXPECT_EQ("0", Decimal64::from_integer(0).to_string());
+    EXPECT_EQ("123", Decimal64::from_integer(123).to_string());
+    EXPECT_EQ("-123", Decimal64::from_integer(-123).to_string());
+
+    // Basic decimal values
+    EXPECT_EQ("123.456", (123.456_dd).to_string());
+    EXPECT_EQ("-123.456", (-123.456_dd).to_string());
+    EXPECT_EQ("0.5", (0.5_dd).to_string());
+    EXPECT_EQ("0.5e-1", (0.05_dd).to_string());
+    EXPECT_EQ("0.5e-2", (0.005_dd).to_string());
+
+    // Trailing zeros handling
+    EXPECT_EQ("123.4", (123.40_dd).to_string());
+    EXPECT_EQ("123", (123.0_dd).to_string());
+
+    // Scientific notation
+    auto large_value = Decimal64::from_double(1.234e10, 0.001_dd, RoundMode::mid);
+    EXPECT_EQ("12340000000", large_value.to_string());
+
+    auto small_value = Decimal64::from_double(1.234e-10, 0.000000000000001_dd, RoundMode::mid);
+    EXPECT_EQ("0.1234e-9", small_value.to_string());
+
+    // Extreme values
+    auto very_large = Decimal64::from_double(9.99e30, 1.0_dd, RoundMode::mid);
+    EXPECT_FALSE(very_large.to_string().empty());
+
+    auto very_small = Decimal64::from_double(9.99e-30, 1.0e-35_dd, RoundMode::mid);
+    EXPECT_FALSE(very_small.to_string().empty());
+
+    // Special cases
+    auto rounded_up = Decimal64::from_double(9.9999, 0.001_dd, RoundMode::mid);
+    EXPECT_EQ("10", rounded_up.to_string());
+
+    auto precise = Decimal64::from_double(0.1234567890123456, 0.0000001_dd, RoundMode::mid);
+    EXPECT_EQ("0.1234568", precise.to_string());
+
+    // Edge cases
+    EXPECT_EQ("0", Decimal64::from_double(0.000000, 0.1_dd, RoundMode::mid).to_string());
+    EXPECT_EQ("0", (-0.0_dd).to_string());
+    EXPECT_EQ("0.123e-3", (0.000123_dd).to_string());
 }
 
 TEST_F(CppDecimalTest, MakeDecimal) {

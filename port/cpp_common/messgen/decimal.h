@@ -85,35 +85,51 @@ struct Decimal64 {
     [[nodiscard]] std::string to_string() const {
         auto [sign, coeff, exponent] = decompose();
 
-        auto exp_inc = (exponent < 0) * 2 - 1;
+        // normalize exponent
         while (coeff % 10 == 0 && exponent != 0) {
             coeff /= 10;
-            exponent += exp_inc;
+            ++exponent;
         }
 
-        char buff[128];
-        buff[127] = '\0';
-
-        size_t buff_idx = 126;
+        // fractional part till leading zeros
+        auto mul = int64_t{1};
+        auto print_frac = int64_t{0};
+        auto exp_step = (exponent < 0) * 2 - 1;
         while (coeff && exponent != 0) {
-            buff[buff_idx--] = '0' + coeff % 10;
+            print_frac += mul * (coeff % 10);
             coeff /= 10;
-            exponent += exp_inc;
+            mul *= 10;
+            exponent += exp_step;
         }
 
+        // leading zeros of fractional part
+        auto print_exp = 0;
         while (exponent != 0) {
-            buff[buff_idx--] = '0';
-            exponent += exp_inc;
+            print_exp -= exp_step;
+            exponent += exp_step;
         }
 
-        buff[buff_idx--] = '.';
-
-        do {
-            buff[buff_idx--] = '0' + coeff % 10;
+        // integral part
+        mul = 1;
+        auto print_int = int64_t{0};
+        while (coeff) {
+            print_int += mul * (coeff % 10);
             coeff /= 10;
-        } while (coeff);
+            mul *= 10;
+        };
+        print_int *= sign;
 
-        return buff + buff_idx + 1;
+        // convert to string
+        char buff[128];
+        if (print_exp != 0) {
+            sprintf(buff, "%ld.%lde%d", print_int, print_frac, print_exp);
+        } else if (print_frac != 0) {
+            sprintf(buff, "%ld.%ld", print_int, print_frac);
+        } else {
+            sprintf(buff, "%ld", print_int);
+        }
+
+        return buff;
     }
 
     Decimal64 &operator+=(Decimal64 other) noexcept {
@@ -186,23 +202,23 @@ private:
     }
 
     std::tuple<int8_t, uint64_t, int16_t> decompose() const {
-        constexpr auto exponent_bias = 398;
-        constexpr auto exponent_mask = (int64_t(1) << 10) - 1;
+        constexpr auto exponent_bias = int16_t{398};
+        constexpr auto exponent_mask = (int16_t{1} << 10) - 1;
 
-        auto bits = *reinterpret_cast<const int64_t *>(&_value);
-        auto sign = (bits >= 0) * 2 - 1;
+        auto bits = *reinterpret_cast<const uint64_t *>(&_value);
+        auto sign = (bits >> 63) * -2 + 1;
 
         auto exponent_1 = (bits >> 51 & exponent_mask) - exponent_bias;
-        auto coeff_1 = (1LL << 53) | ((uint64_t(1) << 51) - 1);
+        auto coeff_1 = (bits & ((uint64_t{1} << 51) - 1)) | uint64_t{1} << 53;
 
         auto exponent_2 = (bits >> 53 & exponent_mask) - exponent_bias;
-        auto coeff_2 = bits & ((uint64_t(1) << 53) - 1);
+        auto coeff_2 = bits & ((uint64_t{1} << 53) - 1);
 
         auto is_v1 = bool((bits >> 62) & 1);
         return {
             sign,
-            (is_v1 * coeff_1) | (!is_v1 * coeff_2),
-            (is_v1 * exponent_1) | (!is_v1 * exponent_2),
+            (is_v1 * coeff_1) + (!is_v1 * coeff_2),
+            (is_v1 * exponent_1) + (!is_v1 * exponent_2),
         };
     }
 
@@ -218,20 +234,33 @@ constexpr int parse_digit() {
 }
 
 template <char C, char... Rest>
-constexpr void parse_num(std::pair<int, int> &fp, bool frac) {
-    if constexpr (C == '.') {
-        frac = true;
-    } else if constexpr (C == 'e' or C == 'E') {
-        int exp = 0;
+constexpr int parse_int() {
+    int exp = 0;
+    if constexpr (C == '-') {
         ((exp = exp * 10 + parse_digit<Rest>()), ...);
-        fp.second += exp;
+        return -1 * exp;
+    } else {
+        exp = parse_digit<C>();
+        ((exp = exp * 10 + parse_digit<Rest>()), ...);
+        return exp;
+    }
+}
+
+template <char C, char... Rest>
+constexpr void parse_num(std::pair<int, int> &fp, bool frac) {
+    if constexpr (C == 'e' or C == 'E') {
+        fp.second += parse_int<Rest...>();
         return;
     } else {
-        fp.first = fp.first * 10 + parse_digit<C>(); // NOLINT
-        fp.second -= frac;
-    }
-    if constexpr (sizeof...(Rest)) {
-        parse_num<Rest...>(fp, frac);
+        if constexpr (C == '.') {
+            frac = true;
+        } else {
+            fp.first = fp.first * 10 + parse_digit<C>(); // NOLINT
+            fp.second -= frac;
+        }
+        if constexpr (sizeof...(Rest)) {
+            parse_num<Rest...>(fp, frac);
+        }
     }
 }
 
