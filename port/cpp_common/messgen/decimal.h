@@ -68,6 +68,10 @@ struct Decimal64 {
         return Decimal64{0, 0};
     }
 
+    [[nodiscard]] static Decimal64 from_integer(std::unsigned_integral auto integer) noexcept {
+        return Decimal64{std::decimal::make_decimal64(static_cast<unsigned long long>(integer), 0)};
+    }
+
     [[nodiscard]] static Decimal64 from_integer(std::integral auto integer) noexcept {
         return Decimal64{std::decimal::make_decimal64(static_cast<long long>(integer), 0)};
     }
