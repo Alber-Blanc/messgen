@@ -29,7 +29,8 @@ TEST_F(CppDecimalTest, Construction) {
 
     // UDL
     auto d4 = 0.001_dd;
-    EXPECT_EQ("0.001", d4.to_string());
+    auto d4_str = d4.to_string();
+    EXPECT_EQ("0.001", d4_str);
 }
 
 TEST_F(CppDecimalTest, Addition) {
@@ -133,17 +134,13 @@ TEST_F(CppDecimalTest, Conversions) {
     EXPECT_DOUBLE_EQ(to_double, 42.5);
 
     // To string
-    std::ostringstream oss;
-    oss << from_double.to_string();
-    EXPECT_EQ(oss.str(), "42.500");
+    EXPECT_EQ(from_double.to_string(), "42.5");
 }
 
 TEST_F(CppDecimalTest, Precision) {
     // Test decimal precision
     auto precise_value = Decimal64::from_double(0.1234567890123456, 0.0000001_dd, RoundMode::mid);
-    std::ostringstream oss;
-    oss << precise_value.to_string();
-    EXPECT_EQ(oss.str(), "0.1234568000000000");
+    EXPECT_EQ(precise_value.to_string(), "0.1234568");
 
     // Test with very large numbers
     auto large_value = Decimal64::from_double(9.999999999999999e+10, 0.001_dd, RoundMode::mid);

@@ -8,8 +8,6 @@
 #include <cmath>
 #include <string>
 
-extern "C" char *decimal64ToString(std::decimal::decimal64 const *, char *);
-
 namespace messgen {
 
 namespace detail {
@@ -42,23 +40,27 @@ struct Decimal64 {
 
         // Normalize exponent (make both coefficients represent same scale)
         int exp_diff = value_exp - tick_exp;
-        int is_value_bigger = exp_diff >> 31;
-        int pos_diff = (exp_diff ^ is_value_bigger) - is_value_bigger;
+        int value_exp_bigger = exp_diff >> 31;
+        int pos_diff = (exp_diff ^ value_exp_bigger) - value_exp_bigger;
 
         assert(pos_diff < detail::POW10.size());
 
-        value_coeff *= detail::POW10[pos_diff & ~is_value_bigger];
-        tick_coeff *= detail::POW10[pos_diff & is_value_bigger];
-        int result_exp = (value_exp & is_value_bigger) | (tick_exp & ~is_value_bigger);
+        value_coeff *= detail::POW10[pos_diff & ~value_exp_bigger];
+        tick_coeff *= detail::POW10[pos_diff & value_exp_bigger];
+        int result_exp = (value_exp & value_exp_bigger) | (tick_exp & ~value_exp_bigger);
 
-        bool is_positive = value_sign >= 0;
         switch (round_mode) {
-            case RoundMode::down:
-                return Decimal64(value_sign * ((value_coeff + !is_positive * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
-            case RoundMode::mid:
+            case RoundMode::down: {
+                bool is_negative = value_sign < 0;
+                return Decimal64(value_sign * ((value_coeff + is_negative * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
+            }
+            case RoundMode::mid: {
                 return Decimal64(value_sign * ((value_coeff + tick_coeff / 2) / tick_coeff * tick_coeff), result_exp);
-            case RoundMode::up:
+            }
+            case RoundMode::up: {
+                bool is_positive = value_sign >= 0;
                 return Decimal64(value_sign * ((value_coeff + is_positive * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
+            }
             default:
                 __builtin_unreachable();
         }
@@ -81,9 +83,37 @@ struct Decimal64 {
     }
 
     [[nodiscard]] std::string to_string() const {
-        char buffer[128];
-        ::decimal64ToString(&_value, buffer);
-        return buffer;
+        auto [sign, coeff, exponent] = decompose();
+
+        auto exp_inc = (exponent < 0) * 2 - 1;
+        while (coeff % 10 == 0 && exponent != 0) {
+            coeff /= 10;
+            exponent += exp_inc;
+        }
+
+        char buff[128];
+        buff[127] = '\0';
+
+        size_t buff_idx = 126;
+        while (coeff && exponent != 0) {
+            buff[buff_idx--] = '0' + coeff % 10;
+            coeff /= 10;
+            exponent += exp_inc;
+        }
+
+        while (exponent != 0) {
+            buff[buff_idx--] = '0';
+            exponent += exp_inc;
+        }
+
+        buff[buff_idx--] = '.';
+
+        do {
+            buff[buff_idx--] = '0' + coeff % 10;
+            coeff /= 10;
+        } while (coeff);
+
+        return buff + buff_idx + 1;
     }
 
     Decimal64 &operator+=(Decimal64 other) noexcept {
@@ -178,38 +208,6 @@ private:
 
     ValueType _value = 0;
 };
-
-[[nodiscard]] Decimal64 Decimal64::from_double(double value, Decimal64 tick, RoundMode round_mode) noexcept {
-    assert(tick > Decimal64::from_integer(0));
-
-    auto [value_sign, value_coeff, value_exp] = Decimal64{value}.decompose();
-    auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
-
-    // Normalize exponent (make both coefficients represent same scale)
-    int exp_diff = value_exp - tick_exp;
-    int is_value_bigger = exp_diff >> 31;
-    int pos_diff = (exp_diff ^ is_value_bigger) - is_value_bigger;
-
-    assert(pos_diff < detail::POW10.size());
-
-    value_coeff *= detail::POW10[pos_diff & ~is_value_bigger];
-    tick_coeff *= detail::POW10[pos_diff & is_value_bigger];
-    int result_exp = (value_exp & is_value_bigger) | (tick_exp & ~is_value_bigger);
-
-    bool is_positive = value_sign >= 0;
-    switch (round_mode) {
-        case RoundMode::down:
-            return Decimal64(value_sign * ((value_coeff + !is_positive * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
-        case RoundMode::mid:
-            return Decimal64(value_sign * ((value_coeff + tick_coeff / 2) / tick_coeff * tick_coeff), result_exp);
-        case RoundMode::up:
-            return Decimal64(value_sign * ((value_coeff + is_positive * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
-        default:
-            __builtin_unreachable();
-    }
-
-    return Decimal64{0, 0};
-}
 
 namespace detail {
 
