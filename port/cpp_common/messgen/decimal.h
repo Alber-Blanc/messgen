@@ -2,6 +2,7 @@
 
 #include <decimal/decimal>
 
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cmath>
@@ -10,27 +11,18 @@
 extern "C" char *decimal64ToString(std::decimal::decimal64 const *, char *);
 
 namespace messgen {
-namespace detail {
-static constexpr int64_t POW10[] = {1LL,
-                                    10LL,
-                                    100LL,
-                                    1000LL,
-                                    10000LL,
-                                    100000LL,
-                                    1000000LL,
-                                    10000000LL,
-                                    100000000LL,
-                                    1000000000LL,
-                                    10000000000LL,
-                                    100000000000LL,
-                                    1000000000000LL,
-                                    10000000000000LL,
-                                    100000000000000LL,
-                                    1000000000000000LL,
-                                    10000000000000000LL,
-                                    100000000000000000LL};
 
-}
+namespace detail {
+static constexpr auto POW10 = []() {
+    constexpr auto limit = 17;
+    auto res = std::array<uint64_t, limit>{1};
+    for (int i = 1; i < limit; ++i) {
+        res[i] = res[i - 1] * 10;
+    }
+    return res;
+}();
+
+} // namespace detail
 
 enum class RoundMode {
     down = -1,
@@ -53,6 +45,8 @@ struct Decimal64 {
         int is_value_bigger = exp_diff >> 31;
         int pos_diff = (exp_diff ^ is_value_bigger) - is_value_bigger;
 
+        assert(pos_diff < detail::POW10.size());
+
         value_coeff *= detail::POW10[pos_diff & ~is_value_bigger];
         tick_coeff *= detail::POW10[pos_diff & is_value_bigger];
         int result_exp = (value_exp & is_value_bigger) | (tick_exp & ~is_value_bigger);
@@ -63,7 +57,7 @@ struct Decimal64 {
             case RoundMode::down:
                 return Decimal64(sign_mult * static_cast<long long>(std::floor(value_coeff / tick_coeff)) * tick_coeff, result_exp);
             case RoundMode::mid:
-                return Decimal64(sign_mult * std::lround(value_coeff / tick_coeff) * tick_coeff, result_exp);
+                return Decimal64(sign_mult * std::llround(value_coeff / tick_coeff) * tick_coeff, result_exp);
             case RoundMode::up:
                 return Decimal64(sign_mult * static_cast<long long>(std::ceil(value_coeff / tick_coeff)) * tick_coeff, result_exp);
             default:

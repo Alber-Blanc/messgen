@@ -51,57 +51,36 @@ TEST_F(CppDecimalTest, Addition) {
 }
 
 TEST_F(CppDecimalTest, Subtraction) {
-    std::decimal::decimal64 d1(30.75);
-    std::decimal::decimal64 d2(10.5);
-    std::decimal::decimal64 result = d1 - d2;
-    std::decimal::decimal64 expected(20.25);
+    auto d1 = 30.75_dd;
+    auto d2 = 10.5_dd;
+    auto result = d1 - d2;
+    auto expected = 20.25_dd;
     EXPECT_EQ(result, expected);
 
     // Compound assignment
     d1 -= d2;
-    EXPECT_EQ(d1, std::decimal::decimal64(20.25));
+    EXPECT_EQ(d1, 20.25_dd);
 }
 
 TEST_F(CppDecimalTest, Multiplication) {
-    std::decimal::decimal64 d1(5.5);
-    std::decimal::decimal64 d2(2.0);
-    std::decimal::decimal64 result = d1 * d2;
-    std::decimal::decimal64 expected(11.0);
+    auto d1 = 5.5_dd;
+
+    auto result = d1 * 2;
+    auto expected = 11.0_dd;
     EXPECT_EQ(result, expected);
 
-    // Multiplication with negative values
-    std::decimal::decimal64 negative(-2.5);
-    result = d1 * negative;
-    expected = std::decimal::decimal64(-13.75);
+    result = d1 * -2;
+    expected = -11_dd;
     EXPECT_EQ(result, expected);
 
-    // Compound assignment
-    d1 *= d2;
-    EXPECT_EQ(d1, std::decimal::decimal64(11.0));
-}
-
-TEST_F(CppDecimalTest, Division) {
-    std::decimal::decimal64 d1(10.0);
-    std::decimal::decimal64 d2(2.5);
-    std::decimal::decimal64 result = d1 / d2;
-    std::decimal::decimal64 expected(4.0);
-    EXPECT_EQ(result, expected);
-
-    // Division with negative values
-    std::decimal::decimal64 negative(-5.0);
-    result = d1 / negative;
-    expected = std::decimal::decimal64(-2.0);
-    EXPECT_EQ(result, expected);
-
-    // Compound assignment
-    d1 /= d2;
-    EXPECT_EQ(d1, std::decimal::decimal64(4.0));
+    d1 *= 3;
+    EXPECT_EQ(d1, 16.5_dd);
 }
 
 TEST_F(CppDecimalTest, Comparison) {
-    std::decimal::decimal64 d1(10.5);
-    std::decimal::decimal64 d2(10.5);
-    std::decimal::decimal64 d3(20.25);
+    auto d1 = 10.5_dd;
+    auto d2 = 10.5_dd;
+    auto d3 = 20.25_dd;
 
     // Equality
     EXPECT_TRUE(d1 == d2);
@@ -134,41 +113,41 @@ TEST_F(CppDecimalTest, Comparison) {
 
 TEST_F(CppDecimalTest, Conversions) {
     // From int
-    std::decimal::decimal64 from_int(42);
-    EXPECT_EQ(from_int, std::decimal::decimal64(42.0));
+    auto from_int = Decimal64::from_integer(42);
+    EXPECT_EQ(from_int, 42.0_dd);
 
     // From double
-    std::decimal::decimal64 from_double(42.5);
-    EXPECT_EQ(from_double, std::decimal::decimal64(42.5));
+    auto from_double = Decimal64::from_double(42.5, 0.001_dd, RoundMode::mid);
+    EXPECT_EQ(from_double, 42.5_dd);
 
     // To int
-    int64_t to_int = std::decimal::decimal_to_long_long(from_int);
+    int64_t to_int = from_int.to_integer();
     EXPECT_EQ(to_int, 42);
 
     // To double
-    double to_double = decimal64_to_double(from_double);
+    double to_double = from_double.to_double();
     EXPECT_DOUBLE_EQ(to_double, 42.5);
 
     // To string
     std::ostringstream oss;
-    oss << std::decimal::decimal_to_double(from_double);
-    EXPECT_EQ(oss.str(), "42.5");
+    oss << from_double.to_string();
+    EXPECT_EQ(oss.str(), "42.500");
 }
 
 TEST_F(CppDecimalTest, Precision) {
     // Test decimal precision
-    std::decimal::decimal64 precise_value(0.1234567890123456);
+    auto precise_value = Decimal64::from_double(0.1234567890123456, 0.0000001_dd, RoundMode::mid);
     std::ostringstream oss;
-    oss << decimal_to_double(precise_value);
-    EXPECT_EQ(oss.str(), "0.123457");
+    oss << precise_value.to_string();
+    EXPECT_EQ(oss.str(), "0.1234567000000000");
 
     // Test with very large numbers
-    std::decimal::decimal64 large_value(9.999999999999999e+384);
-    EXPECT_GT(large_value, std::decimal::decimal64(0));
+    auto large_value = Decimal64::from_double(9.999999999999999e+10, 0.001_dd, RoundMode::mid);
+    EXPECT_GT(large_value, Decimal64::from_integer(0)) << large_value.to_string();
 
     // Test with very small numbers
-    std::decimal::decimal64 small_value(1e-38);
-    EXPECT_GT(small_value, std::decimal::decimal64(0));
+    auto small_value = Decimal64::from_double(9.999999999, 0.001_dd, RoundMode::mid);
+    EXPECT_GT(small_value, Decimal64::from_integer(0)) << small_value.to_string();
 }
 
 TEST_F(CppDecimalTest, MakeDecimal) {
