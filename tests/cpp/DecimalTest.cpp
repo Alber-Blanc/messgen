@@ -1,4 +1,4 @@
-#include <decimal/decimal>
+#include <messgen/decimal.h>
 
 #include <cmath>
 #include <stdlib.h>
@@ -10,42 +10,44 @@
 
 #include <gtest/gtest.h>
 
+using namespace messgen;
+
 class CppDecimalTest : public ::testing::Test {};
 
 TEST_F(CppDecimalTest, Construction) {
     // Default constructor
-    std::decimal::decimal64 d1;
-    EXPECT_EQ(d1, std::decimal::decimal64(0));
+    auto d1 = Decimal64{};
+    EXPECT_EQ(d1, Decimal64::from_integer(0));
 
     // Constructor from integer
-    std::decimal::decimal64 d2(42);
-    EXPECT_EQ(d2, std::decimal::decimal64(42));
+    auto d2 = Decimal64::from_integer(42);
+    EXPECT_EQ(42, d2.to_integer());
 
     // Copy constructor
-    std::decimal::decimal64 d3(d2);
+    auto d3 = Decimal64{d2};
     EXPECT_EQ(d3, d2);
 }
 
 TEST_F(CppDecimalTest, Addition) {
-    std::decimal::decimal64 d1(10.5);
-    std::decimal::decimal64 d2(20.25);
-    std::decimal::decimal64 result = d1 + d2;
-    std::decimal::decimal64 expected(30.75);
+    auto d1 = Decimal64::from_double(10.5, 0.001_dd, RoundMode::mid);
+    auto d2 = Decimal64::from_double(20.25, 0.001_dd, RoundMode::mid);
+    auto result = d1 + d2;
+    auto expected = 30.75_dd;
     EXPECT_EQ(result, expected);
 
     // Addition with zero
-    std::decimal::decimal64 zero(0);
-    EXPECT_EQ(d1 + zero, d1);
+    auto zero = Decimal64::from_integer(0);
+    EXPECT_EQ(d1 + zero, d1) << d1.to_string();
 
     // Addition with negative values
-    std::decimal::decimal64 negative(-15.75);
+    auto negative = -15.75_dd;
     result = d1 + negative;
-    expected = std::decimal::decimal64(-5.25);
-    EXPECT_EQ(result, expected);
+    expected = -5.25_dd;
+    EXPECT_EQ(result, expected) << result.to_string();
 
     // Compound assignment
     d1 += d2;
-    EXPECT_EQ(d1, std::decimal::decimal64(30.75));
+    EXPECT_EQ(d1, 30.75_dd) << d1.to_string();
 }
 
 TEST_F(CppDecimalTest, Subtraction) {

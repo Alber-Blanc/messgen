@@ -14,7 +14,8 @@ target_link_libraries(test_cpp gtest msgs_test_proto msgs_another_proto GTest::g
 gtest_discover_tests(test_cpp)
 
 add_executable(test_decimal "cpp/DecimalTest.cpp")
-target_link_libraries(test_decimal gtest GTest::gtest_main)
+target_include_directories(test_decimal PRIVATE ${CMAKE_SOURCE_DIR}/port/cpp_common)
+target_link_libraries(test_decimal decnumber gtest GTest::gtest_main)
 gtest_discover_tests(test_decimal)
 
 add_executable(test_cpp_nostl "cpp/CppNostlTest.cpp")
