@@ -4,8 +4,9 @@
 
 #include <array>
 #include <cassert>
-#include <cstdint>
+#include <charconv>
 #include <cmath>
+#include <cstdint>
 #include <string>
 
 namespace messgen {
@@ -38,7 +39,7 @@ struct Decimal64 {
         auto [value_sign, value_coeff, value_exp] = Decimal64{value}.decompose();
         auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
 
-        // Normalize exponent (make both coefficients represent same scale)
+        // make both coefficients represent same scale
         int exp_diff = value_exp - tick_exp;
         int value_exp_bigger = exp_diff >> 31;
         int pos_diff = (exp_diff ^ value_exp_bigger) - value_exp_bigger;
@@ -76,7 +77,64 @@ struct Decimal64 {
         return Decimal64{std::decimal::make_decimal64(static_cast<long long>(integer), 0)};
     }
 
-    [[nodiscard]] static Decimal64 from_string(std::string_view str);
+    [[nodiscard]] static Decimal64 from_string(std::string_view str) {
+        if (str.empty()) {
+            return Decimal64{};
+        }
+
+        // remove leading whitespace
+        while (!str.empty() && std::isspace(str.front())) {
+            str.remove_prefix(1);
+        }
+
+        // remove trailing whitespace
+        while (!str.empty() && std::isspace(str.back())) {
+            str.remove_suffix(1);
+        }
+
+        auto sign = 1;
+        if (str[0] == '-') {
+            sign = -1;
+            str.remove_prefix(1);
+        }
+
+        // parse integral part
+        auto coeff = int64_t{};
+        while (!str.empty() && str[0] != '.' && str[0] != 'e') {
+            if (!std::isdigit(str[0])) {
+                return Decimal64{};
+            }
+            coeff = coeff * 10 + (str[0] - '0');
+            str.remove_prefix(1);
+        }
+
+        // parse frac part
+        auto exponent = 0;
+        if (!str.empty() && str[0] == '.') {
+            str.remove_prefix(1);
+            while (!str.empty() && str[0] != 'e') {
+                if (!std::isdigit(str[0])) {
+                    return Decimal64{};
+                }
+                coeff = coeff * 10 + (str[0] - '0');
+                --exponent;
+                str.remove_prefix(1);
+            }
+        }
+
+        // parse exponent part
+        if (!str.empty() && str[0] == 'e') {
+            str.remove_prefix(1);
+            auto exponent_part = 0;
+            auto result = std::from_chars(str.data(), str.data() + str.size(), exponent_part);
+            if (result.ec != std::errc{}) {
+                return Decimal64{};
+            }
+            exponent += exponent_part;
+        }
+
+        return Decimal64{sign * coeff, exponent};
+    }
 
     [[nodiscard]] double to_double() const noexcept {
         return std::decimal::decimal64_to_double(_value);
@@ -251,34 +309,33 @@ constexpr int parse_int() {
 }
 
 template <char C, char... Rest>
-constexpr void parse_num(std::pair<int, int> &fp, bool frac) {
+constexpr void parse_num(std::tuple<int, uint64_t, int> &ctx, bool frac) {
+    auto &[sign, coeff, exponent] = ctx;
     if constexpr (C == 'e' or C == 'E') {
-        fp.second += parse_int<Rest...>();
+        exponent += parse_int<Rest...>();
         return;
     } else {
         if constexpr (C == '.') {
             frac = true;
         } else {
-            fp.first = fp.first * 10 + parse_digit<C>(); // NOLINT
-            fp.second -= frac;
+            coeff = coeff * 10 + parse_digit<C>(); // NOLINT
+            exponent -= frac;
         }
         if constexpr (sizeof...(Rest)) {
-            parse_num<Rest...>(fp, frac);
+            parse_num<Rest...>(ctx, frac);
         }
     }
 }
 
 template <char C, char... Rest>
-constexpr int parse(std::pair<int, int> &fp) {
+constexpr void parse(std::tuple<int, uint64_t, int> &ctx) {
     if constexpr (C == '-') {
-        parse<Rest...>(fp);
-        return -1;
-    } else if constexpr (C == '0') {
-        parse<Rest...>(fp);
-        return 1;
+        parse<Rest...>(ctx);
+        std::get<0>(ctx) = -1;
+    } else if constexpr (C == '0' && sizeof...(Rest)) {
+        parse<Rest...>(ctx);
     } else {
-        parse_num<C, Rest...>(fp, false);
-        return 1;
+        parse_num<C, Rest...>(ctx, false);
     }
 }
 
@@ -286,9 +343,10 @@ constexpr int parse(std::pair<int, int> &fp) {
 
 template <char... C>
 [[nodiscard]] Decimal64 operator""_dd() {
-    auto fp_vals = std::pair<int, int>{0, 0};
-    auto sign_mul = detail::parse<C...>(fp_vals);
-    return Decimal64{std::decimal::make_decimal64(static_cast<long long>(sign_mul * fp_vals.first), fp_vals.second)};
+    auto ctx = std::tuple<int, uint64_t, int>{1, 0, 0};
+    detail::parse<C...>(ctx);
+    auto [sign, coeff, exponent] = ctx;
+    return Decimal64{std::decimal::make_decimal64(sign * static_cast<long long>(coeff), exponent)};
 }
 
 } // namespace messgen

@@ -256,6 +256,59 @@ TEST_F(CppDecimalTest, ZeroValues) {
     EXPECT_EQ(0.0_dd, Decimal64::from_double(-0.01, 0.1_dd, RoundMode::up));
 }
 
+TEST_F(CppDecimalTest, FromString) {
+    // Basic integer values
+    EXPECT_EQ(0_dd, Decimal64::from_string("0"));
+    EXPECT_EQ(123_dd, Decimal64::from_string("123"));
+    EXPECT_EQ(-123_dd, Decimal64::from_string("-123"));
+
+    // Basic decimal values
+    EXPECT_EQ(123.456_dd, Decimal64::from_string("123.456"));
+    EXPECT_EQ(-123.456_dd, Decimal64::from_string("-123.456"));
+    EXPECT_EQ(0.5_dd, Decimal64::from_string("0.5"));
+
+    // Scientific notation
+    EXPECT_EQ(0.05_dd, Decimal64::from_string("0.5e-1"));
+    EXPECT_EQ(0.005_dd, Decimal64::from_string("0.5e-2"));
+    EXPECT_EQ(5_dd, Decimal64::from_string("0.5e1"));
+    EXPECT_EQ(50_dd, Decimal64::from_string("0.5e2"));
+    EXPECT_EQ(1.234e10_dd, Decimal64::from_string("1.234e10"));
+    EXPECT_EQ(1.234e-10_dd, Decimal64::from_string("1.234e-10"));
+
+    // Whitespace handling
+    EXPECT_EQ(123_dd, Decimal64::from_string("  123  "));
+    EXPECT_EQ(123.456_dd, Decimal64::from_string("  123.456  "));
+
+    // Leading zeros
+    EXPECT_EQ(0.123_dd, Decimal64::from_string("0.123"));
+    EXPECT_EQ(0.123_dd, Decimal64::from_string("00.123"));
+    EXPECT_EQ(123_dd, Decimal64::from_string("000123"));
+
+    // Trailing zeros
+    EXPECT_EQ(123_dd, Decimal64::from_string("123.0"));
+    EXPECT_EQ(123_dd, Decimal64::from_string("123.00"));
+    EXPECT_EQ(123.4_dd, Decimal64::from_string("123.40"));
+
+    // Edge cases
+    EXPECT_EQ(0_dd, Decimal64::from_string("0.0"));
+    EXPECT_EQ(0_dd, Decimal64::from_string("-0.0"));
+    EXPECT_EQ(0.000123_dd, Decimal64::from_string("0.123e-3"));
+
+    // Extreme values
+    auto very_large = Decimal64::from_string("9.99e30");
+    EXPECT_GT(very_large, Decimal64::from_integer(0));
+
+    auto very_small = Decimal64::from_string("9.99e-30");
+    EXPECT_GT(very_small, Decimal64::from_integer(0));
+
+    // Invalid strings should return empty decimal
+    EXPECT_EQ(Decimal64{}, Decimal64::from_string(""));
+    EXPECT_EQ(Decimal64{}, Decimal64::from_string("abc"));
+    EXPECT_EQ(Decimal64{}, Decimal64::from_string("123.456.789"));
+    EXPECT_EQ(Decimal64{}, Decimal64::from_string("123e"));
+    EXPECT_EQ(Decimal64{}, Decimal64::from_string("e10"));
+}
+
 // Consistency checks
 TEST_F(CppDecimalTest, ConsistencyCheck) {
     // Same value with different scale representations should be proportional
