@@ -51,15 +51,14 @@ struct Decimal64 {
         tick_coeff *= detail::POW10[pos_diff & is_value_bigger];
         int result_exp = (value_exp & is_value_bigger) | (tick_exp & ~is_value_bigger);
 
-        // Do the rounding using standard C++
-        auto sign_mult = value_sign * -2 + 1;
+        bool is_positive = value_sign >= 0;
         switch (round_mode) {
             case RoundMode::down:
-                return Decimal64(sign_mult * static_cast<long long>(std::floor(value_coeff / tick_coeff)) * tick_coeff, result_exp);
+                return Decimal64(value_sign * ((value_coeff + !is_positive * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
             case RoundMode::mid:
-                return Decimal64(sign_mult * std::llround(value_coeff / tick_coeff) * tick_coeff, result_exp);
+                return Decimal64(value_sign * ((value_coeff + tick_coeff / 2) / tick_coeff * tick_coeff), result_exp);
             case RoundMode::up:
-                return Decimal64(sign_mult * static_cast<long long>(std::ceil(value_coeff / tick_coeff)) * tick_coeff, result_exp);
+                return Decimal64(value_sign * ((value_coeff + is_positive * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
             default:
                 __builtin_unreachable();
         }
@@ -77,7 +76,7 @@ struct Decimal64 {
         return std::decimal::decimal64_to_double(_value);
     }
 
-    [[nodiscard]] int64_t to_integer() noexcept {
+    [[nodiscard]] int64_t to_integer() const noexcept {
         return std::decimal::decimal_to_long_long(_value);
     }
 
@@ -133,6 +132,11 @@ struct Decimal64 {
         return lhs._value == rhs._value;
     }
 
+    friend std::ostream &operator<<(std::ostream &os, Decimal64 dec) {
+        os << dec.to_string();
+        return os;
+    }
+
 private:
     using ValueType = std::decimal::decimal64;
 
@@ -156,13 +160,13 @@ private:
         constexpr auto exponent_mask = (int64_t(1) << 10) - 1;
 
         auto bits = *reinterpret_cast<const int64_t *>(&_value);
-        auto sign = bits >> 63;
-
-        auto exponent_2 = (bits >> 53 & exponent_mask) - exponent_bias;
-        auto coeff_2 = bits & ((uint64_t(1) << 53) - 1);
+        auto sign = (bits >= 0) * 2 - 1;
 
         auto exponent_1 = (bits >> 51 & exponent_mask) - exponent_bias;
         auto coeff_1 = (1LL << 53) | ((uint64_t(1) << 51) - 1);
+
+        auto exponent_2 = (bits >> 53 & exponent_mask) - exponent_bias;
+        auto coeff_2 = bits & ((uint64_t(1) << 53) - 1);
 
         auto is_v1 = bool((bits >> 62) & 1);
         return {
@@ -175,33 +179,61 @@ private:
     ValueType _value = 0;
 };
 
+[[nodiscard]] Decimal64 Decimal64::from_double(double value, Decimal64 tick, RoundMode round_mode) noexcept {
+    assert(tick > Decimal64::from_integer(0));
+
+    auto [value_sign, value_coeff, value_exp] = Decimal64{value}.decompose();
+    auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
+
+    // Normalize exponent (make both coefficients represent same scale)
+    int exp_diff = value_exp - tick_exp;
+    int is_value_bigger = exp_diff >> 31;
+    int pos_diff = (exp_diff ^ is_value_bigger) - is_value_bigger;
+
+    assert(pos_diff < detail::POW10.size());
+
+    value_coeff *= detail::POW10[pos_diff & ~is_value_bigger];
+    tick_coeff *= detail::POW10[pos_diff & is_value_bigger];
+    int result_exp = (value_exp & is_value_bigger) | (tick_exp & ~is_value_bigger);
+
+    bool is_positive = value_sign >= 0;
+    switch (round_mode) {
+        case RoundMode::down:
+            return Decimal64(value_sign * ((value_coeff + !is_positive * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
+        case RoundMode::mid:
+            return Decimal64(value_sign * ((value_coeff + tick_coeff / 2) / tick_coeff * tick_coeff), result_exp);
+        case RoundMode::up:
+            return Decimal64(value_sign * ((value_coeff + is_positive * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
+        default:
+            __builtin_unreachable();
+    }
+
+    return Decimal64{0, 0};
+}
+
 namespace detail {
 
 template <char C>
-constexpr void parse_int(std::pair<int, int> &fp) {
+constexpr int parse_digit() {
     static_assert('0' <= C && C <= '9', "not a valid number");
-    fp.first = fp.first * 10 + (C - '0'); // NOLINT
+    return C - '0';
 }
 
-template <char C>
-constexpr void parse_frac(std::pair<int, int> &fp) {
-    parse_int<C>(fp);
-    --fp.second;
-}
-
-template <char C1, char C2, char... Rest>
-constexpr void parse_frac(std::pair<int, int> &fp) {
-    parse_frac<C1>(fp);
-    parse_frac<C2, Rest...>(fp);
-}
-
-template <char C1, char C2, char... Rest>
-constexpr void parse_int(std::pair<int, int> &fp) {
-    if constexpr (C1 == '.') {
-        parse_frac<C2, Rest...>(fp);
+template <char C, char... Rest>
+constexpr void parse_num(std::pair<int, int> &fp, bool frac) {
+    if constexpr (C == '.') {
+        frac = true;
+    } else if constexpr (C == 'e' or C == 'E') {
+        int exp = 0;
+        ((exp = exp * 10 + parse_digit<Rest>()), ...);
+        fp.second += exp;
+        return;
     } else {
-        parse_int<C1>(fp);
-        parse_int<C2, Rest...>(fp);
+        fp.first = fp.first * 10 + parse_digit<C>(); // NOLINT
+        fp.second -= frac;
+    }
+    if constexpr (sizeof...(Rest)) {
+        parse_num<Rest...>(fp, frac);
     }
 }
 
@@ -214,7 +246,7 @@ constexpr int parse(std::pair<int, int> &fp) {
         parse<Rest...>(fp);
         return 1;
     } else {
-        parse_int<C, Rest...>(fp);
+        parse_num<C, Rest...>(fp, false);
         return 1;
     }
 }

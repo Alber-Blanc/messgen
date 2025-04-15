@@ -26,6 +26,10 @@ TEST_F(CppDecimalTest, Construction) {
     // Copy constructor
     auto d3 = Decimal64{d2};
     EXPECT_EQ(d3, d2);
+
+    // UDL
+    auto d4 = 0.001_dd;
+    EXPECT_EQ("0.001", d4.to_string());
 }
 
 TEST_F(CppDecimalTest, Addition) {
@@ -139,7 +143,7 @@ TEST_F(CppDecimalTest, Precision) {
     auto precise_value = Decimal64::from_double(0.1234567890123456, 0.0000001_dd, RoundMode::mid);
     std::ostringstream oss;
     oss << precise_value.to_string();
-    EXPECT_EQ(oss.str(), "0.1234567000000000");
+    EXPECT_EQ(oss.str(), "0.1234568000000000");
 
     // Test with very large numbers
     auto large_value = Decimal64::from_double(9.999999999999999e+10, 0.001_dd, RoundMode::mid);
@@ -148,6 +152,120 @@ TEST_F(CppDecimalTest, Precision) {
     // Test with very small numbers
     auto small_value = Decimal64::from_double(9.999999999, 0.001_dd, RoundMode::mid);
     EXPECT_GT(small_value, Decimal64::from_integer(0)) << small_value.to_string();
+}
+
+TEST_F(CppDecimalTest, RoundDownPositive) {
+    EXPECT_EQ(10.0_dd, Decimal64::from_double(10.0, 1.0_dd, RoundMode::down));
+    EXPECT_EQ(10.0_dd, Decimal64::from_double(10.4, 1.0_dd, RoundMode::down));
+    EXPECT_EQ(10.0_dd, Decimal64::from_double(10.5, 1.0_dd, RoundMode::down));
+    EXPECT_EQ(10.0_dd, Decimal64::from_double(10.6, 1.0_dd, RoundMode::down));
+}
+
+// Tests for RoundMode::down with negative values
+TEST_F(CppDecimalTest, RoundDownNegative) {
+    EXPECT_EQ(-10.0_dd, Decimal64::from_double(-10.0, 1.0_dd, RoundMode::down));
+    EXPECT_EQ(-11.0_dd, Decimal64::from_double(-10.6, 1.0_dd, RoundMode::down));
+    EXPECT_EQ(-11.0_dd, Decimal64::from_double(-10.5, 1.0_dd, RoundMode::down));
+    EXPECT_EQ(-11.0_dd, Decimal64::from_double(-10.4, 1.0_dd, RoundMode::down));
+}
+
+// Tests for RoundMode::mid with positive values
+TEST_F(CppDecimalTest, RoundMidPositive) {
+    EXPECT_EQ(10.0_dd, Decimal64::from_double(10.0, 1.0_dd, RoundMode::mid));
+    EXPECT_EQ(10.0_dd, Decimal64::from_double(10.4, 1.0_dd, RoundMode::mid));
+    EXPECT_EQ(11.0_dd, Decimal64::from_double(10.5, 1.0_dd, RoundMode::mid));
+    EXPECT_EQ(11.0_dd, Decimal64::from_double(10.6, 1.0_dd, RoundMode::mid));
+}
+
+// Tests for RoundMode::mid with negative values
+TEST_F(CppDecimalTest, RoundMidNegative) {
+    EXPECT_EQ(-10.0_dd, Decimal64::from_double(-10.0, 1.0_dd, RoundMode::mid));
+    EXPECT_EQ(-11.0_dd, Decimal64::from_double(-10.6, 1.0_dd, RoundMode::mid));
+    EXPECT_EQ(-11.0_dd, Decimal64::from_double(-10.5, 1.0_dd, RoundMode::mid));
+    EXPECT_EQ(-10.0_dd, Decimal64::from_double(-10.4, 1.0_dd, RoundMode::mid));
+}
+
+// Tests for RoundMode::up with positive values
+TEST_F(CppDecimalTest, RoundUpPositive) {
+    EXPECT_EQ(10.0_dd, Decimal64::from_double(10.0, 1.0_dd, RoundMode::up));
+    EXPECT_EQ(11.0_dd, Decimal64::from_double(10.4, 1.0_dd, RoundMode::up));
+    EXPECT_EQ(11.0_dd, Decimal64::from_double(10.5, 1.0_dd, RoundMode::up));
+    EXPECT_EQ(11.0_dd, Decimal64::from_double(10.6, 1.0_dd, RoundMode::up));
+}
+
+// Tests for RoundMode::up with negative values
+TEST_F(CppDecimalTest, RoundUpNegative) {
+    EXPECT_EQ(-10.0_dd, Decimal64::from_double(-10.0, 1.0_dd, RoundMode::up));
+    EXPECT_EQ(-10.0_dd, Decimal64::from_double(-10.6, 1.0_dd, RoundMode::up));
+    EXPECT_EQ(-10.0_dd, Decimal64::from_double(-10.5, 1.0_dd, RoundMode::up));
+    EXPECT_EQ(-10.0_dd, Decimal64::from_double(-10.4, 1.0_dd, RoundMode::up));
+}
+
+// Tests with non-integer ticks
+TEST_F(CppDecimalTest, NonIntegerTick) {
+    // Positive values with 0.5 tick
+    EXPECT_EQ(10.0_dd, Decimal64::from_double(10.25, 0.5_dd, RoundMode::down));
+    EXPECT_EQ(10.0_dd, Decimal64::from_double(10.249999, 0.5_dd, RoundMode::mid));
+    EXPECT_EQ(10.5_dd, Decimal64::from_double(10.25, 0.5_dd, RoundMode::mid));
+    EXPECT_EQ(10.5_dd, Decimal64::from_double(10.25, 0.5_dd, RoundMode::up));
+
+    // Negative values with 0.5 tick
+    EXPECT_EQ(-10.5_dd, Decimal64::from_double(-10.25, 0.5_dd, RoundMode::down));
+    EXPECT_EQ(-10.5_dd, Decimal64::from_double(-10.25, 0.5_dd, RoundMode::mid));
+    EXPECT_EQ(-10.0_dd, Decimal64::from_double(-10.249999, 0.5_dd, RoundMode::mid));
+    EXPECT_EQ(-10.0_dd, Decimal64::from_double(-10.25, 0.5_dd, RoundMode::up));
+}
+
+// Tests with extreme values
+TEST_F(CppDecimalTest, ExtremeValues) {
+    // Very small values
+    EXPECT_EQ(0.0000012_dd, Decimal64::from_double(0.0000012345, 0.0000001_dd, RoundMode::down));
+    EXPECT_EQ(0.0000012_dd, Decimal64::from_double(0.0000012345, 0.0000001_dd, RoundMode::mid));
+    EXPECT_EQ(0.0000013_dd, Decimal64::from_double(0.0000012345, 0.0000001_dd, RoundMode::up));
+
+    // Very large values
+    EXPECT_EQ(9.8700e10_dd, Decimal64::from_double(9.876e10, 100000000.0_dd, RoundMode::down));
+    EXPECT_EQ(9.8800e10_dd, Decimal64::from_double(9.876e10, 100000000.0_dd, RoundMode::mid));
+    EXPECT_EQ(9.8800e10_dd, Decimal64::from_double(9.876e10, 100000000.0_dd, RoundMode::up));
+}
+
+// Tests with different combinations of exponents
+TEST_F(CppDecimalTest, DifferentExponents) {
+    // Value has higher precision than tick
+    EXPECT_EQ(123.45_dd, Decimal64::from_double(123.456, 0.01_dd, RoundMode::down));
+    EXPECT_EQ(123.46_dd, Decimal64::from_double(123.456, 0.01_dd, RoundMode::mid));
+    EXPECT_EQ(123.46_dd, Decimal64::from_double(123.456, 0.01_dd, RoundMode::up));
+
+    // Tick has higher precision than value
+    EXPECT_EQ(123000.0_dd, Decimal64::from_double(123000.0, 100.0_dd, RoundMode::down));
+    EXPECT_EQ(123000.0_dd, Decimal64::from_double(123000.0, 100.0_dd, RoundMode::mid));
+    EXPECT_EQ(123000.0_dd, Decimal64::from_double(123000.0, 100.0_dd, RoundMode::up));
+}
+
+// Tests with zero and near-zero values
+TEST_F(CppDecimalTest, ZeroValues) {
+    // Exactly zero
+    EXPECT_EQ(0.0_dd, Decimal64::from_double(0.0, 0.1_dd, RoundMode::down));
+    EXPECT_EQ(0.0_dd, Decimal64::from_double(0.0, 0.1_dd, RoundMode::mid));
+    EXPECT_EQ(0.0_dd, Decimal64::from_double(0.0, 0.1_dd, RoundMode::up));
+
+    // Near-zero values
+    EXPECT_EQ(0.0_dd, Decimal64::from_double(0.01, 0.1_dd, RoundMode::down));
+    EXPECT_EQ(0.0_dd, Decimal64::from_double(0.01, 0.1_dd, RoundMode::mid));
+    EXPECT_EQ(0.1_dd, Decimal64::from_double(0.01, 0.1_dd, RoundMode::up));
+
+    EXPECT_EQ(-0.1_dd, Decimal64::from_double(-0.01, 0.1_dd, RoundMode::down));
+    EXPECT_EQ(0.0_dd, Decimal64::from_double(-0.01, 0.1_dd, RoundMode::mid));
+    EXPECT_EQ(0.0_dd, Decimal64::from_double(-0.01, 0.1_dd, RoundMode::up));
+}
+
+// Consistency checks
+TEST_F(CppDecimalTest, ConsistencyCheck) {
+    // Same value with different scale representations should be proportional
+    auto result1 = Decimal64::from_double(1.5, 1.0_dd, RoundMode::mid);
+    auto result2 = Decimal64::from_double(15.0, 10.0_dd, RoundMode::mid);
+
+    EXPECT_DOUBLE_EQ(result1.to_double() * 10.0, result2.to_double());
 }
 
 TEST_F(CppDecimalTest, MakeDecimal) {
