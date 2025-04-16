@@ -118,11 +118,6 @@ struct decimal64 {
     /// @return bool True if the value is NaN, false otherwise
     [[nodiscard]] bool is_nan() const;
 
-    /// @brief Checks if this decimal has a negative sign
-    ///
-    /// @return bool True if the value is negative or negative zero, false otherwise
-    [[nodiscard]] bool is_signed() const;
-
     /// @brief Adds another decimal64 to this one
     ///
     /// @param other The value to add
@@ -321,7 +316,7 @@ private:
 
 [[nodiscard]] inline std::string decimal64::to_string() const {
     if (is_infinite()) {
-        return is_signed() ? "-inf" : "inf";
+        return *this < decimal64::from_integer(0) ? "-inf" : "inf";
     }
 
     if (is_nan()) {
@@ -386,10 +381,6 @@ private:
 [[nodiscard]] inline bool decimal64::is_nan() const { // five bits set after sign bit
     constexpr auto qnan = 0x7c00000000000000ULL;
     return reinterpret_cast<const unsigned long long &>(_value) == qnan;
-}
-
-[[nodiscard]] inline bool decimal64::is_signed() const {
-    return reinterpret_cast<const unsigned long long &>(_value) & (1ULL << 63);
 }
 
 inline decimal64 &decimal64::operator+=(decimal64 other) noexcept {
