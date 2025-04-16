@@ -183,7 +183,7 @@ class DecimalConverter(TypeConverter):
 
     def _deserialize(self, data) -> tuple[Decimal, int]:
         # Convert bytes to 64-bit integer
-        bits = int.from_bytes(data, byteorder="big")
+        bits = int.from_bytes(data[: self.size], byteorder="big")
         if bits == 0:
             return Decimal((0, (0,), 0)), self.size
 

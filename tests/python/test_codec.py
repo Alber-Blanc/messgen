@@ -1,5 +1,7 @@
 import pytest
 
+from pathlib import Path
+
 from decimal import (
     Decimal,
 )
@@ -14,10 +16,16 @@ from messgen.dynamic import (
 )
 
 
+path_root = Path(__file__).parents[2]
+
+
 @pytest.fixture
 def codec():
     codec_ = Codec()
-    codec_.load(type_dirs=["tests/data/types"], protocols=["tests/data/protocols:test_proto"])
+    codec_.load(
+        type_dirs=[path_root / "tests/data/types", path_root / "tests/data/types_decimal"],
+        protocols=[f"{path_root}/tests/data/protocols:test_proto"],
+    )
     yield codec_
 
 
@@ -35,7 +43,7 @@ def simple_struct():
     }
 
 
-def test_serialization1(codec, simple_struct):
+def test_simple_struct_serialization(codec, simple_struct):
     type_def = codec.type_converter("messgen/test/simple_struct")
     expected_msg = simple_struct
     expected_bytes = type_def.serialize(expected_msg)
@@ -46,12 +54,27 @@ def test_serialization1(codec, simple_struct):
         assert actual_msg[key] == pytest.approx(expected_msg[key])
 
 
-def test_serialization2(codec):
+def test_var_size_struct_serialization(codec):
     type_def = codec.type_converter("messgen/test/var_size_struct")
     expected_msg = {
         "f0": 0x1234567890ABCDEF,
         "f1_vec": [-0x1234567890ABCDEF, 5, 1],
         "str": "Hello messgen!",
+    }
+
+    expected_bytes = type_def.serialize(expected_msg)
+    assert expected_bytes
+
+    actual_msg = type_def.deserialize(expected_bytes)
+    assert actual_msg == expected_msg
+
+
+def test_struct_with_decimal_serialization(codec):
+    type_def = codec.type_converter("messgen/test/flat_struct_with_decimal")
+    expected_msg = {
+        "int_field": 12345,
+        "dec_field": Decimal("1234.22e-4"),
+        "float_field": 123.456,
     }
 
     expected_bytes = type_def.serialize(expected_msg)
