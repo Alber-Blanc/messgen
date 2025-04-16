@@ -13,29 +13,30 @@ namespace messgen {
 
 namespace detail {
 
-static constexpr int EXPONENT_MAX = 16;
-static constexpr int EXPONENT_MIN = -EXPONENT_MAX;
+static constexpr int TICK_EXPONENT_MAX = 16;
+static constexpr int TICK_EXPONENT_MIN = -TICK_EXPONENT_MAX;
 
-static constexpr auto POW10 = []() {
-    constexpr auto size = EXPONENT_MAX - EXPONENT_MIN + 1;
+constexpr double tick_pow10(int16_t exp) {
+    assert(exp >= TICK_EXPONENT_MIN);
+    assert(exp <= TICK_EXPONENT_MAX);
 
-    auto res = std::array<double, size>{1.0};
-    uint64_t pow10 = 1;
-    for (int i = EXPONENT_MAX; i < size; ++i) {
-        res[i] = pow10;
-        pow10 *= 10;
-    }
-    for (int i = 0; i < EXPONENT_MAX; ++i) {
-        res[i] /= res[size - i - 1];
-        pow10 *= 10;
-    }
-    return res;
-}();
+    constexpr auto TICK_POW10 = []() {
+        constexpr auto size = TICK_EXPONENT_MAX - TICK_EXPONENT_MIN + 1;
 
-constexpr double pow10(int16_t exp) {
-    assert(exp >= EXPONENT_MIN);
-    assert(exp <= EXPONENT_MAX);
-    return POW10[exp + EXPONENT_MAX];
+        auto res = std::array<double, size>{1.0};
+        uint64_t pow10 = 1;
+        for (int i = TICK_EXPONENT_MAX; i < size; ++i) {
+            res[i] = pow10;
+            pow10 *= 10;
+        }
+        for (int i = 0; i < TICK_EXPONENT_MAX; ++i) {
+            res[i] /= res[size - i - 1];
+            pow10 *= 10;
+        }
+        return res;
+    }();
+
+    return TICK_POW10[exp + TICK_EXPONENT_MAX];
 }
 
 } // namespace detail
@@ -217,7 +218,7 @@ private:
     assert(tick > decimal64::from_integer(0));
 
     auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
-    value *= detail::pow10(-tick_exp);
+    value *= detail::tick_pow10(-tick_exp);
     switch (round_mode) {
         case RoundMode::down:
             return decimal64{static_cast<long long>(std::floor(value / tick_coeff) * tick_coeff), tick_exp};
