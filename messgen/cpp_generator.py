@@ -118,7 +118,7 @@ class CppGenerator:
         "int64": "int64_t",
         "float32": "float",
         "float64": "double",
-        "dec64": "messgen::Decimal64",
+        "dec64": "messgen::decimal64",
     }
 
     def __init__(self, options: dict):

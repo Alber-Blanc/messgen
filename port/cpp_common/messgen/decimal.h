@@ -31,7 +31,7 @@ enum class RoundMode {
 
 /// @brief A fixed-point decimal number representation using 64-bit precision.
 ///
-/// Decimal64 provides precise decimal arithmetic with fixed precision, which is
+/// decimal64 provides precise decimal arithmetic with fixed precision, which is
 /// especially useful for financial calculations, trading systems, and other
 /// applications where binary floating-point imprecision is unacceptable.
 ///
@@ -41,39 +41,39 @@ enum class RoundMode {
 /// - Basic arithmetic operations (+, -, *)
 /// - Comparison operations
 /// - Stream I/O
-struct Decimal64 {
+struct decimal64 {
 
     /// @brief Default constructor initializing to zero
-    constexpr Decimal64() = default;
+    constexpr decimal64() = default;
 
-    /// @brief Creates a Decimal64 from a double value according to specified tick size and rounding mode
+    /// @brief Creates a decimal64 from a double value according to specified tick size and rounding mode
     ///
     /// @param value The double value to convert
     /// @param tick The minimum representable increment (tick size)
     /// @param roundMode The rounding mode to apply during conversion
-    /// @return Decimal64 The resulting decimal value
-    [[nodiscard]] static Decimal64 from_double(double value, Decimal64 tick, RoundMode) noexcept;
+    /// @return decimal64 The resulting decimal value
+    [[nodiscard]] static decimal64 from_double(double value, decimal64 tick, RoundMode) noexcept;
 
-    /// @brief Creates a Decimal64 from an unsigned integer value
+    /// @brief Creates a decimal64 from an unsigned integer value
     ///
     /// @tparam T Unsigned integral type
     /// @param value The unsigned integer value
-    /// @return Decimal64 The resulting decimal value
-    [[nodiscard]] static Decimal64 from_integer(std::unsigned_integral auto value) noexcept;
+    /// @return decimal64 The resulting decimal value
+    [[nodiscard]] static decimal64 from_integer(std::unsigned_integral auto value) noexcept;
 
-    /// @brief Creates a Decimal64 from a signed integer value
+    /// @brief Creates a decimal64 from a signed integer value
     ///
     /// @tparam T Signed integral type
     /// @param value The signed integer value
-    /// @return Decimal64 The resulting decimal value
-    [[nodiscard]] static Decimal64 from_integer(std::integral auto value) noexcept;
+    /// @return decimal64 The resulting decimal value
+    [[nodiscard]] static decimal64 from_integer(std::integral auto value) noexcept;
 
-    /// @brief Creates a Decimal64 from a string representation
+    /// @brief Creates a decimal64 from a string representation
     ///
     /// @param value The string to parse
-    /// @return Decimal64 The resulting decimal value
+    /// @return decimal64 The resulting decimal value
     /// @throws May throw if the string cannot be parsed as a valid decimal
-    [[nodiscard]] static Decimal64 from_string(std::string_view value);
+    [[nodiscard]] static decimal64 from_string(std::string_view value);
 
     /// @brief Converts to double representation
     ///
@@ -90,87 +90,87 @@ struct Decimal64 {
     /// @return std::string The value as a string
     [[nodiscard]] std::string to_string() const;
 
-    /// @brief Adds another Decimal64 to this one
+    /// @brief Adds another decimal64 to this one
     ///
     /// @param other The value to add
-    /// @return Decimal64& Reference to this object
-    Decimal64 &operator+=(Decimal64) noexcept;
+    /// @return decimal64& Reference to this object
+    decimal64 &operator+=(decimal64) noexcept;
 
-    /// @brief Subtracts another Decimal64 from this one
+    /// @brief Subtracts another decimal64 from this one
     ///
     /// @param other The value to subtract
-    /// @return Decimal64& Reference to this object
-    Decimal64 &operator-=(Decimal64) noexcept;
+    /// @return decimal64& Reference to this object
+    decimal64 &operator-=(decimal64) noexcept;
 
     /// @brief Multiplies this value by an integer
     ///
     /// @param factor The integer multiplier
-    /// @return Decimal64& Reference to this object
-    Decimal64 &operator*=(int64_t) noexcept;
+    /// @return decimal64& Reference to this object
+    decimal64 &operator*=(int64_t) noexcept;
 
     /// @brief Returns the negation of this value
     ///
-    /// @return Decimal64 The negated value
-    Decimal64 operator-() const noexcept;
+    /// @return decimal64 The negated value
+    decimal64 operator-() const noexcept;
 
-    /// @brief Adds two Decimal64 values
+    /// @brief Adds two decimal64 values
     ///
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
-    /// @return Decimal64 The sum of the operands
-    friend Decimal64 operator+(Decimal64, Decimal64) noexcept;
+    /// @return decimal64 The sum of the operands
+    friend decimal64 operator+(decimal64, decimal64) noexcept;
 
-    /// @brief Subtracts one Decimal64 from another
+    /// @brief Subtracts one decimal64 from another
     ///
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
-    /// @return Decimal64 The difference between the operands
-    friend Decimal64 operator-(Decimal64, Decimal64) noexcept;
+    /// @return decimal64 The difference between the operands
+    friend decimal64 operator-(decimal64, decimal64) noexcept;
 
-    /// @brief Multiplies a Decimal64 by an integer
+    /// @brief Multiplies a decimal64 by an integer
     ///
     /// @param decimal The decimal value
     /// @param factor The integer multiplier
-    /// @return Decimal64 The product
-    friend Decimal64 operator*(Decimal64, int64_t) noexcept;
+    /// @return decimal64 The product
+    friend decimal64 operator*(decimal64, int64_t) noexcept;
 
-    /// @brief Compares two Decimal64 values
+    /// @brief Compares two decimal64 values
     ///
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
     /// @return std::strong_ordering The ordering relation between the operands
-    friend std::strong_ordering operator<=>(const Decimal64 &, const Decimal64 &) noexcept;
+    friend std::strong_ordering operator<=>(const decimal64 &, const decimal64 &) noexcept;
 
-    /// @brief Tests equality between two Decimal64 values
+    /// @brief Tests equality between two decimal64 values
     ///
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
     /// @return bool True if the operands are equal, false otherwise
-    friend bool operator==(const Decimal64 &, const Decimal64 &) noexcept;
+    friend bool operator==(const decimal64 &, const decimal64 &) noexcept;
 
-    /// @brief Writes a Decimal64 to an output stream
+    /// @brief Writes a decimal64 to an output stream
     ///
     /// @param os The output stream
     /// @param decimal The decimal value to write
     /// @return std::ostream& Reference to the output stream
-    friend std::ostream &operator<<(std::ostream &, Decimal64);
+    friend std::ostream &operator<<(std::ostream &, decimal64);
 
-    /// @brief Reads a Decimal64 from an input stream
+    /// @brief Reads a decimal64 from an input stream
     ///
     /// @param is The input stream
     /// @param decimal The decimal value to read into
     /// @return std::istream& Reference to the input stream
-    friend std::istream &operator>>(std::istream &, Decimal64 &);
+    friend std::istream &operator>>(std::istream &, decimal64 &);
 
 private:
     using ValueType = std::decimal::decimal64;
 
     template <char... C>
-    friend Decimal64 operator""_dd();
+    friend decimal64 operator""_dd();
 
-    explicit Decimal64(long long coeff, int exponent);
-    explicit Decimal64(double value);
-    explicit Decimal64(ValueType value);
+    explicit decimal64(long long coeff, int exponent);
+    explicit decimal64(double value);
+    explicit decimal64(ValueType value);
 
     /// @brief Decomposes the decimal into its components
     ///
@@ -181,10 +181,10 @@ private:
     ValueType _value = 0;
 };
 
-[[nodiscard]] inline Decimal64 Decimal64::from_double(double value, Decimal64 tick, RoundMode round_mode) noexcept {
-    assert(tick > Decimal64::from_integer(0));
+[[nodiscard]] inline decimal64 decimal64::from_double(double value, decimal64 tick, RoundMode round_mode) noexcept {
+    assert(tick > decimal64::from_integer(0));
 
-    auto [value_sign, value_coeff, value_exp] = Decimal64{value}.decompose();
+    auto [value_sign, value_coeff, value_exp] = decimal64{value}.decompose();
     auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
 
     // we could adjust the value coeff, but that has an additional cost
@@ -206,33 +206,33 @@ private:
     switch (round_mode) {
         case RoundMode::down: {
             bool is_negative = value_sign < 0;
-            return Decimal64(value_sign * ((value_coeff + is_negative * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
+            return decimal64(value_sign * ((value_coeff + is_negative * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
         }
         case RoundMode::mid: {
-            return Decimal64(value_sign * ((value_coeff + tick_coeff / 2) / tick_coeff * tick_coeff), result_exp);
+            return decimal64(value_sign * ((value_coeff + tick_coeff / 2) / tick_coeff * tick_coeff), result_exp);
         }
         case RoundMode::up: {
             bool is_positive = value_sign >= 0;
-            return Decimal64(value_sign * ((value_coeff + is_positive * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
+            return decimal64(value_sign * ((value_coeff + is_positive * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
         }
         default:
             __builtin_unreachable();
     }
 
-    return Decimal64{0, 0};
+    return decimal64{0, 0};
 }
 
-[[nodiscard]] inline Decimal64 Decimal64::from_integer(std::unsigned_integral auto integer) noexcept {
-    return Decimal64{std::decimal::make_decimal64(static_cast<unsigned long long>(integer), 0)};
+[[nodiscard]] inline decimal64 decimal64::from_integer(std::unsigned_integral auto integer) noexcept {
+    return decimal64{std::decimal::make_decimal64(static_cast<unsigned long long>(integer), 0)};
 }
 
-[[nodiscard]] inline Decimal64 Decimal64::from_integer(std::integral auto integer) noexcept {
-    return Decimal64{std::decimal::make_decimal64(static_cast<long long>(integer), 0)};
+[[nodiscard]] inline decimal64 decimal64::from_integer(std::integral auto integer) noexcept {
+    return decimal64{std::decimal::make_decimal64(static_cast<long long>(integer), 0)};
 }
 
-[[nodiscard]] inline Decimal64 Decimal64::from_string(std::string_view str) {
+[[nodiscard]] inline decimal64 decimal64::from_string(std::string_view str) {
     if (str.empty()) {
-        return Decimal64{};
+        return decimal64{};
     }
 
     // remove leading whitespace
@@ -255,7 +255,7 @@ private:
     auto coeff = int64_t{};
     while (!str.empty() && str[0] != '.' && str[0] != 'e') {
         if (!std::isdigit(str[0])) {
-            return Decimal64{};
+            return decimal64{};
         }
         coeff = coeff * 10 + (str[0] - '0');
         str.remove_prefix(1);
@@ -267,7 +267,7 @@ private:
         str.remove_prefix(1);
         while (!str.empty() && str[0] != 'e') {
             if (!std::isdigit(str[0])) {
-                return Decimal64{};
+                return decimal64{};
             }
             coeff = coeff * 10 + (str[0] - '0');
             --exponent;
@@ -281,23 +281,23 @@ private:
         auto exponent_part = 0;
         auto result = std::from_chars(str.data(), str.data() + str.size(), exponent_part);
         if (result.ec != std::errc{}) {
-            return Decimal64{};
+            return decimal64{};
         }
         exponent += exponent_part;
     }
 
-    return Decimal64{sign * coeff, exponent};
+    return decimal64{sign * coeff, exponent};
 }
 
-[[nodiscard]] inline double Decimal64::to_double() const noexcept {
+[[nodiscard]] inline double decimal64::to_double() const noexcept {
     return std::decimal::decimal64_to_double(_value);
 }
 
-[[nodiscard]] inline int64_t Decimal64::to_integer() const noexcept {
+[[nodiscard]] inline int64_t decimal64::to_integer() const noexcept {
     return std::decimal::decimal_to_long_long(_value);
 }
 
-[[nodiscard]] inline std::string Decimal64::to_string() const {
+[[nodiscard]] inline std::string decimal64::to_string() const {
     auto [sign, coeff, exponent] = decompose();
 
     // normalize exponent
@@ -347,38 +347,38 @@ private:
     return buff;
 }
 
-inline Decimal64 &Decimal64::operator+=(Decimal64 other) noexcept {
+inline decimal64 &decimal64::operator+=(decimal64 other) noexcept {
     _value += other._value;
     return *this;
 }
 
-inline Decimal64 &Decimal64::operator-=(Decimal64 other) noexcept {
+inline decimal64 &decimal64::operator-=(decimal64 other) noexcept {
     _value -= other._value;
     return *this;
 }
 
-inline Decimal64 &Decimal64::operator*=(int64_t other) noexcept {
+inline decimal64 &decimal64::operator*=(int64_t other) noexcept {
     _value *= other;
     return *this;
 }
 
-[[nodiscard]] inline Decimal64 Decimal64::operator-() const noexcept {
-    return Decimal64(-_value);
+[[nodiscard]] inline decimal64 decimal64::operator-() const noexcept {
+    return decimal64(-_value);
 }
 
-inline Decimal64::Decimal64(long long coeff, int exponent)
+inline decimal64::decimal64(long long coeff, int exponent)
     : _value(std::decimal::make_decimal64(static_cast<long long>(coeff), exponent)) {
 }
 
-inline Decimal64::Decimal64(double value)
+inline decimal64::decimal64(double value)
     : _value(value) {
 }
 
-inline Decimal64::Decimal64(ValueType value)
+inline decimal64::decimal64(ValueType value)
     : _value(value) {
 }
 
-inline std::tuple<int8_t, uint64_t, int16_t> Decimal64::decompose() const {
+inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const {
     constexpr auto exponent_bias = int16_t{398};
     constexpr auto exponent_mask = (int16_t{1} << 10) - 1;
 
@@ -399,22 +399,22 @@ inline std::tuple<int8_t, uint64_t, int16_t> Decimal64::decompose() const {
     };
 }
 
-[[nodiscard]] inline Decimal64 operator+(Decimal64 lhs, Decimal64 rhs) noexcept {
+[[nodiscard]] inline decimal64 operator+(decimal64 lhs, decimal64 rhs) noexcept {
     lhs += rhs;
     return lhs;
 }
 
-[[nodiscard]] inline Decimal64 operator-(Decimal64 lhs, Decimal64 rhs) noexcept {
+[[nodiscard]] inline decimal64 operator-(decimal64 lhs, decimal64 rhs) noexcept {
     lhs -= rhs;
     return lhs;
 }
 
-[[nodiscard]] inline Decimal64 operator*(Decimal64 lhs, int64_t rhs) noexcept {
+[[nodiscard]] inline decimal64 operator*(decimal64 lhs, int64_t rhs) noexcept {
     lhs *= rhs;
     return lhs;
 }
 
-inline std::strong_ordering operator<=>(const Decimal64 &lhs, const Decimal64 &rhs) noexcept {
+inline std::strong_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept {
     if (lhs._value < rhs._value)
         return std::strong_ordering::less;
     if (lhs._value > rhs._value)
@@ -422,19 +422,19 @@ inline std::strong_ordering operator<=>(const Decimal64 &lhs, const Decimal64 &r
     return std::strong_ordering::equal;
 }
 
-inline bool operator==(const Decimal64 &lhs, const Decimal64 &rhs) noexcept {
+inline bool operator==(const decimal64 &lhs, const decimal64 &rhs) noexcept {
     return lhs._value == rhs._value;
 }
 
-inline std::ostream &operator<<(std::ostream &os, Decimal64 dec) {
+inline std::ostream &operator<<(std::ostream &os, decimal64 dec) {
     os << dec.to_string();
     return os;
 }
 
-inline std::istream &operator>>(std::istream &is, Decimal64 &dec) {
+inline std::istream &operator>>(std::istream &is, decimal64 &dec) {
     auto str = std::string{};
     is >> str;
-    dec = Decimal64::from_string(str);
+    dec = decimal64::from_string(str);
     return is;
 }
 
@@ -493,11 +493,11 @@ constexpr void parse(std::tuple<int, uint64_t, int> &ctx) {
 } // namespace detail
 
 template <char... C>
-[[nodiscard]] Decimal64 operator""_dd() {
+[[nodiscard]] decimal64 operator""_dd() {
     auto ctx = std::tuple<int, uint64_t, int>{1, 0, 0};
     detail::parse<C...>(ctx);
     auto [sign, coeff, exponent] = ctx;
-    return Decimal64{std::decimal::make_decimal64(sign * static_cast<long long>(coeff), exponent)};
+    return decimal64{std::decimal::make_decimal64(sign * static_cast<long long>(coeff), exponent)};
 }
 
 } // namespace messgen
