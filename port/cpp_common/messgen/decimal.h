@@ -29,31 +29,137 @@ enum class RoundMode {
     up = 1,
 };
 
+/// @brief A fixed-point decimal number representation using 64-bit precision.
+///
+/// Decimal64 provides precise decimal arithmetic with fixed precision, which is
+/// especially useful for financial calculations, trading systems, and other
+/// applications where binary floating-point imprecision is unacceptable.
+///
+/// The class supports:
+/// - Creation from doubles, integers, and strings
+/// - Conversion to doubles, integers, and strings
+/// - Basic arithmetic operations (+, -, *)
+/// - Comparison operations
+/// - Stream I/O
 struct Decimal64 {
 
+    /// @brief Default constructor initializing to zero
     constexpr Decimal64() = default;
 
-    [[nodiscard]] static Decimal64 from_double(double, Decimal64, RoundMode) noexcept;
-    [[nodiscard]] static Decimal64 from_integer(std::unsigned_integral auto) noexcept;
-    [[nodiscard]] static Decimal64 from_integer(std::integral auto) noexcept;
-    [[nodiscard]] static Decimal64 from_string(std::string_view);
+    /// @brief Creates a Decimal64 from a double value according to specified tick size and rounding mode
+    ///
+    /// @param value The double value to convert
+    /// @param tick The minimum representable increment (tick size)
+    /// @param roundMode The rounding mode to apply during conversion
+    /// @return Decimal64 The resulting decimal value
+    [[nodiscard]] static Decimal64 from_double(double value, Decimal64 tick, RoundMode) noexcept;
 
+    /// @brief Creates a Decimal64 from an unsigned integer value
+    ///
+    /// @tparam T Unsigned integral type
+    /// @param value The unsigned integer value
+    /// @return Decimal64 The resulting decimal value
+    [[nodiscard]] static Decimal64 from_integer(std::unsigned_integral auto value) noexcept;
+
+    /// @brief Creates a Decimal64 from a signed integer value
+    ///
+    /// @tparam T Signed integral type
+    /// @param value The signed integer value
+    /// @return Decimal64 The resulting decimal value
+    [[nodiscard]] static Decimal64 from_integer(std::integral auto value) noexcept;
+
+    /// @brief Creates a Decimal64 from a string representation
+    ///
+    /// @param value The string to parse
+    /// @return Decimal64 The resulting decimal value
+    /// @throws May throw if the string cannot be parsed as a valid decimal
+    [[nodiscard]] static Decimal64 from_string(std::string_view value);
+
+    /// @brief Converts to double representation
+    ///
+    /// @return double The value as a double
     [[nodiscard]] double to_double() const noexcept;
+
+    /// @brief Converts to integer representation
+    ///
+    /// @return int64_t The value as an integer
     [[nodiscard]] int64_t to_integer() const noexcept;
+
+    /// @brief Converts to string representation
+    ///
+    /// @return std::string The value as a string
     [[nodiscard]] std::string to_string() const;
 
+    /// @brief Adds another Decimal64 to this one
+    ///
+    /// @param other The value to add
+    /// @return Decimal64& Reference to this object
     Decimal64 &operator+=(Decimal64) noexcept;
+
+    /// @brief Subtracts another Decimal64 from this one
+    ///
+    /// @param other The value to subtract
+    /// @return Decimal64& Reference to this object
     Decimal64 &operator-=(Decimal64) noexcept;
+
+    /// @brief Multiplies this value by an integer
+    ///
+    /// @param factor The integer multiplier
+    /// @return Decimal64& Reference to this object
     Decimal64 &operator*=(int64_t) noexcept;
+
+    /// @brief Returns the negation of this value
+    ///
+    /// @return Decimal64 The negated value
     Decimal64 operator-() const noexcept;
 
+    /// @brief Adds two Decimal64 values
+    ///
+    /// @param lhs The left-hand operand
+    /// @param rhs The right-hand operand
+    /// @return Decimal64 The sum of the operands
     friend Decimal64 operator+(Decimal64, Decimal64) noexcept;
+
+    /// @brief Subtracts one Decimal64 from another
+    ///
+    /// @param lhs The left-hand operand
+    /// @param rhs The right-hand operand
+    /// @return Decimal64 The difference between the operands
     friend Decimal64 operator-(Decimal64, Decimal64) noexcept;
+
+    /// @brief Multiplies a Decimal64 by an integer
+    ///
+    /// @param decimal The decimal value
+    /// @param factor The integer multiplier
+    /// @return Decimal64 The product
     friend Decimal64 operator*(Decimal64, int64_t) noexcept;
 
+    /// @brief Compares two Decimal64 values
+    ///
+    /// @param lhs The left-hand operand
+    /// @param rhs The right-hand operand
+    /// @return std::strong_ordering The ordering relation between the operands
     friend std::strong_ordering operator<=>(const Decimal64 &, const Decimal64 &) noexcept;
+
+    /// @brief Tests equality between two Decimal64 values
+    ///
+    /// @param lhs The left-hand operand
+    /// @param rhs The right-hand operand
+    /// @return bool True if the operands are equal, false otherwise
     friend bool operator==(const Decimal64 &, const Decimal64 &) noexcept;
+
+    /// @brief Writes a Decimal64 to an output stream
+    ///
+    /// @param os The output stream
+    /// @param decimal The decimal value to write
+    /// @return std::ostream& Reference to the output stream
     friend std::ostream &operator<<(std::ostream &, Decimal64);
+
+    /// @brief Reads a Decimal64 from an input stream
+    ///
+    /// @param is The input stream
+    /// @param decimal The decimal value to read into
+    /// @return std::istream& Reference to the input stream
     friend std::istream &operator>>(std::istream &, Decimal64 &);
 
 private:
@@ -66,8 +172,12 @@ private:
     explicit Decimal64(double value);
     explicit Decimal64(ValueType value);
 
+    /// @brief Decomposes the decimal into its components
+    ///
+    /// @return std::tuple<int8_t, uint64_t, int16_t> A tuple containing (sign, coefficient, exponent)
     std::tuple<int8_t, uint64_t, int16_t> decompose() const;
 
+    /// The internal decimal value
     ValueType _value = 0;
 };
 
