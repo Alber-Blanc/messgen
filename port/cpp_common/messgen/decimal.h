@@ -244,15 +244,15 @@ private:
         return decimal64{};
     }
 
-    if (str == "Infinity" || str == "inf") {
+    if (str == "inf") {
         return decimal64{1LL, 10000000};
     }
 
-    if (str == "-Infinity" || str == "-inf") {
+    if (str == "-inf") {
         return decimal64{-1LL, 10000000};
     }
 
-    if (str == "NaN" || str == "nan") {
+    if (str == "nan") {
         return decimal64{std::nan("1")};
     }
 
@@ -319,6 +319,14 @@ private:
 }
 
 [[nodiscard]] inline std::string decimal64::to_string() const {
+    if (is_infinite()) {
+        return is_signed() ? "-inf" : "inf";
+    }
+
+    if (is_nan()) {
+        return "nan";
+    }
+
     auto [sign, coeff, exponent] = decompose();
 
     // normalize exponent

@@ -307,18 +307,18 @@ TEST_F(CppDecimalTest, FromString) {
     // Infinity
     EXPECT_FALSE(very_small.is_infinite());
 
-    auto inf_dec = decimal64::from_string("Infinity");
+    auto inf_dec = decimal64::from_string("inf");
     EXPECT_TRUE(inf_dec.is_infinite());
     EXPECT_FALSE(inf_dec.is_signed());
     EXPECT_FALSE(inf_dec.is_nan());
 
-    auto minus_inf_dec = decimal64::from_string("-Infinity");
+    auto minus_inf_dec = decimal64::from_string("-inf");
     EXPECT_TRUE(minus_inf_dec.is_infinite());
     EXPECT_TRUE(minus_inf_dec.is_signed());
     EXPECT_FALSE(minus_inf_dec.is_nan());
 
     // NaN
-    auto nan_dec = decimal64::from_string("NaN");
+    auto nan_dec = decimal64::from_string("nan");
     EXPECT_TRUE(nan_dec.is_nan());
 
     // Invalid strings should return empty decimal
@@ -329,16 +329,7 @@ TEST_F(CppDecimalTest, FromString) {
     EXPECT_EQ(decimal64{}, decimal64::from_string("e10"));
 }
 
-// Consistency checks
-TEST_F(CppDecimalTest, ConsistencyCheck) {
-    // Same value with different scale representations should be proportional
-    auto result1 = decimal64::from_double(1.5, 1.0_dd, RoundMode::mid);
-    auto result2 = decimal64::from_double(15.0, 10.0_dd, RoundMode::mid);
-
-    EXPECT_DOUBLE_EQ(result1.to_double() * 10.0, result2.to_double());
-}
-
-TEST_F(CppDecimalTest, StringConversion) {
+TEST_F(CppDecimalTest, ToString) {
     // Basic integer values
     EXPECT_EQ("0", decimal64::from_integer(0).to_string());
     EXPECT_EQ("123", decimal64::from_integer(123).to_string());
@@ -380,6 +371,13 @@ TEST_F(CppDecimalTest, StringConversion) {
     EXPECT_EQ("0", decimal64::from_double(0.000000, 0.1_dd, RoundMode::mid).to_string());
     EXPECT_EQ("0", (-0.0_dd).to_string());
     EXPECT_EQ("0.123e-3", (0.000123_dd).to_string());
+
+    // Infinity
+    EXPECT_EQ("inf", decimal64::from_string("inf").to_string());
+    EXPECT_EQ("-inf", decimal64::from_string("-inf").to_string());
+
+    // NaN
+    EXPECT_EQ("nan", decimal64::from_string("nan").to_string());
 }
 
 TEST_F(CppDecimalTest, StreamOperator) {
@@ -392,6 +390,14 @@ TEST_F(CppDecimalTest, StreamOperator) {
     sstream >> read;
 
     EXPECT_EQ(read, write);
+}
+
+TEST_F(CppDecimalTest, ConsistencyCheck) {
+    // Same value with different scale representations should be proportional
+    auto result1 = decimal64::from_double(1.5, 1.0_dd, RoundMode::mid);
+    auto result2 = decimal64::from_double(15.0, 10.0_dd, RoundMode::mid);
+
+    EXPECT_DOUBLE_EQ(result1.to_double() * 10.0, result2.to_double());
 }
 
 TEST_F(CppDecimalTest, MakeDecimal) {
