@@ -13,10 +13,13 @@ messgen_add_proto_library(msgs_another_proto "${MESSGEN_PROTO_DIR}" "nested/anot
 target_link_libraries(test_cpp gtest msgs_test_proto msgs_another_proto GTest::gtest_main)
 gtest_discover_tests(test_cpp)
 
-add_executable(test_decimal "cpp/DecimalTest.cpp")
-target_include_directories(test_decimal PRIVATE ${CMAKE_SOURCE_DIR}/port/cpp_common)
-target_link_libraries(test_decimal gtest GTest::gtest_main)
-gtest_discover_tests(test_decimal)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # Only GCC supports has the support for ISO/IEC TR 24733
+    add_executable(test_decimal "cpp/DecimalTest.cpp")
+    target_include_directories(test_decimal PRIVATE ${CMAKE_SOURCE_DIR}/port/cpp_common)
+    target_link_libraries(test_decimal gtest GTest::gtest_main)
+    gtest_discover_tests(test_decimal)
+endif()
 
 add_executable(test_cpp_nostl "cpp/CppNostlTest.cpp")
 messgen_add_types_library(msgs_test_types_nostl "${MESSGEN_TYPE_DIR}" "nostl" "cpp_standard=20")
