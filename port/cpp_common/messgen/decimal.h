@@ -17,16 +17,16 @@ static constexpr int EXPONENT_MAX = 16;
 static constexpr int EXPONENT_MIN = -EXPONENT_MAX;
 
 static constexpr auto POW10 = []() {
-    constexpr auto limit = EXPONENT_MAX - EXPONENT_MIN + 1;
+    constexpr auto size = EXPONENT_MAX - EXPONENT_MIN + 1;
 
-    auto res = std::array<double, limit>{1.0};
+    auto res = std::array<double, size>{1.0};
     uint64_t pow10 = 1;
-    for (int i = EXPONENT_MAX; i < limit; ++i) {
+    for (int i = EXPONENT_MAX; i < size; ++i) {
         res[i] = pow10;
         pow10 *= 10;
     }
     for (int i = 0; i < EXPONENT_MAX; ++i) {
-        res[i] /= res[limit - i - 1];
+        res[i] /= res[size - i - 1];
         pow10 *= 10;
     }
     return res;
@@ -202,9 +202,7 @@ private:
     assert(tick > decimal64::from_integer(0));
 
     auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
-
     value *= detail::pow10(-tick_exp);
-
     switch (round_mode) {
         case RoundMode::down:
             return decimal64{static_cast<long long>(std::floor(value / tick_coeff) * tick_coeff), tick_exp};
