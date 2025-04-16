@@ -262,6 +262,8 @@ TEST_F(CppDecimalTest, FromString) {
     EXPECT_EQ(0_dd, decimal64::from_string("0"));
     EXPECT_EQ(123_dd, decimal64::from_string("123"));
     EXPECT_EQ(-123_dd, decimal64::from_string("-123"));
+    EXPECT_FALSE(decimal64::from_string("123").is_signed());
+    EXPECT_TRUE(decimal64::from_string("-123").is_signed());
 
     // Basic decimal values
     EXPECT_EQ(123.456_dd, decimal64::from_string("123.456"));
@@ -303,8 +305,21 @@ TEST_F(CppDecimalTest, FromString) {
     EXPECT_GT(very_small, decimal64::from_integer(0));
 
     // Infinity
-    // EXPECT_EQ(decimal64{}, decimal64::from_string("Inifinty"));
-    // EXPECT_EQ(decimal64{}, decimal64::from_string("-Inifinty"));
+    EXPECT_FALSE(very_small.is_infinite());
+
+    auto inf_dec = decimal64::from_string("Infinity");
+    EXPECT_TRUE(inf_dec.is_infinite());
+    EXPECT_FALSE(inf_dec.is_signed());
+    EXPECT_FALSE(inf_dec.is_nan());
+
+    auto minus_inf_dec = decimal64::from_string("-Infinity");
+    EXPECT_TRUE(minus_inf_dec.is_infinite());
+    EXPECT_TRUE(minus_inf_dec.is_signed());
+    EXPECT_FALSE(minus_inf_dec.is_nan());
+
+    // NaN
+    auto nan_dec = decimal64::from_string("NaN");
+    EXPECT_TRUE(nan_dec.is_nan());
 
     // Invalid strings should return empty decimal
     EXPECT_EQ(decimal64{}, decimal64::from_string(""));

@@ -107,6 +107,21 @@ struct decimal64 {
     /// @return std::string The value as a string
     [[nodiscard]] std::string to_string() const;
 
+    /// @brief Checks if this decimal represents infinity
+    ///
+    /// @return bool True if the value is positive or negative infinity, false otherwise
+    [[nodiscard]] bool is_infinite() const;
+
+    /// @brief Checks if this decimal represents NaN (Not a Number)
+    ///
+    /// @return bool True if the value is NaN, false otherwise
+    [[nodiscard]] bool is_nan() const;
+
+    /// @brief Checks if this decimal has a negative sign
+    ///
+    /// @return bool True if the value is negative or negative zero, false otherwise
+    [[nodiscard]] bool is_signed() const;
+
     /// @brief Adds another decimal64 to this one
     ///
     /// @param other The value to add
@@ -213,7 +228,6 @@ private:
         default:
             __builtin_unreachable();
     }
-
     return decimal64{0, 0};
 }
 
@@ -228,6 +242,18 @@ private:
 [[nodiscard]] inline decimal64 decimal64::from_string(std::string_view str) {
     if (str.empty()) {
         return decimal64{};
+    }
+
+    if (str == "Infinity" || str == "inf") {
+        return decimal64{1LL, 10000000};
+    }
+
+    if (str == "-Infinity" || str == "-inf") {
+        return decimal64{-1LL, 10000000};
+    }
+
+    if (str == "NaN" || str == "nan") {
+        return decimal64{std::nan("1")};
     }
 
     // remove leading whitespace
@@ -340,6 +366,21 @@ private:
     }
 
     return buff;
+}
+
+[[nodiscard]] inline bool decimal64::is_infinite() const {
+    constexpr auto plus_infinity = 0x7800000000000000ULL;
+    constexpr auto minus_infinity = 0xf800000000000000ULL;
+    return (reinterpret_cast<const unsigned long long &>(_value) == plus_infinity) || (reinterpret_cast<const unsigned long long &>(_value) == minus_infinity);
+}
+
+[[nodiscard]] inline bool decimal64::is_nan() const { // five bits set after sign bit
+    constexpr auto qnan = 0x7c00000000000000ULL;
+    return reinterpret_cast<const unsigned long long &>(_value) == qnan;
+}
+
+[[nodiscard]] inline bool decimal64::is_signed() const {
+    return reinterpret_cast<const unsigned long long &>(_value) & (1ULL << 63);
 }
 
 inline decimal64 &decimal64::operator+=(decimal64 other) noexcept {
