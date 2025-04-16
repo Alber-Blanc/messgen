@@ -362,6 +362,18 @@ TEST_F(CppDecimalTest, StringConversion) {
     EXPECT_EQ("0.123e-3", (0.000123_dd).to_string());
 }
 
+TEST_F(CppDecimalTest, StreamOperator) {
+    auto sstream = std::stringstream{};
+
+    auto write = 12.345_dd;
+    sstream << write;
+
+    auto read = Decimal64{};
+    sstream >> read;
+
+    EXPECT_EQ(read, write);
+}
+
 TEST_F(CppDecimalTest, MakeDecimal) {
     auto decimal_to_hex = [](auto value) {
         std::stringstream ss;
