@@ -302,6 +302,10 @@ TEST_F(CppDecimalTest, FromString) {
     auto very_small = decimal64::from_string("9.99e-30");
     EXPECT_GT(very_small, decimal64::from_integer(0));
 
+    // Infinity
+    // EXPECT_EQ(decimal64{}, decimal64::from_string("Inifinty"));
+    // EXPECT_EQ(decimal64{}, decimal64::from_string("-Inifinty"));
+
     // Invalid strings should return empty decimal
     EXPECT_EQ(decimal64{}, decimal64::from_string(""));
     EXPECT_EQ(decimal64{}, decimal64::from_string("abc"));
@@ -347,7 +351,7 @@ TEST_F(CppDecimalTest, StringConversion) {
     auto very_large = decimal64::from_double(9.99e30, 1.0_dd, RoundMode::mid);
     EXPECT_FALSE(very_large.to_string().empty());
 
-    auto very_small = decimal64::from_double(9.99e-30, 1.0e-35_dd, RoundMode::mid);
+    auto very_small = decimal64::from_double(9.99e-30, 1.0e-15_dd, RoundMode::mid);
     EXPECT_FALSE(very_small.to_string().empty());
 
     // Special cases

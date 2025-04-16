@@ -12,14 +12,31 @@
 namespace messgen {
 
 namespace detail {
+
+static constexpr int EXPONENT_MAX = 16;
+static constexpr int EXPONENT_MIN = -EXPONENT_MAX;
+
 static constexpr auto POW10 = []() {
-    constexpr auto limit = 17;
-    auto res = std::array<uint64_t, limit>{1};
-    for (int i = 1; i < limit; ++i) {
-        res[i] = res[i - 1] * 10;
+    constexpr auto limit = EXPONENT_MAX - EXPONENT_MIN + 1;
+
+    auto res = std::array<double, limit>{1.0};
+    uint64_t pow10 = 1;
+    for (int i = EXPONENT_MAX; i < limit; ++i) {
+        res[i] = pow10;
+        pow10 *= 10;
+    }
+    for (int i = 0; i < EXPONENT_MAX; ++i) {
+        res[i] /= res[limit - i - 1];
+        pow10 *= 10;
     }
     return res;
 }();
+
+constexpr double pow10(int16_t exp) {
+    assert(exp >= EXPONENT_MIN);
+    assert(exp <= EXPONENT_MAX);
+    return POW10[exp + EXPONENT_MAX];
+}
 
 } // namespace detail
 
@@ -184,37 +201,17 @@ private:
 [[nodiscard]] inline decimal64 decimal64::from_double(double value, decimal64 tick, RoundMode round_mode) noexcept {
     assert(tick > decimal64::from_integer(0));
 
-    auto [value_sign, value_coeff, value_exp] = decimal64{value}.decompose();
     auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
 
-    // we could adjust the value coeff, but that has an additional cost
-    // auto adjust_exp = -std::min(0, value_exp - tick_exp + 10);
-    // value_coeff /= detail::POW10[adjust_exp];
-    // value_exp += adjust_exp;
-
-    // make both coefficients represent same scale
-    int exp_diff = value_exp - tick_exp;
-    int value_exp_bigger = exp_diff >> 31;
-    int pos_diff = (exp_diff ^ value_exp_bigger) - value_exp_bigger;
-
-    assert(pos_diff < detail::POW10.size());
-
-    value_coeff *= detail::POW10[pos_diff & ~value_exp_bigger];
-    tick_coeff *= detail::POW10[pos_diff & value_exp_bigger];
-    int result_exp = (value_exp & value_exp_bigger) | (tick_exp & ~value_exp_bigger);
+    value *= detail::pow10(-tick_exp);
 
     switch (round_mode) {
-        case RoundMode::down: {
-            bool is_negative = value_sign < 0;
-            return decimal64(value_sign * ((value_coeff + is_negative * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
-        }
-        case RoundMode::mid: {
-            return decimal64(value_sign * ((value_coeff + tick_coeff / 2) / tick_coeff * tick_coeff), result_exp);
-        }
-        case RoundMode::up: {
-            bool is_positive = value_sign >= 0;
-            return decimal64(value_sign * ((value_coeff + is_positive * (tick_coeff - 1)) / tick_coeff * tick_coeff), result_exp);
-        }
+        case RoundMode::down:
+            return decimal64{static_cast<long long>(std::floor(value / tick_coeff) * tick_coeff), tick_exp};
+        case RoundMode::mid:
+            return decimal64{std::llround(value / tick_coeff) * int64_t(tick_coeff), tick_exp};
+        case RoundMode::up:
+            return decimal64{static_cast<long long>(std::ceil(value / tick_coeff) * tick_coeff), tick_exp};
         default:
             __builtin_unreachable();
     }
