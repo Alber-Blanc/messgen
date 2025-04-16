@@ -13,8 +13,8 @@ namespace messgen {
 
 namespace detail {
 
-static constexpr int TICK_EXPONENT_MAX = 16;
-static constexpr int TICK_EXPONENT_MIN = -TICK_EXPONENT_MAX;
+inline constexpr int TICK_EXPONENT_MAX = 16;
+inline constexpr int TICK_EXPONENT_MIN = -TICK_EXPONENT_MAX;
 
 constexpr double tick_pow10(int16_t exp) {
     assert(exp >= TICK_EXPONENT_MIN);
@@ -111,30 +111,30 @@ struct decimal64 {
     /// @brief Checks if this decimal represents infinity
     ///
     /// @return bool True if the value is positive or negative infinity, false otherwise
-    [[nodiscard]] bool is_infinite() const;
+    [[nodiscard]] bool is_infinite() const noexcept;
 
     /// @brief Checks if this decimal represents NaN (Not a Number)
     ///
     /// @return bool True if the value is NaN, false otherwise
-    [[nodiscard]] bool is_nan() const;
+    [[nodiscard]] bool is_nan() const noexcept;
 
     /// @brief Adds another decimal64 to this one
     ///
     /// @param other The value to add
     /// @return decimal64& Reference to this object
-    decimal64 &operator+=(decimal64) noexcept;
+    decimal64 &operator+=(decimal64 other) noexcept;
 
     /// @brief Subtracts another decimal64 from this one
     ///
     /// @param other The value to subtract
     /// @return decimal64& Reference to this object
-    decimal64 &operator-=(decimal64) noexcept;
+    decimal64 &operator-=(decimal64 other) noexcept;
 
     /// @brief Multiplies this value by an integer
     ///
     /// @param factor The integer multiplier
     /// @return decimal64& Reference to this object
-    decimal64 &operator*=(int64_t) noexcept;
+    decimal64 &operator*=(int64_t factor) noexcept;
 
     /// @brief Returns the negation of this value
     ///
@@ -146,35 +146,35 @@ struct decimal64 {
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
     /// @return decimal64 The sum of the operands
-    friend decimal64 operator+(decimal64, decimal64) noexcept;
+    friend decimal64 operator+(decimal64 lhs, decimal64 rhs) noexcept;
 
     /// @brief Subtracts one decimal64 from another
     ///
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
     /// @return decimal64 The difference between the operands
-    friend decimal64 operator-(decimal64, decimal64) noexcept;
+    friend decimal64 operator-(decimal64 lhs, decimal64 rhs) noexcept;
 
     /// @brief Multiplies a decimal64 by an integer
     ///
     /// @param decimal The decimal value
     /// @param factor The integer multiplier
     /// @return decimal64 The product
-    friend decimal64 operator*(decimal64, int64_t) noexcept;
+    friend decimal64 operator*(decimal64 decimal, int64_t factor) noexcept;
 
     /// @brief Compares two decimal64 values
     ///
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
     /// @return std::strong_ordering The ordering relation between the operands
-    friend std::strong_ordering operator<=>(const decimal64 &, const decimal64 &) noexcept;
+    friend std::strong_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept;
 
     /// @brief Tests equality between two decimal64 values
     ///
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
     /// @return bool True if the operands are equal, false otherwise
-    friend bool operator==(const decimal64 &, const decimal64 &) noexcept;
+    friend bool operator==(const decimal64 &lhs, const decimal64 &rhs) noexcept;
 
     /// @brief Writes a decimal64 to an output stream
     ///
@@ -202,8 +202,8 @@ private:
 
     /// @brief Decomposes the decimal into its components
     ///
-    /// @return std::tuple<int8_t, uint64_t, int16_t> A tuple containing (sign, coefficient, exponent)
-    std::tuple<int8_t, uint64_t, int16_t> decompose() const;
+    /// @return A tuple containing (sign, coefficient, exponent)
+    std::tuple<int8_t, uint64_t, int16_t> decompose() const noexcept;
 
     /// The internal decimal value
     ValueType _value = 0;
@@ -372,13 +372,13 @@ private:
     return buff;
 }
 
-[[nodiscard]] inline bool decimal64::is_infinite() const {
+[[nodiscard]] inline bool decimal64::is_infinite() const noexcept {
     constexpr auto plus_infinity = 0x7800000000000000ULL;
     constexpr auto minus_infinity = 0xf800000000000000ULL;
     return (reinterpret_cast<const unsigned long long &>(_value) == plus_infinity) || (reinterpret_cast<const unsigned long long &>(_value) == minus_infinity);
 }
 
-[[nodiscard]] inline bool decimal64::is_nan() const { // five bits set after sign bit
+[[nodiscard]] inline bool decimal64::is_nan() const noexcept {
     constexpr auto qnan = 0x7c00000000000000ULL;
     return reinterpret_cast<const unsigned long long &>(_value) == qnan;
 }
@@ -414,7 +414,7 @@ inline decimal64::decimal64(ValueType value)
     : _value(value) {
 }
 
-inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const {
+inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const noexcept {
     constexpr auto exponent_bias = int16_t{398};
     constexpr auto exponent_mask = (int16_t{1} << 10) - 1;
 
