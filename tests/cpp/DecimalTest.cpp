@@ -1,4 +1,5 @@
 #include <messgen/decimal.h>
+#include <messgen/test/flat_struct_with_decimal.h>
 
 #include <cmath>
 #include <stdlib.h>
@@ -430,4 +431,24 @@ TEST_F(CppDecimalTest, MakeDecimal) {
     EXPECT_EQ("0x7800000000000000", decimal_to_hex(std::decimal::make_decimal64(1LL, 999)));
     EXPECT_EQ("0xf800000000000000", decimal_to_hex(std::decimal::make_decimal64(-1LL, 999)));
     EXPECT_EQ("0x0000000000000000", decimal_to_hex(std::decimal::make_decimal64(0LL, -999)));
+}
+
+TEST_F(CppDecimalTest, GeneratedFlatType) {
+    using namespace messgen::test;
+
+    static_assert(flat_struct_with_decimal::IS_FLAT);
+
+    auto expected = flat_struct_with_decimal{
+        .int_field = 10,
+        .dec_field = messgen::Decimal64::from_double(12.2, 0.001_dd, messgen::RoundMode::mid),
+        .float_field = 12.3,
+    };
+
+    auto buff = std::vector<uint8_t>(expected.serialized_size());
+    expected.serialize(buff.data());
+
+    auto actual = flat_struct_with_decimal{};
+    actual.deserialize(buff.data());
+
+    EXPECT_EQ(expected, actual);
 }

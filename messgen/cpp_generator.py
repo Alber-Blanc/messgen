@@ -118,7 +118,7 @@ class CppGenerator:
         "int64": "int64_t",
         "float32": "float",
         "float64": "double",
-        "dec64": "messgen::decimal64",
+        "dec64": "messgen::Decimal64",
     }
 
     def __init__(self, options: dict):
@@ -371,7 +371,7 @@ class CppGenerator:
             return max(a_sz, a_key, a_value)
 
         else:
-            raise RuntimeError("Unsupported type_class in _get_alignment: %s" % type_class)
+            raise RuntimeError("Unsupported type_class in _get_alignment: type_class=%s type_def=%s" % (type_class, type_def))
 
     def _check_alignment(self, type_def, offs):
         align = self._get_alignment(type_def)
@@ -609,7 +609,7 @@ class CppGenerator:
                 else:
                     raise RuntimeError("Unsupported mode for bytes: %s" % mode)
 
-        if isinstance(type_def, DecimalType):
+        elif isinstance(type_def, DecimalType):
             self._add_include("messgen/decimal.h")
             return self._CPP_TYPES_MAP[type_def.type]
 

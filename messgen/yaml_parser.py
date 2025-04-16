@@ -40,7 +40,6 @@ _CPP_TYPES_INFO = {
     "float32": {"size": 4},
     "float64": {"size": 8},
     "int": {"size": 4},
-    "dec64": {"size": 8},
 }
 
 
@@ -177,10 +176,10 @@ def _get_basic_type(type_name: str) -> BasicType:
 
 def _get_decimal_type(type_name: str) -> BasicType:
     assert type_name == "dec64"
-    return BasicType(
+    return DecimalType(
         type=type_name,
         type_class=TypeClass.decimal,
-        size=_CPP_TYPES_INFO[type_name]["size"],
+        size=8,
     )
 
 

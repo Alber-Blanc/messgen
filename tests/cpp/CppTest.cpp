@@ -1,12 +1,12 @@
-#include <nested/another_proto.h>
 #include <messgen/messgen.h>
-#include <test_proto.h>
 #include <messgen/test/complex_struct_with_empty.h>
 #include <messgen/test/complex_struct.h>
 #include <messgen/test/flat_struct.h>
+#include <messgen/test/name_clash_struct.h>
 #include <messgen/test/struct_with_enum.h>
 #include <messgen/test/var_size_struct.h>
-#include <messgen/test/name_clash_struct.h>
+#include <nested/another_proto.h>
+#include <test_proto.h>
 
 #include <gtest/gtest.h>
 
