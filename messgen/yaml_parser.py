@@ -27,7 +27,7 @@ from .validation import (
 
 
 _CONFIG_EXT = ".yaml"
-_CPP_TYPES_INFO = {
+_SCALAR_TYPES_INFO = {
     "bool": {"size": 1},
     "int8": {"size": 1},
     "uint8": {"size": 1},
@@ -125,7 +125,7 @@ def _type_name(type_file: Path, base_dir: Path) -> str:
 
 def _get_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> MessgenType:
     # Scalar
-    if scalar_type := _CPP_TYPES_INFO.get(type_name):
+    if scalar_type := _SCALAR_TYPES_INFO.get(type_name):
         return _get_scalar_type(type_name, scalar_type)
 
     if type_name in ["string", "bytes"]:
@@ -260,7 +260,7 @@ def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], 
         base_type=base_type,
         comment=type_desc.get("comment"),
         values=values,
-        size=dependency.size or _CPP_TYPES_INFO["int"]["size"],
+        size=dependency.size or _SCALAR_TYPES_INFO["int"]["size"],
     )
 
 
