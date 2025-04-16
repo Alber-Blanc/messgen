@@ -39,6 +39,11 @@ struct Decimal64 {
         auto [value_sign, value_coeff, value_exp] = Decimal64{value}.decompose();
         auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
 
+        // we could adjust the value coeff, but that has an additional cost
+        // auto adjust_exp = -std::min(0, value_exp - tick_exp + 10);
+        // value_coeff /= detail::POW10[adjust_exp];
+        // value_exp += adjust_exp;
+
         // make both coefficients represent same scale
         int exp_diff = value_exp - tick_exp;
         int value_exp_bigger = exp_diff >> 31;
