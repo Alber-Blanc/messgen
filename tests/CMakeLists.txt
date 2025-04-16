@@ -40,8 +40,8 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     messgen_add_types_library(msgs_test_types_decimal "${CMAKE_CURRENT_LIST_DIR}/data/types_decimal" "stl" "cpp_standard=20")
 
     # Only GCC supports has the support for ISO/IEC TR 24733
-    add_executable(test_decimal "cpp/DecimalTest.cpp")
-    target_include_directories(test_decimal PRIVATE ${CMAKE_SOURCE_DIR}/port/cpp_common)
-    target_link_libraries(test_decimal msgs_test_types_decimal gtest GTest::gtest_main)
-    gtest_discover_tests(test_decimal)
+    add_executable(test_cpp_decimal "cpp/CppDecimalTest.cpp")
+    target_include_directories(test_cpp_decimal PRIVATE ${CMAKE_SOURCE_DIR}/port/cpp_common)
+    target_link_libraries(test_cpp_decimal msgs_test_types_decimal gtest GTest::gtest_main)
+    gtest_discover_tests(test_cpp_decimal)
 endif()
