@@ -17,8 +17,7 @@ class CppDecimalTest : public ::testing::Test {};
 
 TEST_F(CppDecimalTest, Construction) {
     // Default constructor
-    auto d1 = decimal64{};
-    EXPECT_EQ(d1, decimal64::from_integer(0));
+    EXPECT_EQ(decimal64{}, decimal64::from_integer(0));
 
     // Constructor from integer
     auto d2 = decimal64::from_integer(42);
@@ -89,32 +88,35 @@ TEST_F(CppDecimalTest, Comparison) {
     auto d3 = 20.25_dd;
 
     // Equality
-    EXPECT_TRUE(d1 == d2);
-    EXPECT_FALSE(d1 == d3);
+    EXPECT_EQ(d1, d2);
+    EXPECT_NE(d1, d3);
 
     // Inequality
-    EXPECT_FALSE(d1 != d2);
-    EXPECT_TRUE(d1 != d3);
+    EXPECT_EQ(d1, d2);
+    EXPECT_NE(d1, d3);
 
     // Less than
-    EXPECT_TRUE(d1 < d3);
-    EXPECT_FALSE(d3 < d1);
-    EXPECT_FALSE(d1 < d2);
+    EXPECT_LT(d1, d3);
+    EXPECT_GE(d3, d1);
+    EXPECT_GE(d1, d2);
 
     // Less than or equal
-    EXPECT_TRUE(d1 <= d3);
-    EXPECT_TRUE(d1 <= d2);
-    EXPECT_FALSE(d3 <= d1);
+    EXPECT_LE(d1, d3);
+    EXPECT_LE(d1, d2);
+    EXPECT_GT(d3, d1);
 
     // Greater than
-    EXPECT_TRUE(d3 > d1);
-    EXPECT_FALSE(d1 > d3);
-    EXPECT_FALSE(d1 > d2);
+    EXPECT_GT(d3, d1);
+    EXPECT_LE(d1, d3);
+    EXPECT_LE(d1, d2);
 
     // Greater than or equal
-    EXPECT_TRUE(d3 >= d1);
-    EXPECT_TRUE(d1 >= d2);
-    EXPECT_FALSE(d1 >= d3);
+    EXPECT_GE(d3, d1);
+    EXPECT_GE(d1, d2);
+    EXPECT_LT(d1, d3);
+
+    // NaNs are not equal
+    EXPECT_NE(decimal64::from_string("nan"), decimal64::from_string("nan"));
 }
 
 TEST_F(CppDecimalTest, Conversions) {

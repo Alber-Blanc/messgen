@@ -35,7 +35,6 @@ messgen_add_proto_library(msgs_test_proto_nostl_cpp17 "${MESSGEN_PROTO_DIR}" "te
 target_link_libraries(test_cpp_17_nostl msgs_test_proto_nostl_cpp17 gtest GTest::gtest_main)
 gtest_discover_tests(test_cpp_17_nostl)
 
-
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     messgen_add_types_library(msgs_test_types_decimal "${CMAKE_CURRENT_LIST_DIR}/data/types_decimal" "stl" "cpp_standard=20")
 

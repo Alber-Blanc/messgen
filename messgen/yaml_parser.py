@@ -174,7 +174,7 @@ def _get_basic_type(type_name: str) -> BasicType:
     )
 
 
-def _get_decimal_type(type_name: str) -> BasicType:
+def _get_decimal_type(type_name: str) -> DecimalType:
     assert type_name == "dec64"
     return DecimalType(
         type=type_name,

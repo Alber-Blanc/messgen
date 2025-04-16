@@ -181,10 +181,11 @@ def test_decimal_decoding():
     assert converter.deserialize(bytes.fromhex("5fe05af3107a4000")) == Decimal("1e+383")
     assert converter.deserialize(bytes.fromhex("5fe38d7ea4c68000")) == Decimal("1e+384")
 
-    # Special Values (implementation-dependent)
+    # Special Values
     assert converter.deserialize(bytes.fromhex("7800000000000000")) == Decimal("Infinity")
     assert converter.deserialize(bytes.fromhex("f800000000000000")) == Decimal("-Infinity")
     assert converter.deserialize(bytes.fromhex("0000000000000000")) == Decimal("0e-999")
+    assert converter.deserialize(bytes.fromhex("7c00000000000000")).is_nan() == Decimal("NaN").is_nan()
 
 
 def test_decimal_encoding():
@@ -237,7 +238,7 @@ def test_decimal_encoding():
     assert "5fe05af3107a4000" == converter.serialize(Decimal("1e+383")).hex()
     assert "5fe38d7ea4c68000" == converter.serialize(Decimal("1e+384")).hex()
 
-    # Special Values (implementation-dependent)
+    # Special Values
     assert "7800000000000000" == converter.serialize(Decimal("1e999")).hex()
     assert "f800000000000000" == converter.serialize(Decimal("-1e999")).hex()
     assert "0000000000000000" == converter.serialize(Decimal("0e-999")).hex()
