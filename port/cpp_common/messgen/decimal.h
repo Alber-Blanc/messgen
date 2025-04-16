@@ -477,13 +477,13 @@ inline std::istream &operator>>(std::istream &is, decimal64 &dec) {
 namespace detail {
 
 template <char C>
-constexpr int parse_digit() {
+consteval int parse_digit() {
     static_assert('0' <= C && C <= '9', "not a valid number");
     return C - '0';
 }
 
 template <char C, char... Rest>
-constexpr int parse_int() {
+consteval int parse_int() {
     int exp = 0;
     if constexpr (C == '-') {
         ((exp = exp * 10 + parse_digit<Rest>()), ...);
@@ -496,7 +496,7 @@ constexpr int parse_int() {
 }
 
 template <char C, char... Rest>
-constexpr void parse_num(std::tuple<int, uint64_t, int> &ctx, bool frac) {
+consteval void parse_num(std::tuple<int, uint64_t, int> &ctx, bool frac) {
     auto &[sign, coeff, exponent] = ctx;
     if constexpr (C == 'e' or C == 'E') {
         exponent += parse_int<Rest...>();
@@ -515,7 +515,7 @@ constexpr void parse_num(std::tuple<int, uint64_t, int> &ctx, bool frac) {
 }
 
 template <char C, char... Rest>
-constexpr void parse(std::tuple<int, uint64_t, int> &ctx) {
+consteval void parse(std::tuple<int, uint64_t, int> &ctx) {
     if constexpr (C == '-') {
         parse<Rest...>(ctx);
         std::get<0>(ctx) = -1;
@@ -526,13 +526,18 @@ constexpr void parse(std::tuple<int, uint64_t, int> &ctx) {
     }
 }
 
+template <char... C>
+consteval std::tuple<int, uint64_t, int> parse() {
+    auto ctx = std::tuple<int, uint64_t, int>{1, 0, 0};
+    parse<C...>(ctx);
+    return ctx;
+}
+
 } // namespace detail
 
 template <char... C>
 [[nodiscard]] decimal64 operator""_dd() {
-    auto ctx = std::tuple<int, uint64_t, int>{1, 0, 0};
-    detail::parse<C...>(ctx);
-    auto [sign, coeff, exponent] = ctx;
+    auto [sign, coeff, exponent] = detail::parse<C...>();
     return decimal64{std::decimal::make_decimal64(sign * static_cast<long long>(coeff), exponent)};
 }
 
