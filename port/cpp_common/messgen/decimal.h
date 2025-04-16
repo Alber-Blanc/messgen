@@ -7,6 +7,9 @@
 #include <charconv>
 #include <cmath>
 #include <cstdint>
+#include <ios>
+#include <istream>
+#include <optional>
 #include <string>
 
 namespace messgen {
@@ -16,7 +19,7 @@ namespace detail {
 inline constexpr int TICK_EXPONENT_MAX = 16;
 inline constexpr int TICK_EXPONENT_MIN = -TICK_EXPONENT_MAX;
 
-constexpr double tick_pow10(int16_t exp) {
+constexpr double tick_pow10(int exp) {
     assert(exp >= TICK_EXPONENT_MIN);
     assert(exp <= TICK_EXPONENT_MAX);
 
@@ -26,12 +29,12 @@ constexpr double tick_pow10(int16_t exp) {
         auto res = std::array<double, size>{1.0};
         uint64_t pow10 = 1;
         for (int i = TICK_EXPONENT_MAX; i < size; ++i) {
-            res[i] = pow10;
-            pow10 *= 10;
+            res[i] = double(pow10);
+            pow10 *= 10; // NOLINT
         }
         for (int i = 0; i < TICK_EXPONENT_MAX; ++i) {
             res[i] /= res[size - i - 1];
-            pow10 *= 10;
+            pow10 *= 10; // NOLINT
         }
         return res;
     }();
@@ -41,7 +44,7 @@ constexpr double tick_pow10(int16_t exp) {
 
 } // namespace detail
 
-enum class RoundMode {
+enum class round_mode {
     down = -1,
     mid = 0,
     up = 1,
@@ -70,7 +73,7 @@ struct decimal64 {
     /// @param tick The minimum representable increment (tick size)
     /// @param roundMode The rounding mode to apply during conversion
     /// @return decimal64 The resulting decimal value
-    [[nodiscard]] static decimal64 from_double(double value, decimal64 tick, RoundMode) noexcept;
+    [[nodiscard]] static decimal64 from_double(double value, decimal64 tick, round_mode) noexcept;
 
     /// @brief Creates a decimal64 from an unsigned integer value
     ///
@@ -91,7 +94,7 @@ struct decimal64 {
     /// @param value The string to parse
     /// @return decimal64 The resulting decimal value
     /// @throws May throw if the string cannot be parsed as a valid decimal
-    [[nodiscard]] static decimal64 from_string(std::string_view value);
+    [[nodiscard]] static std::optional<decimal64> from_string(std::string_view value);
 
     /// @brief Converts to double representation
     ///
@@ -203,23 +206,23 @@ private:
     /// @brief Decomposes the decimal into its components
     ///
     /// @return A tuple containing (sign, coefficient, exponent)
-    std::tuple<int8_t, uint64_t, int16_t> decompose() const noexcept;
+    [[nodiscard]] std::tuple<int8_t, uint64_t, int16_t> decompose() const noexcept;
 
     /// The internal decimal value
     ValueType _value = 0;
 };
 
-[[nodiscard]] inline decimal64 decimal64::from_double(double value, decimal64 tick, RoundMode round_mode) noexcept {
+[[nodiscard]] inline decimal64 decimal64::from_double(double value, decimal64 tick, round_mode round_mode) noexcept {
     assert(tick > decimal64::from_integer(0));
 
     auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
     value *= detail::tick_pow10(-tick_exp);
     switch (round_mode) {
-        case RoundMode::down:
+        case round_mode::down:
             return decimal64{static_cast<long long>(std::floor(value / tick_coeff) * tick_coeff), tick_exp};
-        case RoundMode::mid:
+        case round_mode::mid:
             return decimal64{std::llround(value / tick_coeff) * int64_t(tick_coeff), tick_exp};
-        case RoundMode::up:
+        case round_mode::up:
             return decimal64{static_cast<long long>(std::ceil(value / tick_coeff) * tick_coeff), tick_exp};
         default:
             __builtin_unreachable();
@@ -235,17 +238,17 @@ private:
     return decimal64{std::decimal::make_decimal64(static_cast<long long>(integer), 0)};
 }
 
-[[nodiscard]] inline decimal64 decimal64::from_string(std::string_view str) {
+[[nodiscard]] inline std::optional<decimal64> decimal64::from_string(std::string_view str) {
     if (str.empty()) {
-        return decimal64{};
+        return std::nullopt;
     }
 
     if (str == "inf") {
-        return decimal64{1LL, 10000000};
+        return decimal64{1LL, 10000000}; // NOLINT
     }
 
     if (str == "-inf") {
-        return decimal64{-1LL, 10000000};
+        return decimal64{-1LL, 10000000}; // NOLINT
     }
 
     if (str == "nan") {
@@ -272,7 +275,7 @@ private:
     auto coeff = int64_t{};
     while (!str.empty() && str[0] != '.' && str[0] != 'e') {
         if (!std::isdigit(str[0])) {
-            return decimal64{};
+            return std::nullopt;
         }
         coeff = coeff * 10 + (str[0] - '0');
         str.remove_prefix(1);
@@ -284,7 +287,7 @@ private:
         str.remove_prefix(1);
         while (!str.empty() && str[0] != 'e') {
             if (!std::isdigit(str[0])) {
-                return decimal64{};
+                return std::nullopt;
             }
             coeff = coeff * 10 + (str[0] - '0');
             --exponent;
@@ -298,7 +301,7 @@ private:
         auto exponent_part = 0;
         auto result = std::from_chars(str.data(), str.data() + str.size(), exponent_part);
         if (result.ec != std::errc{}) {
-            return decimal64{};
+            return std::nullopt;
         }
         exponent += exponent_part;
     }
@@ -414,7 +417,7 @@ inline decimal64::decimal64(ValueType value)
     : _value(value) {
 }
 
-inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const noexcept {
+[[nodiscard]] inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const noexcept {
     constexpr auto exponent_bias = int16_t{398};
     constexpr auto exponent_mask = (int16_t{1} << 10) - 1;
 
@@ -470,7 +473,11 @@ inline std::ostream &operator<<(std::ostream &os, decimal64 dec) {
 inline std::istream &operator>>(std::istream &is, decimal64 &dec) {
     auto str = std::string{};
     is >> str;
-    dec = decimal64::from_string(str);
+    if (auto converted = decimal64::from_string(str)) {
+        dec = *converted;
+    } else {
+        is.setstate(std::ios::failbit);
+    }
     return is;
 }
 
