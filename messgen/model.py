@@ -121,6 +121,7 @@ class StructType:
 MessgenType = Union[
     ArrayType,
     BasicType,
+    DecimalType,
     EnumType,
     MapType,
     StructType,
