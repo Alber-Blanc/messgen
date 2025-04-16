@@ -92,8 +92,7 @@ struct decimal64 {
     /// @brief Creates a decimal64 from a string representation
     ///
     /// @param value The string to parse
-    /// @return decimal64 The resulting decimal value
-    /// @throws May throw if the string cannot be parsed as a valid decimal
+    /// @return std::optional<decimal64> The resulting decimal value, or any empty optional if parsing fails
     [[nodiscard]] static std::optional<decimal64> from_string(std::string_view value);
 
     /// @brief Converts to double representation
