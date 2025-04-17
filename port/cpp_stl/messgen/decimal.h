@@ -42,6 +42,8 @@ struct decimal64 {
     /// @param value The double value to convert
     /// @param tick The minimum representable increment (tick size)
     /// @param roundMode The rounding mode to apply during conversion
+    /// @pre tick must be finite and greater than zero
+    /// @pre value must be finite
     /// @return decimal64 The resulting decimal value
     [[nodiscard]] static decimal64 from_double(double value, decimal64 tick, round_mode) noexcept;
 
