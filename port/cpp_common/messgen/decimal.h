@@ -179,8 +179,9 @@ private:
 
     /// @brief Computes 10 raised to the specified power efficiently.
     ///
-    /// This constexpr function calculates the value of 10^exp at compile time.
-    /// The result is guaranteed to be accurate within the limits of double precision.
+    /// This function calculates the value of 10^exp at compile time.
+    /// The result is guaranteed to be accurate within the limits of
+    /// double precision.
     ///
     /// @param exp The exponent value to raise 10 to
     /// @pre exp must be in the range [-16, 16]
