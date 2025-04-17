@@ -140,11 +140,11 @@ class DecimalConverter(TypeConverter):
 
         # Handle special values
         if value.is_nan():
-            return int(0b11111 << 58).to_bytes(8, byteorder="little")
+            return int(0b11111 << 58).to_bytes(self.size, byteorder="little")
 
         if value.is_infinite():
             sign_bit = 1 if value < 0 else 0
-            return ((sign_bit << 63) | (0b11110 << 58)).to_bytes(8, byteorder="little")
+            return ((sign_bit << 63) | (0b11110 << 58)).to_bytes(self.size, byteorder="little")
 
         # Extract components from Decimal
         sign, digits, exponent = value.as_tuple()
@@ -167,11 +167,11 @@ class DecimalConverter(TypeConverter):
 
         # Check if dec64 is inifity
         if (sign == 0 and coefficient > self._MAX_COEFFICIENT) or exponent > self._MAX_EXPONENT:
-            return ((sign << 63) | (0b11110 << 58)).to_bytes(8, byteorder="little")
+            return ((sign << 63) | (0b11110 << 58)).to_bytes(self.size, byteorder="little")
 
         # Check if dec64 trimms to zero
         if coefficient > self._MAX_COEFFICIENT or exponent < self._MIN_EXPONENT:
-            return int(sign << 63).to_bytes(8, byteorder="little")
+            return int(sign << 63).to_bytes(self.size, byteorder="little")
 
         # Store the sign
         bits = sign
@@ -193,7 +193,7 @@ class DecimalConverter(TypeConverter):
         bits <<= coefficient_bits
         bits |= coefficient & ((1 << coefficient_bits) - 1)
 
-        return bits.to_bytes(8, byteorder="little")
+        return bits.to_bytes(self.size, byteorder="little")
 
     def _deserialize(self, data: bytes) -> tuple[Decimal, int]:
         # Convert bytes to 64-bit integer
