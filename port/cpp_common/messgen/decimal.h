@@ -14,36 +14,6 @@
 
 namespace messgen {
 
-namespace detail {
-
-inline constexpr int TICK_EXPONENT_MAX = 16;
-inline constexpr int TICK_EXPONENT_MIN = -TICK_EXPONENT_MAX;
-
-constexpr double tick_pow10(int exp) {
-    assert(exp >= TICK_EXPONENT_MIN);
-    assert(exp <= TICK_EXPONENT_MAX);
-
-    constexpr auto TICK_POW10 = []() {
-        constexpr auto size = TICK_EXPONENT_MAX - TICK_EXPONENT_MIN + 1;
-
-        auto res = std::array<double, size>{1.0};
-        uint64_t pow10 = 1;
-        for (int i = TICK_EXPONENT_MAX; i < size; ++i) {
-            res[i] = double(pow10);
-            pow10 *= 10; // NOLINT
-        }
-        for (int i = 0; i < TICK_EXPONENT_MAX; ++i) {
-            res[i] /= res[size - i - 1];
-            pow10 *= 10; // NOLINT
-        }
-        return res;
-    }();
-
-    return TICK_POW10[exp + TICK_EXPONENT_MAX];
-}
-
-} // namespace detail
-
 enum class round_mode {
     down = -1,
     mid = 0,
@@ -207,6 +177,16 @@ private:
     /// @return A tuple containing (sign, coefficient, exponent)
     [[nodiscard]] std::tuple<int8_t, uint64_t, int16_t> decompose() const noexcept;
 
+    /// @brief Computes 10 raised to the specified power efficiently.
+    ///
+    /// This constexpr function calculates the value of 10^exp at compile time.
+    /// The result is guaranteed to be accurate within the limits of double precision.
+    ///
+    /// @param exp The exponent value to raise 10 to
+    /// @pre exp must be in the range [-16, 16]
+    /// @return The value of 10^exp as a double
+    [[nodiscard]] static double tick_pow10(int exp);
+
     /// The internal decimal value
     ValueType _value = 0;
 };
@@ -215,7 +195,7 @@ private:
     assert(tick > decimal64::from_integer(0));
 
     auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
-    value *= detail::tick_pow10(-tick_exp);
+    value *= tick_pow10(-tick_exp);
     switch (round_mode) {
         case round_mode::down:
             return decimal64{static_cast<long long>(std::floor(value / tick_coeff) * tick_coeff), tick_exp};
@@ -435,6 +415,32 @@ inline decimal64::decimal64(ValueType value)
         (is_v1 * coeff_1) + (!is_v1 * coeff_2),
         (is_v1 * exponent_1) + (!is_v1 * exponent_2),
     };
+}
+
+[[nodiscard]] inline double decimal64::tick_pow10(int exp) {
+    constexpr int tick_exponent_max = 16;
+    constexpr int tick_exponent_min = -tick_exponent_max;
+
+    assert(exp >= tick_exponent_min);
+    assert(exp <= tick_exponent_max);
+
+    static constexpr auto TICK_POW10 = []() {
+        constexpr auto size = tick_exponent_max - tick_exponent_min + 1;
+
+        auto res = std::array<double, size>{1.0};
+        uint64_t pow10 = 1;
+        for (int i = tick_exponent_max; i < size; ++i) {
+            res[i] = double(pow10);
+            pow10 *= 10; // NOLINT
+        }
+        for (int i = 0; i < tick_exponent_max; ++i) {
+            res[i] /= res[size - i - 1];
+            pow10 *= 10; // NOLINT
+        }
+        return res;
+    }();
+
+    return TICK_POW10[exp + tick_exponent_max];
 }
 
 [[nodiscard]] inline decimal64 operator+(decimal64 lhs, decimal64 rhs) noexcept {
