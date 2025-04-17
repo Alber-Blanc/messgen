@@ -165,14 +165,19 @@ struct decimal64 {
     friend std::istream &operator>>(std::istream &, decimal64 &);
 
 private:
-    using ValueType = std::decimal::decimal64;
+    using value_type = std::decimal::decimal64;
+
+    union decimal_cast {
+        unsigned long long raw = 0;
+        value_type value;
+    };
 
     template <char... C>
     friend decimal64 operator""_dd();
 
     explicit decimal64(long long coeff, int exponent);
     explicit decimal64(double value);
-    explicit decimal64(ValueType value);
+    explicit decimal64(value_type value);
 
     /// @brief Decomposes the decimal into its components
     ///
@@ -191,7 +196,7 @@ private:
     [[nodiscard]] static double tick_pow10(int exp);
 
     /// The internal decimal value
-    ValueType _value = 0;
+    value_type _value = 0;
 };
 
 [[nodiscard]] inline decimal64 decimal64::from_double(double value, decimal64 tick, round_mode round_mode) noexcept {
@@ -361,14 +366,13 @@ private:
 }
 
 [[nodiscard]] inline bool decimal64::is_infinite() const noexcept {
-    constexpr auto plus_infinity = 0x7800000000000000ULL;
-    constexpr auto minus_infinity = 0xf800000000000000ULL;
-    return (reinterpret_cast<const unsigned long long &>(_value) == plus_infinity) || (reinterpret_cast<const unsigned long long &>(_value) == minus_infinity);
+    constexpr auto plus_infinity = decimal_cast{.raw = 0x7800000000000000ULL};
+    constexpr auto minus_infinity = decimal_cast{.raw = 0xf800000000000000ULL};
+    return _value == plus_infinity.value || _value == minus_infinity.value;
 }
 
 [[nodiscard]] inline bool decimal64::is_nan() const noexcept {
-    constexpr auto qnan = 0x7c00000000000000ULL;
-    return reinterpret_cast<const unsigned long long &>(_value) == qnan;
+    return _value != _value;
 }
 
 inline decimal64 &decimal64::operator+=(decimal64 other) noexcept {
@@ -398,7 +402,7 @@ inline decimal64::decimal64(double value)
     : _value(value) {
 }
 
-inline decimal64::decimal64(ValueType value)
+inline decimal64::decimal64(value_type value)
     : _value(value) {
 }
 
@@ -409,7 +413,7 @@ inline decimal64::decimal64(ValueType value)
     constexpr auto exponent_bias = int16_t{398};
     constexpr auto exponent_mask = (int16_t{1} << 10) - 1;
 
-    auto bits = *reinterpret_cast<const uint64_t *>(&_value);
+    auto bits = decimal_cast{.value = _value}.raw;
     auto sign = (bits >> 63) * -2 + 1;
 
     auto exponent_1 = (bits >> 51 & exponent_mask) - exponent_bias;
