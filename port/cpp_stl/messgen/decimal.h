@@ -168,8 +168,8 @@ private:
     using value_type = std::decimal::decimal64;
 
     union decimal_cast {
-        unsigned long long raw = 0;
-        value_type value;
+        unsigned long long integer = 0;
+        value_type decimal;
     };
 
     template <char... C>
@@ -366,9 +366,9 @@ private:
 }
 
 [[nodiscard]] inline bool decimal64::is_infinite() const noexcept {
-    constexpr auto plus_infinity = decimal_cast{.raw = 0x7800000000000000ULL};
-    constexpr auto minus_infinity = decimal_cast{.raw = 0xf800000000000000ULL};
-    return _value == plus_infinity.value || _value == minus_infinity.value;
+    constexpr auto plus_infinity = decimal_cast{.integer = 0x7800000000000000ULL};
+    constexpr auto minus_infinity = decimal_cast{.integer = 0xf800000000000000ULL};
+    return _value == plus_infinity.decimal || _value == minus_infinity.decimal;
 }
 
 [[nodiscard]] inline bool decimal64::is_nan() const noexcept {
@@ -413,7 +413,7 @@ inline decimal64::decimal64(value_type value)
     constexpr auto exponent_bias = int16_t{398};
     constexpr auto exponent_mask = (int16_t{1} << 10) - 1;
 
-    auto bits = decimal_cast{.value = _value}.raw;
+    auto bits = decimal_cast{.decimal = _value}.integer;
     auto sign = (bits >> 63) * -2 + 1;
 
     auto exponent_1 = (bits >> 51 & exponent_mask) - exponent_bias;
