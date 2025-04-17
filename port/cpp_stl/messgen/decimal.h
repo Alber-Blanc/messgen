@@ -366,9 +366,8 @@ private:
 }
 
 [[nodiscard]] inline bool decimal64::is_infinite() const noexcept {
-    constexpr auto plus_infinity = decimal_cast{.integer = 0x7800000000000000ULL};
-    constexpr auto minus_infinity = decimal_cast{.integer = 0xf800000000000000ULL};
-    return _value == plus_infinity.decimal || _value == minus_infinity.decimal;
+    constexpr auto infity_mask = 0x7800000000000000ULL;
+    return (decimal_cast{.decimal = _value}.integer & infity_mask) == infity_mask && !is_nan();
 }
 
 [[nodiscard]] inline bool decimal64::is_nan() const noexcept {
