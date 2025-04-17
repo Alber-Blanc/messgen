@@ -263,13 +263,13 @@ class EnumConverter(TypeConverter):
         self.rev_mapping = {v: k for k, v in self.mapping.items()}
 
     def _serialize(self, data):
-        if v := self.rev_mapping.get(data):
+        if (v := self.rev_mapping.get(data)) is not None:
             return struct.pack(self.struct_fmt, v)
         raise MessgenError(f"Unsupported enum={self._type_name} value={v}")
 
     def _deserialize(self, data):
         (v,) = struct.unpack(self.struct_fmt, data[: self.size])
-        if mapped := self.mapping.get(v):
+        if (mapped := self.mapping.get(v)) is not None:
             return mapped, self.size
         raise MessgenError(f"Unsupported enum={self._type_name} value={v}")
 
