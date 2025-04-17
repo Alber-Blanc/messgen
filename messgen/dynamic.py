@@ -1,3 +1,4 @@
+import json
 import struct
 import typing
 
@@ -42,6 +43,15 @@ STRUCT_TYPES_MAP = {
     "float64": "d",
     "bool": "?",
 }
+
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, bytes):
+            return str(obj.hex())  # Convert Decimal to string
+        elif isinstance(obj, Decimal):
+            return str(obj)
+        return super().default(obj)
 
 
 class MessgenError(Exception):
