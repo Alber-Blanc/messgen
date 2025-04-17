@@ -13,6 +13,7 @@ from messgen.model import (
 from messgen.dynamic import (
     Codec,
     DecimalConverter,
+    MessgenError,
 )
 
 
@@ -243,3 +244,6 @@ def test_decimal_encoding():
     assert "f800000000000000" == converter.serialize(Decimal("-1e999")).hex()
     assert "0000000000000000" == converter.serialize(Decimal("0e-999")).hex()
     assert "7c00000000000000" == converter.serialize(Decimal("NaN")).hex()
+
+    with pytest.raises(MessgenError):
+        converter.serialize(123)

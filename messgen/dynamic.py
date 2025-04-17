@@ -134,6 +134,9 @@ class DecimalConverter(TypeConverter):
         self.size = self._type_def.size
 
     def _serialize(self, value: Decimal) -> bytes:
+        if not isinstance(value, Decimal):
+            raise MessgenError(f"Expected Decimal type, got {type(value)}")
+
         # Handle special values
         if value.is_nan():
             return int(0b11111 << 58).to_bytes(8, byteorder="big")
@@ -191,7 +194,7 @@ class DecimalConverter(TypeConverter):
 
         return bits.to_bytes(8, byteorder="big")
 
-    def _deserialize(self, data) -> tuple[Decimal, int]:
+    def _deserialize(self, data: bytes) -> tuple[Decimal, int]:
         # Convert bytes to 64-bit integer
         bits = int.from_bytes(data[: self.size], byteorder="big")
         if bits == 0:
