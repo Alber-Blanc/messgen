@@ -179,7 +179,7 @@ def _hash_dataclass(dt) -> int:
 
 def _hash_bytes(payload: bytes) -> int:
     hash_object = hashlib.md5(payload)
-    return int.from_bytes(hash_object.digest()[:8], byteorder="big", signed=False)
+    return int.from_bytes(hash_object.digest()[:8], byteorder="little", signed=False)
 
 
 def _remove_keys(container: dict | list, key: str):
