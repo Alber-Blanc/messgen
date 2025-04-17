@@ -48,7 +48,7 @@ STRUCT_TYPES_MAP = {
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, bytes):
-            return str(obj.hex())  # Convert Decimal to string
+            return f"0x{obj.hex()}"
         elif isinstance(obj, Decimal):
             return str(obj)
         return super().default(obj)
