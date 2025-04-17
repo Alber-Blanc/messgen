@@ -94,7 +94,6 @@ function(messgen_add_types_library LIBRARY_NAME BASE_DIRS MODE)
     target_sources(${LIBRARY_NAME} INTERFACE ${MESSGEN_OUT_FILES})
     target_include_directories(${LIBRARY_NAME} INTERFACE
         ${MESSAGES_OUT_DIR}
-        ${MESSGEN_DIR}/port/cpp_common
         ${MESSGEN_DIR}/port/cpp_${MODE})
 endfunction()
 

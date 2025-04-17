@@ -193,7 +193,10 @@ private:
 };
 
 [[nodiscard]] inline decimal64 decimal64::from_double(double value, decimal64 tick, round_mode round_mode) noexcept {
+    assert(!tick.is_nan());
+    assert(!tick.is_infinite());
     assert(tick > decimal64::from_integer(0));
+    assert(std::isfinite(value));
 
     auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
     value *= tick_pow10(-tick_exp);
@@ -398,6 +401,9 @@ inline decimal64::decimal64(ValueType value)
 }
 
 [[nodiscard]] inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const noexcept {
+    assert(!is_nan());
+    assert(!is_infinite());
+
     constexpr auto exponent_bias = int16_t{398};
     constexpr auto exponent_mask = (int16_t{1} << 10) - 1;
 
