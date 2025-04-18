@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set
 
 from .common import SEPARATOR
-from .model import MessgenType, Protocol, TypeClass
+from .model import MessgenType, EnumType, StructType, Protocol, TypeClass
 from .validation import validate_protocol
 
 
@@ -120,7 +120,7 @@ class TypeScriptGenerator:
             [imports, proto_enum, *message_enums, *map_ifaces, union_types])
         self._write(out_dir / self.PROTOCOLS_FILE, content)
 
-    def _to_struct(self, name: str, td: MessgenType) -> str:
+    def _to_struct(self, name: str, td: StructType) -> str:
         indent = self.INDENT
 
         body_lines = []
@@ -142,7 +142,7 @@ class TypeScriptGenerator:
             f"}}"
         ).strip()
 
-    def _to_enum(self, name: str, td: MessgenType) -> str:
+    def _to_enum(self, name: str, td: EnumType) -> str:
         value_lines = []
         for val in td.values or []:
             comment = f"/** {val.comment} */\n" if val.comment else ""
