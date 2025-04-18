@@ -1,11 +1,16 @@
-module example.com
+module test.com
 
 go 1.24.0
 
-require github.com/Alber-Blanc/messgen v0.0.0-20250411153808-0931c7ede3d5
+require (
+	example.com v0.0.0
+	github.com/kr/pretty v0.3.1
+)
 
 require (
-	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 )
+
+// Created by cmake build
+replace example.com => ../../build-golang-test
