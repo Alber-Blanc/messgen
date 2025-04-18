@@ -1,8 +1,18 @@
+import json
 import struct
+import typing
+import sys
 
-from functools import singledispatchmethod
-from abc import ABC, abstractmethod
-from pathlib import Path
+from abc import (
+    ABC,
+    abstractmethod,
+)
+from decimal import (
+    Decimal,
+)
+from pathlib import (
+    Path,
+)
 
 from .model import (
     ArrayType,
@@ -16,7 +26,10 @@ from .model import (
     hash_type,
     hash_message,
 )
-from .yaml_parser import parse_protocols, parse_types
+from .yaml_parser import (
+    parse_protocols,
+    parse_types,
+)
 
 STRUCT_TYPES_MAP = {
     "uint8": "B",
@@ -31,6 +44,15 @@ STRUCT_TYPES_MAP = {
     "float64": "d",
     "bool": "?",
 }
+
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, bytes):
+            return f"0x{obj.hex()}"
+        elif isinstance(obj, Decimal):
+            return str(obj)
+        return super().default(obj)
 
 
 class MessgenError(Exception):
@@ -67,7 +89,7 @@ class TypeConverter(ABC):
         pass
 
     @abstractmethod
-    def _deserialize(self, data) -> tuple[dict, int]:
+    def _deserialize(self, data) -> tuple[typing.Any, int]:
         pass
 
 
@@ -75,12 +97,15 @@ class ScalarConverter(TypeConverter):
     def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
         assert self._type_class == TypeClass.scalar
+
         self.struct_fmt = STRUCT_TYPES_MAP.get(type_name)
         if self.struct_fmt is None:
             raise RuntimeError('Unsupported scalar type "%s"' % type_name)
+
         self.struct_fmt = "<" + self.struct_fmt
         self.size = struct.calcsize(self.struct_fmt)
         self.def_value: bool | float | int = 0
+
         if type_name == "bool":
             self.def_value = False
         elif type_name == "float32" or type_name == "float64":
@@ -91,6 +116,131 @@ class ScalarConverter(TypeConverter):
 
     def _deserialize(self, data):
         return struct.unpack(self.struct_fmt, data[: self.size])[0], self.size
+
+    def default_value(self):
+        return self.def_value
+
+
+class DecimalConverter(TypeConverter):
+    _MAX_COEFFICIENT = 10**16 - 1
+    _MAX_EXPONENT = 369
+    _MIN_EXPONENT = -398
+
+    def __init__(self, types: dict[str, MessgenType], type_name: str):
+        super().__init__(types, type_name)
+        assert self._type_class == TypeClass.decimal
+        assert self._type_def.size == 8  # only dec64 is supported
+
+        self.def_value: Decimal = Decimal("0")
+        self.size = self._type_def.size
+
+    def _serialize(self, value: Decimal) -> bytes:
+        if not isinstance(value, Decimal):
+            raise MessgenError(f"Expected Decimal type, got {type(value)}")
+
+        # Handle special values
+        if value.is_nan():
+            return int(0b11111 << 58).to_bytes(self.size, byteorder="little")
+
+        if value.is_infinite():
+            sign_bit = 1 if value < 0 else 0
+            return ((sign_bit << 63) | (0b11110 << 58)).to_bytes(self.size, byteorder="little")
+
+        # Extract components from Decimal
+        sign, digits, exponent = value.as_tuple()
+        assert isinstance(exponent, int)
+
+        # Convert digits to coefficient
+        coefficient = 0
+        for digit in digits:
+            coefficient = coefficient * 10 + digit
+
+        # Normalize the coefficient
+        while coefficient != 0 and coefficient % 10 == 0 and exponent < self._MAX_EXPONENT:
+            coefficient //= 10
+            exponent += 1
+
+        # Normalize the exponent
+        while exponent > self._MAX_EXPONENT and coefficient * 10 <= self._MAX_COEFFICIENT:
+            coefficient *= 10
+            exponent -= 1
+
+        # Check if dec64 is inifity
+        if (sign == 0 and coefficient > self._MAX_COEFFICIENT) or exponent > self._MAX_EXPONENT:
+            return ((sign << 63) | (0b11110 << 58)).to_bytes(self.size, byteorder="little")
+
+        # Check if dec64 trimms to zero
+        if coefficient > self._MAX_COEFFICIENT or exponent < self._MIN_EXPONENT:
+            return int(sign << 63).to_bytes(self.size, byteorder="little")
+
+        # Store the sign
+        bits = sign
+
+        # Determine encoding format based on coefficient size
+        if coefficient > ((1 << 53) - 1):
+            coefficient_bits = 51
+            bits <<= 2
+            bits |= 0b11  # Top 2 bits of combination field
+
+        else:
+            coefficient_bits = 53
+
+        # Apply exponent bias
+        bits <<= 10
+        bits |= exponent - self._MIN_EXPONENT
+
+        # Apply the coefficient
+        bits <<= coefficient_bits
+        bits |= coefficient & ((1 << coefficient_bits) - 1)
+
+        return bits.to_bytes(self.size, byteorder="little")
+
+    def _deserialize(self, data: bytes) -> tuple[Decimal, int]:
+        # Convert bytes to 64-bit integer
+        bits = int.from_bytes(data[: self.size], byteorder="little")
+        if bits == 0:
+            return Decimal((0, (0,), 0)), self.size
+
+        # Extract sign bit (bit 63)
+        sign = bits >> 63
+
+        # Extract combination field (bits 58-62) an clear sign
+        combination = (bits >> 58) & 0b11111
+
+        # Check for special values (NaN, Infinity)
+        if combination >= 0b11110:
+            if combination == 0b11110:
+                return (Decimal("Infinity") if sign == 0 else Decimal("-Infinity")), self.size
+            else:
+                return Decimal("NaN"), self.size
+
+        # Extract exponent information
+        if (combination >> 3) == 0b11:  # If bits 62-61 are '11'
+            coefficient_bits = 51
+            coefficient_implicit_prefix = 0b100
+        else:  # All other combination field values
+            coefficient_bits = 53
+            coefficient_implicit_prefix = 0
+
+        exponent_mask = (1 << 10) - 1  # 10 bits
+        exponent = ((bits >> coefficient_bits) & exponent_mask) + self._MIN_EXPONENT
+
+        coefficient_mask = (1 << coefficient_bits) - 1
+        coefficient = (coefficient_implicit_prefix << coefficient_bits) | (bits & coefficient_mask)
+
+        return Decimal((sign, self._digits_of(coefficient), exponent)), self.size
+
+    @staticmethod
+    def _digits_of(n) -> tuple:
+        if n == 0:
+            return (0,)
+
+        result = []
+        while n > 0:
+            n, remainder = divmod(n, 10)
+            result.append(remainder)
+
+        return tuple(reversed(result))
 
     def default_value(self):
         return self.def_value
@@ -113,12 +263,15 @@ class EnumConverter(TypeConverter):
         self.rev_mapping = {v: k for k, v in self.mapping.items()}
 
     def _serialize(self, data):
-        v = self.rev_mapping[data]
-        return struct.pack(self.struct_fmt, v)
+        if (v := self.rev_mapping.get(data)) is not None:
+            return struct.pack(self.struct_fmt, v)
+        raise MessgenError(f"Unsupported enum={self._type_name} value={v}")
 
     def _deserialize(self, data):
         (v,) = struct.unpack(self.struct_fmt, data[: self.size])
-        return self.mapping[v], self.size
+        if (mapped := self.mapping.get(v)) is not None:
+            return mapped, self.size
+        raise MessgenError(f"Unsupported enum={self._type_name} value={v}")
 
     def default_value(self):
         return self._type_def.values[0].name
@@ -296,6 +449,8 @@ def create_type_converter(types: dict[str, MessgenType], type_name: str) -> Type
     type_class = type_def.type_class
     if type_class == TypeClass.scalar:
         return ScalarConverter(types, type_name)
+    elif type_class == TypeClass.decimal:
+        return DecimalConverter(types, type_name)
     elif type_class == TypeClass.enum:
         return EnumConverter(types, type_name)
     elif type_class == TypeClass.struct:

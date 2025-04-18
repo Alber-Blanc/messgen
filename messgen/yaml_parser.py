@@ -8,6 +8,7 @@ from .common import SEPARATOR
 from .model import (
     ArrayType,
     BasicType,
+    DecimalType,
     EnumType,
     EnumValue,
     FieldType,
@@ -130,6 +131,9 @@ def _get_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_
     if type_name in ["string", "bytes"]:
         return _get_basic_type(type_name)
 
+    if type_name == "dec64":
+        return _get_decimal_type(type_name)
+
     if len(type_name) > 2:
         if type_name.endswith("[]"):
             return _get_vector_type(type_name, type_descriptors, type_dependencies)
@@ -167,6 +171,15 @@ def _get_basic_type(type_name: str) -> BasicType:
         type=type_name,
         type_class=TypeClass[type_name],
         size=None,
+    )
+
+
+def _get_decimal_type(type_name: str) -> DecimalType:
+    assert type_name == "dec64"
+    return DecimalType(
+        type=type_name,
+        type_class=TypeClass.decimal,
+        size=8,
     )
 
 
