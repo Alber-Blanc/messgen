@@ -1,5 +1,5 @@
 import type { Buffer } from '../../Buffer';
-import type { IValue, IBasicType } from '../../types';
+import type { IValue, BasicType } from '../../types';
 import { Converter } from './../Converter';
 import { IS_LITTLE_ENDIAN } from '../../config';
 import { decodeUTF8, encodeUTF8 } from '../../utils/utf8';
@@ -12,7 +12,7 @@ interface ScalarTypeConfig {
   typedArray?: boolean;
 }
 
-export const SCALAR_TYPES = new Map<IBasicType, ScalarTypeConfig>([
+export const SCALAR_TYPES = new Map<BasicType, ScalarTypeConfig>([
   ['int8', {
     size: 1,
     read: (v, o) => v.getInt8(o),
@@ -121,7 +121,7 @@ export const SCALAR_TYPES = new Map<IBasicType, ScalarTypeConfig>([
 export class ScalarConverter extends Converter {
   private config: ScalarTypeConfig;
 
-  constructor(name: IBasicType) {
+  constructor(name: BasicType) {
     super(name);
 
     const config = SCALAR_TYPES.get(name);

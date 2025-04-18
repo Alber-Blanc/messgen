@@ -91,6 +91,14 @@ describe('Protocols', () => {
       });
     });
 
+    it('should resolve decimal types', () => {
+      const type = protocols.getType('dec64');
+      expect(type).toEqual({
+        type: 'dec64',
+        typeClass: 'decimal',
+      });
+    });
+
     it('should throw error for unknown types', () => {
       expect(() => {
         protocols.getType('unknown_type');

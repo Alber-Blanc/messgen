@@ -1,3 +1,7 @@
+import Decimal from 'decimal.js';
+
+export { Decimal };
+
 export * from './converters';
 export * from './types';
 export * from './protocol';

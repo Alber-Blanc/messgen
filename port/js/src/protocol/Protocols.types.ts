@@ -1,4 +1,4 @@
-import type { IName, INumberType, Field } from '../types';
+import type { IName, NumberType, Field } from '../types';
 
 export interface RawStructType {
   type: string;
@@ -9,7 +9,7 @@ export interface RawStructType {
 export interface RawEnumType {
   type: string;
   type_class: '7';
-  base_type: INumberType;
+  base_type: NumberType;
   values: EnumValue[];
 }
 
@@ -20,7 +20,7 @@ interface EnumValue {
   value: number;
 }
 
-export enum TypeClass {
+export enum RawTypeClass {
   STRUCT = '8',
   ENUM = '7',
 }
@@ -34,7 +34,7 @@ export interface StructTypeClass {
 export interface EnumTypeClass {
   type_class: 'enum';
   comment?: string;
-  base_type: INumberType;
+  base_type: NumberType;
   values: EnumValue[];
 }
 
