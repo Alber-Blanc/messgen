@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set
 
 from .common import SEPARATOR
-from .model import MessgenType, EnumType, StructType, Protocol, TypeClass
+from .model import MessgenType, Protocol, TypeClass
 from .validation import validate_protocol
 
 
@@ -120,7 +120,7 @@ class TypeScriptGenerator:
             [imports, proto_enum, *message_enums, *map_ifaces, union_types])
         self._write(out_dir / self.PROTOCOLS_FILE, content)
 
-    def _to_struct(self, name: str, td: StructType) -> str:
+    def _to_struct(self, name: str, td: MessgenType) -> str:
         indent = self.INDENT
 
         body_lines = []
@@ -142,7 +142,7 @@ class TypeScriptGenerator:
             f"}}"
         ).strip()
 
-    def _to_enum(self, name: str, td: EnumType) -> str:
+    def _to_enum(self, name: str, td: MessgenType) -> str:
         value_lines = []
         for val in td.values or []:
             comment = f"/** {val.comment} */\n" if val.comment else ""
@@ -150,9 +150,11 @@ class TypeScriptGenerator:
                 f"{comment}{self.INDENT}{self._enum_key(val.name)} = {val.value},")
 
         body = "\n".join(value_lines)
-        comment = f"/** {td.comment} */\n" if td.comment else ""
+
+        comment_text = getattr(td, "comment", None)
+        comment_line = f"/** {comment_text} */\n" if comment_text else ""
         return textwrap.dedent(
-            f"""{comment}export enum {self._camel(name)} {{
+            f"""{comment_line}export enum {self._camel(name)} {{
             {body}
             }}"""
         ).strip()
