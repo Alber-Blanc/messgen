@@ -578,7 +578,6 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield f"package {pkg}\n"
     yield "import ("
     yield "\t\"fmt\""
-    yield "\t\"github.com/Alber-Blanc/messgen\""
     for _, msg in proto_def.messages.items():
           tp = types[msg.type]
           fp = tp.package_full()
@@ -589,45 +588,70 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
           seen.add(fp)
     yield ")\n"
 
-    yield f"const {proto_name}_Id    = messgen.ProtocolId({proto_def.proto_id})"
+    yield f"const {proto_name}_Id    = {proto_def.proto_id}"
     yield f"const {proto_name}_Name  = \"{proto_def.name}\""
     yield f"const {proto_name}_Hash  = {0}"
     yield f"type  {proto_name}_MsgId uint8\n"
 
+    maxid = 0
     yield "const ("
     for id, msg in proto_def.messages.items():
         yield f"\t{proto_name}_{toGoName(msg.name)}_Id = {proto_name}_MsgId({id})"
+        maxid = max(maxid, id)
     yield "\n"
     for id, msg in proto_def.messages.items():
         yield f"\t{proto_name}_{toGoName(msg.name)}_Hash = uint64({hash_message(msg)})"
     yield ")\n"
 
-    yield f"type {proto_name}Handler interface {{"
-    for id, msg in proto_def.messages.items():
-        tp = types[msg.type]
-        yield f"\tOn{toGoName(msg.name)}(msg *{tp.reference(pkg)}) error"
-    yield f"}}\n"
+    yield f"type {proto_name}MessageHandler[T any] interface {{"
+    yield f"\tHandle(msg T) error"
+    yield "}\n"
 
-    yield f"func (mid {proto_name}_MsgId) Dispatch(h {proto_name}Handler, body []byte) error {{"
+    yield f"type {proto_name}Handler [{maxid+1}]any\n"
+    yield f"func (th {proto_name}Handler) Setup(mid {proto_name}_MsgId, h any) error {{"
     yield "\tswitch (mid) {"
     for id, msg in proto_def.messages.items():
         tp = types[msg.type]
         yield f"\tcase {proto_name}_{toGoName(msg.name)}_Id: {{"
-        yield f"\t\tmsg := {tp.reference(pkg)}{{}}\n"
-        yield f"\t\tsz, err := msg.Deserialize(body)"
-        yield f"\t\tif err != nil {{"
-        yield f"\t\t\treturn fmt.Errorf(\"Failed to read message {proto_name}_{toGoName(msg.name)}: %s\", err)"
-        yield f"\t\t}} else if int(sz) != len(body) {{"
-        yield f"\t\t\treturn fmt.Errorf(\"Readed size isn't valid for the message {proto_name}_{toGoName(msg.name)}: %d != %d\", sz, len(body))"
-        yield f"\t\t}}\n"
-        yield f"\t\terr = h.On{toGoName(msg.name)}(&msg)"
-        yield f"\t\tif err != nil {{"
-        yield f"\t\t\treturn fmt.Errorf(\"Failed to handle message {proto_name}_{toGoName(msg.name)}: %s\", err)"
+        yield f"\t\tif _, ok := h.({proto_name}MessageHandler[{tp.reference(pkg)}]); !ok {{"
+        yield f"\t\treturn fmt.Errorf(\"Invalid handler for {proto_name}_{toGoName(msg.name)}\")"
         yield f"\t\t}}"
         yield f"\t}}\n"
+    yield "\t\tdefault: {"
+    yield f"\t\t\treturn fmt.Errorf(\"Unknown message id for the protocol {proto_name}: %d\", mid)"
+    yield "\t\t}"
     yield "\t}"
-    yield "\treturn nil"
-    yield f"}}"
+    yield f"\tth[int(mid)] = h"
+    yield f"\treturn nil"
+    yield "}\n"
+
+    yield f"func (th {proto_name}Handler) Dispatch(mid {proto_name}_MsgId, body []byte) error {{"
+    yield "\tswitch (mid) {"
+    for id, msg in proto_def.messages.items():
+        tp = types[msg.type]
+        yield f"\tcase {proto_name}_{toGoName(msg.name)}_Id: {{"
+        yield f"\t\tif handler, ok := th[int(mid)].({proto_name}MessageHandler[{tp.reference(pkg)}]); ok {{"
+        yield f"\t\t\tmsg := {tp.reference(pkg)}{{}}\n"
+        yield f"\t\t\tsz, err := msg.Deserialize(body)"
+        yield f"\t\t\tif err != nil {{"
+        yield f"\t\t\t\treturn fmt.Errorf(\"Failed to read message {proto_name}_{toGoName(msg.name)}: %s\", err)"
+        yield f"\t\t\t}} else if int(sz) != len(body) {{"
+        yield f"\t\t\t\treturn fmt.Errorf(\"Readed size isn't valid for the message {proto_name}_{toGoName(msg.name)}: %d != %d\", sz, len(body))"
+        yield f"\t\t\t}}\n"
+        yield f"\t\t\terr = handler(&msg)"
+        yield f"\t\t\tif err != nil {{"
+        yield f"\t\t\t\t\treturn fmt.Errorf(\"Failed to handle message {proto_name}_{toGoName(msg.name)}: %s\", err)"
+        yield f"\t\t\t}}"
+        yield f"\t\t}} else {{"
+        yield f"\t\t\treturn fmt.Errorf(\"Invalid handler for {proto_name}_{toGoName(msg.name)}\")"
+        yield f"\t\t}}"
+        yield f"\t}}\n"
+    yield "\t\tdefault: {"
+    yield f"\t\t\treturn fmt.Errorf(\"Unknown message id for the protocol {proto_name}: %d\", mid)"
+    yield "\t\t}"
+    yield "\t}"
+    yield f"\treturn nil"
+    yield "}\n"
 
 
 class GolangGenerator:

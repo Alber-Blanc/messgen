@@ -47,7 +47,7 @@ add_test(
             "--protocol" "${CMAKE_CURRENT_SOURCE_DIR}/data/protocols:test_proto"
             "--protocol" "${CMAKE_CURRENT_SOURCE_DIR}/data/protocols:nested/another_proto"
             "--options" "mod_name=example.com"
-            "--outdir" "${CMAKE_CURRENT_SOURCE_DIR}/golang/msgs"
+            "--outdir" "${CMAKE_SOURCE_DIR}/build-golang-test/msgs"
             "--lang" "golang"
 )
 add_test(
