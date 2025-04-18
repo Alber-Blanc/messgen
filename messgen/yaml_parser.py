@@ -4,7 +4,7 @@ import yaml
 from pathlib import Path
 from typing import Any
 
-from .common import SEPARATOR
+from .common import SEPARATOR, SIZE_TYPE
 from .model import (
     ArrayType,
     BasicType,
@@ -108,7 +108,7 @@ def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType]:
                 validate_type_dict(type_file.stem, item)
                 type_descriptors[_type_name(type_file, base_dir)] = item
 
-    type_dependencies: set[str] = set()
+    type_dependencies: set[str] = {SIZE_TYPE}
     parsed_types = {type_name: _get_type(type_name, type_descriptors, type_dependencies) for type_name in type_descriptors}
 
     ignore_dependencies: set[str] = set()
