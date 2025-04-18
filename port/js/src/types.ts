@@ -1,25 +1,10 @@
-/*
-    ____,-------------------------------------,____
-    \   |            Nominal types            |   /
-    /___|-------------------------------------|___\
-
-*/
-declare const NominalType: unique symbol;
-// String-typed unique nominal types generator:
-//
-// let a: NominalStrict<'DateTime'> = '2021-10-26T13:53:05.997Z';
-// let b: NominalStrict<'DayDate'> = '2021-10-26';
-// a = b; - compile-time error;
-export type NominalStrict<NAME extends string | number, Type = string> = Type & { [NominalType]: NAME };
-export type Nominal<NAME extends string | number, Type = string> = Type & { [NominalType]?: NAME };
-
 export type IName = string;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type IValue = Nominal<'Value', any>;
-export type ProtocolId = Nominal<'ProtocolId', number>;
-export type MessageId = Nominal<'MessageId', number>;
+export type IValue = any;
+export type ProtocolId = number;
+export type MessageId = number;
 
-export type INumberType =
+export type NumberType =
   | 'uint8'
   | 'int8'
   | 'uint16'
@@ -32,8 +17,10 @@ export type INumberType =
   | 'float64'
   | 'dec64';
 
-export type IBasicType =
-  INumberType |
+export type DecimalType = 'dec64';
+
+export type BasicType =
+  NumberType |
   'string' |
   'bool' |
   'char' |
@@ -41,11 +28,21 @@ export type IBasicType =
 
 type ArrayDynamicSize = '[]';
 type ArrayFixSize = `[${number}]`;
-type MapType = `{${IBasicType}}`;
+type MapType = `{${BasicType}}`;
 
 type SubType = ArrayDynamicSize | ArrayFixSize | MapType | '';
 
-export type IType = `${IName | IBasicType}${SubType}${SubType}${SubType}`;
+export type IType = `${IName | BasicType | DecimalType}${SubType}${SubType}${SubType}`;
+
+export enum TypeClass {
+  SCALAR = 'scalar',
+  DECIMAL = 'decimal',
+  TYPED_ARRAY = 'typed-array',
+  ARRAY = 'array',
+  MAP = 'map',
+  STRUCT = 'struct',
+  ENUM = 'enum',
+}
 
 export interface Field {
   name: IName
@@ -59,20 +56,25 @@ export interface EnumValue {
 }
 
 export type ScalarTypeDefinition = {
-  type: IBasicType;
-  typeClass: 'scalar';
+  type: BasicType;
+  typeClass: TypeClass.SCALAR;
+};
+
+export type DecimalTypeDefinition = {
+  type: DecimalType;
+  typeClass: TypeClass.DECIMAL;
 };
 
 export type TypedArrayTypeDefinition = {
   type: IType;
-  typeClass: 'typed-array';
+  typeClass: TypeClass.TYPED_ARRAY;
   elementType: IType;
   arraySize?: number;
 };
 
 export type ArrayTypeDefinition = {
   type: IType;
-  typeClass: 'array';
+  typeClass: TypeClass.ARRAY;
   elementType: IType;
   arraySize?: number;
   size?: number;
@@ -80,28 +82,29 @@ export type ArrayTypeDefinition = {
 
 export type MapTypeDefinition = {
   type: IType;
-  typeClass: 'map';
+  typeClass: TypeClass.MAP;
   keyType: IType;
   valueType: IType;
 };
 
 export type StructTypeDefinition = {
-  typeClass: 'struct';
+  typeClass: TypeClass.STRUCT;
   fields: Field[] | null;
   typeName: IName;
 };
 
 export type EnumTypeDefinition = {
   type: IType;
-  typeClass: 'enum';
+  typeClass: TypeClass.ENUM;
   values: EnumValue[];
   typeName: IName;
 };
 
 export type TypeDefinition =
-  ScalarTypeDefinition |
-  TypedArrayTypeDefinition |
-  ArrayTypeDefinition |
-  MapTypeDefinition |
-  StructTypeDefinition |
-  EnumTypeDefinition;
+  | ScalarTypeDefinition
+  | DecimalTypeDefinition
+  | TypedArrayTypeDefinition
+  | ArrayTypeDefinition
+  | MapTypeDefinition
+  | StructTypeDefinition
+  | EnumTypeDefinition;
