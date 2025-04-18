@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EnumConverter } from '../src/converters/base/EnumConverter';
-import type { EnumTypeDefinition, EnumValue, IBasicType } from '../src/types';
+import type { EnumTypeDefinition, EnumValue, BasicType } from '../src/types';
 import { Buffer } from '../src/Buffer';
 import { initGetType } from './utils';
 
@@ -49,13 +49,13 @@ describe('EnumConverter', () => {
     expect(result).toEqual(4);
   });
 
-  function intiEnumConverter(values: EnumValue[], type?: IBasicType): EnumConverter {
+  function intiEnumConverter(values: EnumValue[], type?: BasicType): EnumConverter {
     const schema = createSchema(values, type);
     const getType = initGetType();
     return new EnumConverter(schema, getType);
   }
 
-  function createSchema(values: EnumValue[] = [], type: IBasicType = 'int8'): EnumTypeDefinition {
+  function createSchema(values: EnumValue[] = [], type: BasicType = 'int8'): EnumTypeDefinition {
     return { typeClass: 'enum', values, typeName: 'testStruct', type };
   }
 });

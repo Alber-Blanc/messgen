@@ -1,37 +1,39 @@
-import type { IBasicType, IName, IType, TypeDefinition } from '../types';
-import { type RawType, TypeClass } from './Protocols.types';
-
-const SCALAR_TYPES_INFO = new Map<string, boolean>([
-  ['int8', true],
-  ['uint8', true],
-  ['int16', true],
-  ['uint16', true],
-  ['int32', true],
-  ['uint32', true],
-  ['int64', true],
-  ['uint64', true],
-  ['float32', true],
-  ['float64', true],
-  ['char', false],
-  ['string', false],
-  ['bytes', false],
-  ['bool', false],
-]);
+import { TypeClass } from '../types';
+import type { BasicType, DecimalType, IName, IType, TypeDefinition } from '../types';
+import { type RawType, RawTypeClass } from './Protocols.types';
 
 export class Protocols {
+  private static DECIMAL = 'dec64';
+  private static SCALAR_TYPES_INFO = new Map<string, boolean>([
+    ['int8', true],
+    ['uint8', true],
+    ['int16', true],
+    ['uint16', true],
+    ['int32', true],
+    ['uint32', true],
+    ['int64', true],
+    ['uint64', true],
+    ['float32', true],
+    ['float64', true],
+    ['char', false],
+    ['string', false],
+    ['bytes', false],
+    ['bool', false],
+  ]);
+
   private types = new Map<IName, TypeDefinition>();
 
   load(types: RawType[]): void {
     types.forEach((type) => {
-      if (type.type_class === TypeClass.STRUCT) {
+      if (type.type_class === RawTypeClass.STRUCT) {
         this.types.set(type.type, {
-          typeClass: 'struct',
+          typeClass: TypeClass.STRUCT,
           fields: type.fields,
           typeName: type.type,
         });
-      } else if (type.type_class === TypeClass.ENUM) {
+      } else if (type.type_class === RawTypeClass.ENUM) {
         this.types.set(type.type, {
-          typeClass: 'enum',
+          typeClass: TypeClass.ENUM,
           type: type.base_type,
           typeName: type.type,
           values: type.values,
@@ -41,8 +43,11 @@ export class Protocols {
   }
 
   getType(typeName: IType): TypeDefinition {
-    if (SCALAR_TYPES_INFO.has(typeName)) {
-      return { type: typeName as IBasicType, typeClass: 'scalar' };
+    if (Protocols.SCALAR_TYPES_INFO.has(typeName)) {
+      return { type: typeName as BasicType, typeClass: TypeClass.SCALAR };
+    }
+    if (typeName === Protocols.DECIMAL) {
+      return { type: typeName as DecimalType, typeClass: TypeClass.DECIMAL };
     }
     if (typeName.endsWith(']')) {
       return this.parseArrayType(typeName);
@@ -56,10 +61,10 @@ export class Protocols {
   private parseArrayType(typeName: string): TypeDefinition {
     const [elementType, size] = this.parseArray(typeName);
 
-    const isTyped = SCALAR_TYPES_INFO.get(elementType);
+    const isTyped = Protocols.SCALAR_TYPES_INFO.get(elementType);
     return {
       type: typeName,
-      typeClass: isTyped ? 'typed-array' : 'array',
+      typeClass: isTyped ? TypeClass.TYPED_ARRAY : TypeClass.ARRAY,
       elementType,
       arraySize: size,
     };
@@ -69,7 +74,7 @@ export class Protocols {
     const [keyType, valueType] = this.parseMap(typeName);
     return {
       type: typeName,
-      typeClass: 'map',
+      typeClass: TypeClass.MAP,
       keyType,
       valueType,
     };

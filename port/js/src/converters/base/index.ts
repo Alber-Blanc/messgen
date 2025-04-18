@@ -4,3 +4,4 @@ export { TypedArrayConverter } from './TypedArrayConverter';
 export { MapConverter } from './MapConverter';
 export { EnumConverter } from './EnumConverter';
 export { StructConverter } from './StructConverter';
+export { DecimalConverter } from './DecimalConverter';

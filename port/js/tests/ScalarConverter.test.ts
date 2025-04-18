@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Buffer } from '../src/Buffer';
 import { ScalarConverter } from '../src/converters/base/ScalarConverter';
-import type { IBasicType } from '../src/types';
+import type { BasicType } from '../src/types';
 import { IS_LITTLE_ENDIAN } from '../src/config';
 
 describe('ScalarConverter', () => {
@@ -560,7 +560,7 @@ describe('ScalarConverter', () => {
     expect(deserializedValue2).toBe(value2);
   });
 
-  function getConverter(name: IBasicType) {
+  function getConverter(name: BasicType) {
     return new ScalarConverter(name);
   }
 
