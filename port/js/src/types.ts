@@ -20,16 +20,17 @@ export type ProtocolId = Nominal<'ProtocolId', number>;
 export type MessageId = Nominal<'MessageId', number>;
 
 export type INumberType =
-  'uint8' |
-  'int8' |
-  'uint16' |
-  'int16' |
-  'uint32' |
-  'int32' |
-  'uint64' |
-  'int64' |
-  'float32' |
-  'float64';
+  | 'uint8'
+  | 'int8'
+  | 'uint16'
+  | 'int16'
+  | 'uint32'
+  | 'int32'
+  | 'uint64'
+  | 'int64'
+  | 'float32'
+  | 'float64'
+  | 'dec64';
 
 export type IBasicType =
   INumberType |
