@@ -1,10 +1,10 @@
 import re
 import textwrap
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, Optional, Set, cast
 
 from .common import SEPARATOR
-from .model import MessgenType, Protocol, TypeClass
+from .model import MessgenType, EnumType, StructType, Protocol, TypeClass
 from .validation import validate_protocol
 
 
@@ -78,18 +78,18 @@ class TypeScriptGenerator:
     def generate_types(self, out_dir: Path, types: Dict[str, MessgenType]) -> None:
 
         structs = [
-            self._to_struct(name, descriptor)
+            self._to_struct(name, cast(StructType, descriptor))
             for name, descriptor in types.items()
             if descriptor.type_class is TypeClass.struct
         ]
 
         enums = [
-            self._to_enum(name, descriptor)
+            self._to_enum(name, cast(EnumType, descriptor))
             for name, descriptor in types.items()
             if descriptor.type_class is TypeClass.enum
         ]
 
-        type_enum: str = self._to_type_name_enum(types)
+        type_enum: str = self._type_name_enum(types)
 
         file_content = "\n".join(structs + enums + [type_enum])
         self._write(out_dir / self.TYPES_FILE, file_content)
@@ -120,7 +120,7 @@ class TypeScriptGenerator:
             [imports, proto_enum, *message_enums, *map_ifaces, union_types])
         self._write(out_dir / self.PROTOCOLS_FILE, content)
 
-    def _to_struct(self, name: str, td: MessgenType) -> str:
+    def _to_struct(self, name: str, td: StructType) -> str:
         indent = self.INDENT
 
         body_lines = []
@@ -142,7 +142,7 @@ class TypeScriptGenerator:
             f"}}"
         ).strip()
 
-    def _to_enum(self, name: str, td: MessgenType) -> str:
+    def _to_enum(self, name: str, td: EnumType) -> str:
         value_lines = []
         for val in td.values or []:
             comment = f"/** {val.comment} */\n" if val.comment else ""
@@ -150,17 +150,15 @@ class TypeScriptGenerator:
                 f"{comment}{self.INDENT}{self._enum_key(val.name)} = {val.value},")
 
         body = "\n".join(value_lines)
-
-        comment_text = getattr(td, "comment", None)
-        comment_line = f"/** {comment_text} */\n" if comment_text else ""
+        comment = f"/** {td.comment} */\n" if td.comment else ""
         return textwrap.dedent(
-            f"""{comment_line}export enum {self._camel(name)} {{
+            f"""{comment}export enum {self._camel(name)} {{
             {body}
             }}"""
         ).strip()
 
     @staticmethod
-    def _to_type_name_enum(types: Dict[str, MessgenType]) -> str:
+    def _type_name_enum(types: Dict[str, MessgenType]) -> str:
         body = "\n".join(
             f"  {TypeScriptGenerator._enum_key(name)} = '{name}',"
             for name, td in types.items() if td.type_class is TypeClass.struct
