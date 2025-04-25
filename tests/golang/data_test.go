@@ -59,7 +59,7 @@ var TEST_DATA = []TestCase{
 	{"StructWithEnum", "struct_with_enum.bin", false, &test.StructWithEnum{
 		F0: 0x1234567890abcdef,
 		F1: 0x1234567890abcdef,
-		E0: test.AnotherValue,
+		E0: test.SimpleEnum_AnotherValue,
 	}},
 
 	{"EmptyStruct", "empty_struct.bin", false, &test.EmptyStruct{}},
@@ -86,7 +86,7 @@ var TEST_DATA = []TestCase{
 		F1Arr: [4]int64{0x1234567890abcdef, 0x1234567890abcdef, 0x1234567890abcdef, 0x1234567890abcdef},
 		VArr:  [2]test.VarSizeStruct{varSize, varSize},
 		F2Vec: []float64{1.2345678901234567890, 1.2345678901234567890, 1.2345678901234567890},
-		EVec:  []test.SimpleEnum{test.OneValue, test.AnotherValue},
+		EVec:  []test.SimpleEnum{test.SimpleEnum_OneValue, test.SimpleEnum_AnotherValue},
 		SVec:  []test.SimpleStruct{simple, simple, simple},
 		VVec0: [][]test.VarSizeStruct{
 			{varSize, varSize},
@@ -115,7 +115,7 @@ var TEST_DATA = []TestCase{
 		F1Arr: [4]int64{0x1234567890abcdef, 0x1234567890abcdef, 0x1234567890abcdef, 0x1234567890abcdef},
 		VArr:  [2]test.VarSizeStruct{varSize, varSize},
 		F2Vec: []float64{1.2345678901234567890, 1.2345678901234567890, 1.2345678901234567890},
-		EVec:  []test.SimpleEnum{test.OneValue, test.AnotherValue},
+		EVec:  []test.SimpleEnum{test.SimpleEnum_OneValue, test.SimpleEnum_AnotherValue},
 		SVec:  []test.SimpleStruct{simple, simple, simple},
 		VVec0: [][]test.VarSizeStruct{
 			{varSize, varSize},
