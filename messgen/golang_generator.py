@@ -439,11 +439,16 @@ class ResolvedStruct(ResolvedType):
         hasNonFlatGroups = False
         hasString = False
         hasBytes = False
+        hasFlatSlice = False
         for g in self.fieldGroups():
-            if not hasString or not hasBytes:
+            if not hasString or not hasBytes or not hasFlatSlice:
                 for _, f in g.fields:
                     hasBytes = hasBytes or f._model.type_class == TypeClass.string
                     hasString = hasString or f._model.type_class == TypeClass.bytes
+                    hasFlatSlice = hasFlatSlice or (
+                            f._model.type_class in [TypeClass.array, TypeClass.vector] and
+                            f._element.is_flat()
+                    )
             hasFlatGroups = hasFlatGroups or g.size != None
             hasNonFlatGroups = hasNonFlatGroups or g.size == None
 
@@ -451,7 +456,7 @@ class ResolvedStruct(ResolvedType):
         yield f"import ("
         yield f" \"fmt\""
         yield f" \"encoding/binary\""
-        if hasFlatGroups or hasString or hasBytes:
+        if hasFlatGroups or hasString or hasBytes or hasFlatSlice:
             yield f" \"unsafe\""
 
         for i in self._imports:
@@ -495,7 +500,7 @@ class ResolvedStruct(ResolvedType):
         ##################################################################
         # Generate write methods
         yield f"func (s *{self._name}) Serialize(output []byte) (uint32, error) {{"
-        if hasFlatGroups or hasString or hasBytes:
+        if hasFlatGroups:
             yield f" selfBytes := (*[{self.type_size()}]byte)(unsafe.Pointer(s))"
         if len(self._fields) > 0:
             yield "  outputOfs, selfOfs := 0, 0"
@@ -521,7 +526,7 @@ class ResolvedStruct(ResolvedType):
         ##################################################################
         # Generate read methods
         yield f"func (s *{self._name}) Deserialize(input []byte) (uint32, error) {{"
-        if hasFlatGroups or hasString or hasBytes:
+        if hasFlatGroups:
             yield f" selfBytes := (*[{self.type_size()}]byte)(unsafe.Pointer(s))"
         if len(self._fields) > 0:
             yield "  inputOfs, selfOfs := 0, 0"
