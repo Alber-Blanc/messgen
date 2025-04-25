@@ -21,3 +21,9 @@ dump.txt
 tests/cpp/messgen
 .done.*
 
+
+generate_manet_protocol.sh
+
+generate_video.sh
+
+generate_web.sh
