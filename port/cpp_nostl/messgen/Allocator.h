@@ -6,19 +6,19 @@
 namespace messgen {
 
 /**
- * @brief Class for holding dynamic fields while parsing
- * @note  Class is supposed to be re-created after each parse call
+ * @brief Class for holding dynamic fields while deserializing
+ * @note  This object should be recreated after each deserialize call.
  */
 class Allocator {
 public:
-    Allocator() noexcept
-        : _ptr(nullptr),
-          _size(0) {
+    Allocator()
+        : _begin(nullptr),
+          _end(nullptr) {
     }
 
-    Allocator(uint8_t *ptr, size_t size) noexcept
-        : _ptr(ptr),
-          _size(size) {
+    Allocator(uint8_t *ptr, size_t size)
+        : _begin(ptr),
+          _end(ptr + size) {
     }
 
     /**
@@ -28,46 +28,20 @@ public:
      * @return pointer to allocated memory or nullptr if not enough memory
      */
     template <class T>
-    T *alloc(size_t n) noexcept {
-        if (n == 0) {
-            return reinterpret_cast<T *>(_ptr);
+    T *alloc(size_t num) {
+        // Align the pointer
+        auto ptr = reinterpret_cast<uint8_t *>(size_t(alignof(T) - 1 + _begin) & ~(alignof(T) - 1));
+        size_t size = num * sizeof(T);
+        if (ptr + size <= _end) {
+            _begin = ptr + size;
+            return reinterpret_cast<T *>(ptr);
         }
-
-        const size_t alloc_size = sizeof(T) * n;
-        if (align(alignof(T), alloc_size, _ptr, _size)) {
-            T *ptr = reinterpret_cast<T *>(_ptr);
-            _ptr = (uint8_t *)_ptr + alloc_size;
-            _size -= alloc_size;
-
-            return ptr;
-        }
-
-        return nullptr;
+        return nullptr; // Out of memory
     }
 
 private:
-    /**
-     * @brief Aligns pointer to align bytes
-     * @param align   -   alignment
-     * @param size    -   size of object
-     * @param ptr     -   pointer to align
-     * @param space   -   space left
-     * @return aligned pointer
-     */
-    static inline void *align(size_t align, size_t size, void *&ptr, size_t &space) noexcept {
-        const auto intptr = reinterpret_cast<uintptr_t>(ptr);
-        const auto aligned = (intptr - 1u + align) & -align;
-        const auto diff = aligned - intptr;
-        if ((size + diff) > space)
-            return nullptr;
-        else {
-            space -= diff;
-            return ptr = reinterpret_cast<void *>(aligned);
-        }
-    }
-
-    void *_ptr;
-    size_t _size;
+    uint8_t *_begin;
+    uint8_t *_end;
 };
 
 /**

@@ -605,7 +605,7 @@ class CppGenerator:
                     self._add_include("vector")
                     return "std::vector<uint8_t>"
                 elif mode == "nostl":
-                    return "messgen::vector<uint8_t>"
+                    return "std::span<uint8_t>"
                 else:
                     raise RuntimeError("Unsupported mode for bytes: %s" % mode)
 
@@ -624,7 +624,7 @@ class CppGenerator:
                 self._add_include("vector")
                 return "std::vector<%s>" % el_c_type
             elif mode == "nostl":
-                return "messgen::vector<%s>" % el_c_type
+                return "std::span<%s>" % el_c_type
             else:
                 raise RuntimeError("Unsupported mode for vector: %s" % mode)
 
@@ -898,7 +898,7 @@ class CppGenerator:
         return c
 
     def _memcpy_to_buf(self, src: str, size) -> list:
-        return ["::memcpy(&_buf[_size], reinterpret_cast<const uint8_t *>(%s), %s);" % (src, size), "_size += %s;" % size]
+        return ["::memcpy(&_buf[_size], %s, %s);" % (src, size), "_size += %s;" % size]
 
     def _memcpy_from_buf(self, dst: str, size) -> list:
-        return ["::memcpy(reinterpret_cast<uint8_t *>(%s), &_buf[_size], %s);" % (dst, size), "_size += %s;" % size]
+        return ["::memcpy(%s, &_buf[_size], %s);" % (dst, size), "_size += %s;" % size]
