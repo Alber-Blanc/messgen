@@ -650,6 +650,10 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
 
     yield f"type {proto_name}Dispatcher [{maxid+1}]func(mid {proto_name}_MsgId, body []byte) error";
     yield f""
+    yield f"func New{proto_name}Dispatcher() *{proto_name}Dispatcher {{"
+    yield f"return &{proto_name}Dispatcher{{}}"
+    yield f"}}"
+    yield f""
     yield f"func {proto_name}Setup[T any, P interface {{{proto_name}Message; *T}}](dispatcher *{proto_name}Dispatcher, mid {proto_name}_MsgId, process func(P) error) {{"
     yield f"\tdispatcher[int(mid)] = func(mid {proto_name}_MsgId, body []byte) error {{"
     yield f"\tmsg := P(new(T))"
