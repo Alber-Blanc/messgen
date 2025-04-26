@@ -549,7 +549,7 @@ class CppGenerator:
 
     @staticmethod
     def _generate_schema(type_def: MessgenType):
-        return json.dumps(asdict(type_def)).replace(" ", "")
+        return json.dumps(asdict(type_def), separators=(',', ':'))
 
     def _add_include(self, inc, scope="global"):
         self._includes.add((inc, scope))
