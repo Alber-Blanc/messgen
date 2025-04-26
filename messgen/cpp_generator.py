@@ -474,7 +474,7 @@ class CppGenerator:
 
         alloc = ""
         if self._get_mode() == "nostl":
-            alloc = ", messgen::Allocator &_alloc"
+            alloc = ", messgen::Allocator _alloc"
         code_deser = (
             [
                 "",

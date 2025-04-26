@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
+#include <span>
 
 namespace messgen {
 
@@ -16,9 +16,9 @@ public:
           _end(nullptr) {
     }
 
-    Allocator(uint8_t *ptr, size_t size)
-        : _begin(ptr),
-          _end(ptr + size) {
+    Allocator(std::span<uint8_t> buffer)
+        : _begin(buffer.data()),
+          _end(buffer.end().base()) {
     }
 
     /**
