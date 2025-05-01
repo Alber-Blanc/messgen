@@ -1,5 +1,5 @@
-./generate_video.sh video
-./generate_manet_protocol.sh mission
-./generate_manet_protocol.sh geofence
-./generate_manet_protocol.sh manet
-./generate_web.sh web
+python3 messgen-generate.py --types ../contracts/video-protocol/microavia/video/ --protocol ../contracts/video-protocol/microavia:protocol --outdir ../go-contracts/microavia/video/ --lang golang --options mod_name=gitlab.microavia.com/microavia/tower/go-contracts/microavia
+python3 messgen-generate.py --types ../contracts/manet-protocol/microavia/mission/ --protocol ../contracts/manet-protocol/microavia:protocol_mission --outdir ../go-contracts/microavia/mission/ --lang golang --options mod_name=gitlab.microavia.com/microavia/tower/go-contracts/microavia
+python3 messgen-generate.py --types ../contracts/manet-protocol/microavia/geofence/ --protocol ../contracts/manet-protocol/microavia:protocol_geofence --outdir ../go-contracts/microavia/geofence/ --lang golang --options mod_name=gitlab.microavia.com/microavia/tower/go-contracts/microavia
+python3 messgen-generate.py --types ../contracts/manet-protocol/microavia/manet/ --protocol ../contracts/manet-protocol/microavia:protocol_manet --outdir ../go-contracts/microavia/manet/ --lang golang --options mod_name=gitlab.microavia.com/microavia/tower/go-contracts/microavia
+python3 messgen-generate.py --types ../contracts/web-protocol/microavia/web/ --protocol ../contracts/web-protocol/microavia:protocol --outdir ../go-contracts/microavia/web/ --lang golang --options mod_name=gitlab.microavia.com/microavia/tower/go-contracts/microavia
