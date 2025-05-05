@@ -6,7 +6,7 @@ type Serializable interface {
 	SerializedSize() uint32
 }
 
-type ProtoMessage interface {
+type ProtocolMessage interface {
 	Id() PayloadId
 	Hash() uint64
 	Data() Serializable
