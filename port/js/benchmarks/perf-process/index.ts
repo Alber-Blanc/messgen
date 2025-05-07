@@ -1,10 +1,10 @@
 import { StructConverter } from '../../src/converters/base/StructConverter';
-import type { StructTypeDefinition } from '../../src/types';
+import { TypeClass, type StructTypeDefinition } from '../../src/types';
 import { initGetType } from '../../tests/utils';
 import { Buffer } from '../../src/Buffer';
 
 const schema: StructTypeDefinition = {
-  typeClass: 'struct',
+  typeClass: TypeClass.STRUCT,
   typeName: 'testStruct',
   fields: [
     { name: 'type_Int8', type: 'int8' },

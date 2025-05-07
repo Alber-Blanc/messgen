@@ -1,0 +1,4 @@
+type_class: struct
+comment: "A struct with field name clashing with type name"
+fields:
+  - { name: "name_clash_struct", type: "uint64", comment: "Clashing name struct" }
