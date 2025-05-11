@@ -3,6 +3,8 @@
 #include "concepts.h"
 #include "reflection.h"
 
+#include <tuple>
+
 namespace messgen {
 
 template <protocol Protocol>
