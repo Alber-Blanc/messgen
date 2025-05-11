@@ -1,8 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
-#include <vector>
+#include <string_view>
 
 namespace messgen {
 
@@ -130,14 +129,8 @@ template <class T>
     return "double";
 }
 
-[[nodiscard]] constexpr std::string_view name_of(reflect_t<std::string>) noexcept {
+[[nodiscard]] constexpr std::string_view name_of(reflect_t<std::string_view>) noexcept {
     return "string";
-}
-
-template <class T>
-[[nodiscard]] std::string_view name_of(reflect_t<std::vector<T>>) {
-    static auto name = "vector<" + std::string(name_of(reflect_type<T>)) + ">";
-    return name.c_str();
 }
 
 } // namespace messgen
