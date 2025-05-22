@@ -1,7 +1,7 @@
 import re
 import textwrap
 from pathlib import Path
-from typing import Dict, Set, cast  # add cast for type narrowing
+from typing import Dict, Set, cast
 
 from .common import SEPARATOR
 from .model import MessgenType, EnumType, StructType, Protocol, TypeClass
@@ -74,43 +74,44 @@ class TypeScriptGenerator:
     def __init__(self, options):
         self.options = options
 
-    def generate(self, out_dir: Path, types: Dict[str, MessgenType], protocols: Dict[str, Protocol]) -> None:
+    def generate(self, output_dir: Path, types: Dict[str, MessgenType], protocols: Dict[str, Protocol]) -> None:
         for proto in protocols.values():
             validate_protocol(proto, types)
-
-        out_dir.mkdir(parents=True, exist_ok=True)
-        self.generate_types(out_dir, types)
-        self.generate_protocols(out_dir, protocols)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        self.generate_types(output_dir, types)
+        self.generate_protocols(output_dir, protocols)
 
     def generate_types(self, out_dir: Path, types: Dict[str, MessgenType]) -> None:
-        # Detect Decimal usage
         needs_decimal = any(
             t.type_class is TypeClass.struct and
             any(field.type == 'dec64' for field in cast(StructType, t).fields or [])
             for t in types.values()
         )
-        blocks = []
+
+        blocks: list[str] = []
         if needs_decimal:
             blocks.append("import type { Decimal } from 'messgen';")
 
         for name, t in types.items():
             if t.type_class is TypeClass.struct:
                 blocks.append(self._emit_struct(name, cast(StructType, t)))
+
         for name, t in types.items():
             if t.type_class is TypeClass.enum:
                 blocks.append(self._emit_enum(name, cast(EnumType, t)))
-        blocks.append(self._emit_type_name_enum(types))
 
+        blocks.append(self._emit_type_name_enum(types))
         content = '\n'.join(blocks)
         self._write(out_dir / self.TYPES_FILE, content)
 
     def generate_protocols(self, out_dir: Path, protocols: Dict[str, Protocol]) -> None:
         used: Set[str] = set()
-        parts = [self._emit_protocol_enum(protocols)]
+        parts: list[str] = [self._emit_protocol_enum(protocols)]
+
         for proto in protocols.values():
             name = camel(proto.name)
             parts.append(self._emit_message_enum(proto, name))
-            parts.append(self._emit_map_interface(proto, name, used))
+            parts.append(self._emit_map_interface(used, proto))
 
         union = textwrap.dedent(f"""
             export type Message = {' | '.join(camel(p.name) for p in protocols.values())};
@@ -123,7 +124,7 @@ class TypeScriptGenerator:
 
     def _emit_struct(self, name: str, struct: StructType) -> str:
         header = comment_block(struct.comment or '', f"Size: {struct.size}" if struct.size is not None else '')
-        body = []
+        body: list[str] = []
         for f in struct.fields or []:
             if f.comment:
                 body.append(f"/** {f.comment} */")
@@ -132,12 +133,8 @@ class TypeScriptGenerator:
         return f"{header}export interface {camel(name)} {{\n{block}\n}}"
 
     def _emit_enum(self, name: str, enum: EnumType) -> str:
-        lines = []
-        if enum.comment:
-            lines.append(f"/** {enum.comment} */")
+        lines: list[str] = []
         for v in enum.values or []:
-            if v.comment:
-                lines.append(f"/** {v.comment} */")
             lines.append(f"{enum_key(v.name)} = {v.value},")
         body = indent('\n'.join(lines))
         return f"export enum {camel(name)} {{\n{body}\n}}"
@@ -157,14 +154,18 @@ class TypeScriptGenerator:
         body = indent('\n'.join(lines))
         return f"export enum {name} {{\n{body}\n}}"
 
-    def _emit_map_interface(self, proto: Protocol, name: str, used: Set[str]) -> str:
-        lines = []
+    def _emit_map_interface(self, used: Set[str], proto: Protocol) -> str:
+        name = camel(proto.name)
+        lines: list[str] = [f"export interface {name}Map {{"]
+        lines.append(indent(f"[Protocol.{proto.name.upper()}]: {{", level=1))
+
         for m in proto.messages.values():
-            type_name = camel(m.type)
-            used.add(type_name)
-            lines.append(f"[{name}.{m.name.upper()}]: {type_name};")
-        body = indent('\n'.join(lines))
-        return f"export interface {name}Map {{\n{body}\n}}"
+            tname = camel(m.type)
+            used.add(tname)
+            lines.append(indent(f"[{name}.{m.name.upper()}]: {tname};", level=2))
+        lines.append(indent("};", level=1, width=2))
+        lines.append("}")
+        return '\n'.join(lines)
 
     def _write(self, path: Path, content: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)

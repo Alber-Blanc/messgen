@@ -131,10 +131,7 @@ export interface MessgenTestEmptyStruct {
 
 }
 export enum MessgenTestSimpleEnum {
-  /** Example of simple enum */
-  /** One example value */
   ONE_VALUE = 0,
-  /** Another example value */
   ANOTHER_VALUE = 1,
 }
 export enum TypeName {
