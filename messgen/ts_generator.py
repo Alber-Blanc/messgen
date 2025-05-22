@@ -189,7 +189,7 @@ class TypeScriptGenerator:
         lines = [t for t in sorted(types)]
         imports = "\n".join(
             f"import type {{ {t} }} from './types';" for t in lines)
-        return imports
+        return imports + "\n"
 
     def _to_ts_type(self, field_type: str) -> str:
         map_match = _MAP_PATTERN.match(field_type)
