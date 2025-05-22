@@ -1,7 +1,7 @@
 import re
 import textwrap
 from pathlib import Path
-from typing import Dict, Set
+from typing import Dict, Set, cast  # add cast for type narrowing
 
 from .common import SEPARATOR
 from .model import MessgenType, EnumType, StructType, Protocol, TypeClass
@@ -74,31 +74,31 @@ class TypeScriptGenerator:
     def __init__(self, options):
         self.options = options
 
-    def generate(self, output_dir: Path, types: Dict[str, MessgenType], protocols: Dict[str, Protocol]) -> None:
+    def generate(self, out_dir: Path, types: Dict[str, MessgenType], protocols: Dict[str, Protocol]) -> None:
         for proto in protocols.values():
             validate_protocol(proto, types)
 
-        output_dir.mkdir(parents=True, exist_ok=True)
-        self.generate_types(output_dir, types)
-        self.generate_protocols(output_dir, protocols)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        self.generate_types(out_dir, types)
+        self.generate_protocols(out_dir, protocols)
 
     def generate_types(self, out_dir: Path, types: Dict[str, MessgenType]) -> None:
-        # Determine if any struct uses dec64 (Decimal)
+        # Detect Decimal usage
         needs_decimal = any(
-            t.type_class is TypeClass.struct and any(f.type == 'dec64' for f in t.fields or [])
+            t.type_class is TypeClass.struct and
+            any(field.type == 'dec64' for field in cast(StructType, t).fields or [])
             for t in types.values()
         )
         blocks = []
         if needs_decimal:
             blocks.append("import type { Decimal } from 'messgen';")
 
-        # Structs then enums then TypeName
         for name, t in types.items():
             if t.type_class is TypeClass.struct:
-                blocks.append(self._emit_struct(name, t))
+                blocks.append(self._emit_struct(name, cast(StructType, t)))
         for name, t in types.items():
             if t.type_class is TypeClass.enum:
-                blocks.append(self._emit_enum(name, t))
+                blocks.append(self._emit_enum(name, cast(EnumType, t)))
         blocks.append(self._emit_type_name_enum(types))
 
         content = '\n'.join(blocks)
@@ -160,9 +160,9 @@ class TypeScriptGenerator:
     def _emit_map_interface(self, proto: Protocol, name: str, used: Set[str]) -> str:
         lines = []
         for m in proto.messages.values():
-            typ = camel(m.type)
-            used.add(typ)
-            lines.append(f"[{name}.{m.name.upper()}]: {typ};")
+            type_name = camel(m.type)
+            used.add(type_name)
+            lines.append(f"[{name}.{m.name.upper()}]: {type_name};")
         body = indent('\n'.join(lines))
         return f"export interface {name}Map {{\n{body}\n}}"
 
