@@ -1,13 +1,17 @@
 from abc import abstractmethod
+from typing import cast
 from pathlib import Path
 import pathlib
 import subprocess
 
 from .model import (
+    EnumType,
     ArrayType,
     BasicType,
+    MapType,
     MessgenType,
     Protocol,
+    StructType,
     TypeClass,
     VectorType,
     hash_message,
@@ -25,7 +29,7 @@ class ResolvedType:
         parsed = model.type.split("/")
 
         self._model = model
-        self._package = None
+        self._package : list[str] = []
         self._name = toGoName(parsed[-1])
         if len(parsed) > 1:
             self._package = parsed[:-1]
@@ -139,6 +143,9 @@ class ResolvedBuiltin(ResolvedType):
                 return 24
         raise Exception("Unknown builtin type class for '%s'" % self._model.type)
 
+    def render(self, mod: str):
+        raise Exception("Render is not supported for ResolvedBuiltin")
+
 
 class ResolvedSlice(ResolvedType):
     def __init__(self, model: ArrayType | VectorType, elem_type : ResolvedType):
@@ -174,9 +181,12 @@ class ResolvedSlice(ResolvedType):
         # Dynamic vector has no static size
         return None
 
+    def render(self, mod: str):
+        raise Exception("Render is not supported for ResolvedSlice")
+
 
 class ResolvedMap(ResolvedType):
-    def __init__(self, type_def, key: ResolvedType, value: ResolvedType):
+    def __init__(self, type_def: MapType, key: ResolvedType, value: ResolvedType):
         super().__init__(type_def)
         self._key = key 
         self._value = value 
@@ -199,11 +209,17 @@ class ResolvedMap(ResolvedType):
     def data_size(self):
         return None
 
+    def render(self, mod: str):
+        raise Exception("Render is not supported for ResolvedMap")
+
 
 class ResolvedEnum(ResolvedType):
-    def __init__(self, type_def, base):
+    def __init__(self, type_def: EnumType, base):
         super().__init__(type_def)
         self._base = base
+
+    def model(self):
+        return cast(EnumType, self._model)
 
     def alignment(self):
         return self._base.alignment()
@@ -226,7 +242,7 @@ class ResolvedEnum(ResolvedType):
         yield f"type {self.name()} {self._base.name()} \n"
 
         yield "const ("
-        for v in self._model.values:
+        for v in self.model().values:
             yield f"\t{self.name()}_{toGoName(v.name)} {self.name()} = {v.value}"
         yield ")"
 
@@ -698,7 +714,7 @@ class GolangGenerator:
         # The problem is: this type could refers another types. So first check if there are
         # dependencies and render it. Use recursion for simplicity.
         # TODO(andrphi): Detect and report cycles if any 
-        resolved = None
+        resolved : ResolvedType | None = None
         type_def = self._types[typename]
         gomod_name = self._options["mod_name"]
 
@@ -707,18 +723,22 @@ class GolangGenerator:
             type_def.type = f"{gomod_name}/{out_dir.name}/{type_def.type}"
 
         if type_def.type_class == TypeClass.array or type_def.type_class == TypeClass.vector:
-            tmp = self.generate_type(out_dir, type_def.element_type, ident+2)
-            resolved = ResolvedSlice(type_def, tmp)
+            slice_type = cast(ArrayType | VectorType, type_def)
+            tmp = self.generate_type(out_dir, slice_type.element_type, ident+2)
+            resolved = ResolvedSlice(slice_type, tmp)
         elif type_def.type_class == TypeClass.map:
-            key_t = self.generate_type(out_dir, type_def.key_type, ident+2)
-            val_t = self.generate_type(out_dir, type_def.value_type, ident+2)
-            resolved = ResolvedMap(type_def, key_t, val_t)
+            map_type = cast(MapType, type_def)
+            key_t = self.generate_type(out_dir, map_type.key_type, ident+2)
+            val_t = self.generate_type(out_dir, map_type.value_type, ident+2)
+            resolved = ResolvedMap(map_type, key_t, val_t)
         elif type_def.type_class == TypeClass.enum:
-            base = self.generate_type(out_dir, type_def.base_type, ident+2)
-            resolved = ResolvedEnum(type_def, base)
+            enum_type = cast(EnumType, type_def)
+            base = self.generate_type(out_dir, enum_type.base_type, ident+2)
+            resolved = ResolvedEnum(enum_type, base)
         elif type_def.type_class == TypeClass.struct:
-            resolved = ResolvedStruct(type_def)
-            for field in type_def.fields:
+            struct_type = cast(StructType, type_def)
+            resolved = ResolvedStruct(struct_type)
+            for field in struct_type.fields:
                 fresolved = self.generate_type(out_dir, field.type, ident+2)
                 resolved.add_field(field.name, fresolved)
         elif isinstance(type_def, BasicType):
@@ -763,8 +783,7 @@ class GolangGenerator:
         pkg_name = "proto"
         out_dir = out_dir / pkg_name
         for proto_full_name, proto_def in protocols.items():
-            proto_name = proto_full_name.split("/")
-            proto_name = proto_name[-1]
+            proto_name = proto_full_name.split("/")[-1]
             file_name = out_dir / f"{proto_full_name}.go"
             file_name.parent.mkdir(parents=True, exist_ok=True)
             with open(file_name, 'w') as file:
