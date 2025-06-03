@@ -95,6 +95,14 @@ Example for TypeScript messages generation:
 python3 messgen-generate.py --types ./types_dir --protocol "protocols_dir:my_namespace/my_protocol" --lang ts --outdir out/ts
 ```
 
+#### Golang
+
+Example for Go messages generation:
+
+```bash
+python3 messgen-generate.py --types ./types_dir --protocol "protocols_dir:my_namespace/my_protocol" --lang golang --outdir out/go --options mod_name="github.com/my_company/my_project"
+```
+
 ### Basic Concepts
 
 #### Overview
