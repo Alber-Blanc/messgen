@@ -1,4 +1,4 @@
-module example.com
+module github.com/Alber-Blanc/messgen/build-golang-test
 
 go 1.24.0
 
