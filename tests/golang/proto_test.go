@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"example.com/msgs/messgen/test"
-	"example.com/msgs/proto"
+	"github.com/Alber-Blanc/messgen/build-golang-test/msgs/messgen/test"
+	"github.com/Alber-Blanc/messgen/build-golang-test/msgs/proto"
 )
 
 // TestPrototol is very basic tests that is only checks gnerated code compiles
