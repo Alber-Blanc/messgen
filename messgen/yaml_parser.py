@@ -147,7 +147,13 @@ def _get_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_
     type_desc = type_descriptors.get(type_name)
     if not type_desc:
         raise RuntimeError(f"Invalid type: {type_name}")
-    type_class = TypeClass[type_desc.get("type_class", None)]
+
+    tc_name: str | None = type_desc.get("type_class", None)
+
+    if tc_name is None:
+        raise RuntimeError(f"Type descriptor for {type_name} does not contain 'type_class' or it is not a string")
+
+    type_class = TypeClass[tc_name]
 
     if type_class == TypeClass.enum:
         return _get_enum_type(type_name, type_descriptors, type_dependencies)
