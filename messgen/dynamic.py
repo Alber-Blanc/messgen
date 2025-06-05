@@ -79,9 +79,14 @@ class TypeConverter(ABC):
         return self._serialize(data)
 
     def deserialize(self, data: bytes) -> dict:
-        msg, sz = self._deserialize(data)
+        try:
+            msg, sz = self._deserialize(data)
+        except Exception as e:
+            raise MessgenError(f'Failed to deserialize data_size={len(data)} type_name={self._type_name} error="{e}"') from e
+
         if sz != len(data):
-            raise MessgenError(f"Invalid message size: expected={sz} actual={len(data)} type_name={self._type_name}")
+            raise MessgenError(f"Invalid message size expected={sz} actual={len(data)} type_name={self._type_name}")
+
         return msg
 
     @abstractmethod

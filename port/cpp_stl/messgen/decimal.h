@@ -1,5 +1,10 @@
 #pragma once
 
+#if defined(__GNUG__)
+#ifndef MESSGEN_DEC_FP
+#define MESSGEN_DEC_FP
+#endif
+
 #include <decimal/decimal>
 
 #include <array>
@@ -566,3 +571,5 @@ template <char... C>
 }
 
 } // namespace messgen
+
+#endif // defined(__GNUG__)

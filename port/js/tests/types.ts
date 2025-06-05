@@ -1,3 +1,4 @@
+/** Simple struct example Size: 41 */
 export interface OneMoreMessage {
   /** Some integer field */
   f0: bigint;
@@ -12,14 +13,14 @@ export interface OneMoreMessage {
   f7: number;
   f8: number;
 }
-
+/** Struct that uses types from another protocol Size: 9 */
 export interface CrossProto {
   /** Some integer field */
   f0: bigint;
   /** Type from another protocol */
   cross0: MessgenTestSimpleEnum;
 }
-
+/** Simple struct example Size: 42 */
 export interface MessgenTestSimpleStruct {
   /** Some integer field */
   f0: bigint;
@@ -35,7 +36,7 @@ export interface MessgenTestSimpleStruct {
   f8: number;
   f9: boolean;
 }
-
+/** Simple struct example */
 export interface MessgenTestComplexStruct {
   /** Some integer field */
   f0: bigint;
@@ -51,15 +52,15 @@ export interface MessgenTestComplexStruct {
   e_vec: MessgenTestSimpleEnum[];
   s_vec: MessgenTestSimpleStruct[];
   v_vec0: MessgenTestVarSizeStruct[][];
-  v_vec1: MessgenTestVarSizeStruct[];
-  v_vec2: Int16Array;
+  v_vec1: MessgenTestVarSizeStruct[][];
+  v_vec2: Int16Array[][];
   str: string;
   bs: Uint8Array;
   str_vec: string[];
   map_str_by_int: Map<number, string>;
   map_vec_by_str: Map<string, Int32Array>;
 }
-
+/** Simple struct example */
 export interface MessgenTestComplexStructNostl {
   /** Some integer field */
   f0: bigint;
@@ -75,12 +76,12 @@ export interface MessgenTestComplexStructNostl {
   e_vec: MessgenTestSimpleEnum[];
   s_vec: MessgenTestSimpleStruct[];
   v_vec0: MessgenTestVarSizeStruct[][];
-  v_vec1: MessgenTestVarSizeStruct[];
-  v_vec2: Int16Array;
+  v_vec1: MessgenTestVarSizeStruct[][];
+  v_vec2: Int16Array[][];
   str: string;
   str_vec: string[];
 }
-
+/** Struct with enum example Size: 17 */
 export interface MessgenTestStructWithEnum {
   /** Some integer field */
   f0: bigint;
@@ -88,7 +89,7 @@ export interface MessgenTestStructWithEnum {
   f1: bigint;
   e0: MessgenTestSimpleEnum;
 }
-
+/** Flat struct without paddings, for zero-copy Size: 40 */
 export interface MessgenTestFlatStruct {
   /** Some integer field */
   f0: bigint;
@@ -102,7 +103,7 @@ export interface MessgenTestFlatStruct {
   f7: number;
   f8: number;
 }
-
+/** Variable size struct example */
 export interface MessgenTestVarSizeStruct {
   /** Some integer field */
   f0: bigint;
@@ -110,23 +111,39 @@ export interface MessgenTestVarSizeStruct {
   f1_vec: BigInt64Array;
   str: string;
 }
-
+/** Struct with empty_struct in its fields */
 export interface MessgenTestComplexStructWithEmpty {
   e: MessgenTestEmptyStruct;
   dynamic_array: MessgenTestEmptyStruct[];
   static_array: MessgenTestEmptyStruct[];
-  multi_array: MessgenTestEmptyStruct[][];
+  multi_array: MessgenTestEmptyStruct[][][];
   map_empty_by_int: Map<number, MessgenTestEmptyStruct>;
   map_vec_by_str: Map<string, MessgenTestEmptyStruct[]>;
   array_of_size_zero: Int32Array;
 }
-
-export enum MessgenTestSimpleEnum {
-  /** One example value */
-  ONEVALUE = 0,
-  /** Another example value */
-  ANOTHERVALUE = 1,
+/** A struct with field name clashing with type name Size: 8 */
+export interface MessgenTestNameClashStruct {
+  /** Clashing name struct */
+  name_clash_struct: bigint;
 }
-
+/** Struct without data. May be used for heartbeat, command with no args, etc Size: 0 */
 export interface MessgenTestEmptyStruct {
+
+}
+export enum MessgenTestSimpleEnum {
+  ONE_VALUE = 0,
+  ANOTHER_VALUE = 1,
+}
+export enum TypeName {
+  ONE_MORE_MESSAGE = 'one_more_message',
+  CROSS_PROTO = 'cross_proto',
+  MESSGEN_TEST_SIMPLE_STRUCT = 'messgen/test/simple_struct',
+  MESSGEN_TEST_COMPLEX_STRUCT = 'messgen/test/complex_struct',
+  MESSGEN_TEST_COMPLEX_STRUCT_NOSTL = 'messgen/test/complex_struct_nostl',
+  MESSGEN_TEST_STRUCT_WITH_ENUM = 'messgen/test/struct_with_enum',
+  MESSGEN_TEST_FLAT_STRUCT = 'messgen/test/flat_struct',
+  MESSGEN_TEST_VAR_SIZE_STRUCT = 'messgen/test/var_size_struct',
+  MESSGEN_TEST_COMPLEX_STRUCT_WITH_EMPTY = 'messgen/test/complex_struct_with_empty',
+  MESSGEN_TEST_NAME_CLASH_STRUCT = 'messgen/test/name_clash_struct',
+  MESSGEN_TEST_EMPTY_STRUCT = 'messgen/test/empty_struct',
 }
