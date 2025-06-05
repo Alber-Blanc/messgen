@@ -17,6 +17,7 @@ from .model import (
     MessgenType,
     Protocol,
     StructType,
+    ExternalType,
     TypeClass,
     VectorType,
 )
@@ -160,6 +161,9 @@ def _get_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_
 
     if type_class == TypeClass.struct:
         return _get_struct_type(type_name, type_descriptors, type_dependencies)
+
+    if type_class == TypeClass.external:
+        return _get_external_type(type_name, type_descriptors, type_dependencies)
 
     raise RuntimeError("Invalid type class: %s" % type_class)
 
@@ -311,6 +315,19 @@ def _get_struct_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
         struct_type.size = sz
 
     return struct_type
+
+
+def _get_external_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> ExternalType:
+    type_desc = type_descriptors[type_name]
+
+    external_type = ExternalType(
+        type=type_name,
+        type_class=TypeClass.external,
+        comment=type_desc.get("comment"),
+        size=type_desc.get("size"),
+    )
+
+    return external_type
 
 
 def _get_dependency_type(

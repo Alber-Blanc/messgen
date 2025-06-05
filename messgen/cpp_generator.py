@@ -24,6 +24,7 @@ from .model import (
     MessgenType,
     Protocol,
     StructType,
+    ExternalType,
     TypeClass,
     VectorType,
     hash_message,
@@ -353,6 +354,10 @@ class CppGenerator:
                     a_max = a
             return a_max
 
+        elif isinstance(type_def, ExternalType):
+            # Worst cast assumption about alignment of external type
+            return 8
+
         elif isinstance(type_def, ArrayType):
             # Alignment of array is equal to alignment of element
             return self._get_alignment(self._types[type_def.element_type])
@@ -645,6 +650,12 @@ class CppGenerator:
             self._add_include("%s.h" % type_name, scope)
             return _qual_name(type_name)
 
+        elif isinstance(type_def, (ExternalType)):
+            scope = "global" if SEPARATOR in type_name else "local"
+            assert scope == "global", "External type must be in global scope"
+            self._add_include("%s.h" % type_name, scope)
+            return _qual_name(type_name)
+
         raise RuntimeError("Can't get c++ type for %s" % type_name)
 
     def _all_fields_scalar(self, fields: list[FieldType]):
@@ -684,7 +695,7 @@ class CppGenerator:
             c.append("*reinterpret_cast<%s *>(&_buf[_size]) = %s;" % (c_type, field_name))
             c.append("_size += %s;" % size)
 
-        elif type_class == TypeClass.struct:
+        elif type_class in [TypeClass.struct, TypeClass.external]:
             c.append("_size += %s.serialize(&_buf[_size]);" % field_name)
 
         elif type_class in [TypeClass.array, TypeClass.vector]:
@@ -747,7 +758,7 @@ class CppGenerator:
             c.append("%s = *reinterpret_cast<const %s *>(&_buf[_size]);" % (field_name, c_type))
             c.append("_size += %s;" % size)
 
-        elif type_class == TypeClass.struct:
+        elif type_class in [TypeClass.struct, TypeClass.external]:
             alloc = ""
             if mode == "nostl":
                 alloc = ", _alloc"
@@ -855,7 +866,7 @@ class CppGenerator:
             size = field_type_def.size
             c.append("_size += %d;" % size)
 
-        elif type_class == TypeClass.struct:
+        elif type_class in [TypeClass.struct, TypeClass.external]:
             c.append("_size += %s.serialized_size();" % field_name)
 
         elif type_class in [TypeClass.array, TypeClass.vector]:
