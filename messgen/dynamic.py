@@ -449,6 +449,21 @@ class BytesConverter(TypeConverter):
         return b""
 
 
+class ExternalConverter(TypeConverter):
+    def __init__(self, types: dict[str, MessgenType], type_name: str):
+        super().__init__(types, type_name)
+        assert self._type_class == TypeClass.external
+
+    def _serialize(self, data):
+        raise RuntimeError("External types are not implemented yet")
+
+    def _deserialize(self, data):
+        raise RuntimeError("External types are not implemented yet")
+
+    def default_value(self):
+        raise RuntimeError("External types are not implemented yet")
+
+
 def create_type_converter(types: dict[str, MessgenType], type_name: str) -> TypeConverter:
     type_def = types[type_name]
     type_class = type_def.type_class
@@ -470,6 +485,8 @@ def create_type_converter(types: dict[str, MessgenType], type_name: str) -> Type
         return StringConverter(types, type_name)
     elif type_class == TypeClass.bytes:
         return BytesConverter(types, type_name)
+    elif type_class == TypeClass.external:
+        return ExternalConverter(types, type_name)
     raise RuntimeError('Unsupported field type class "%s" in %s' % (type_class, type_def.type))
 
 
