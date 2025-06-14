@@ -278,9 +278,13 @@ def test_enum_type_definition(codec):
 
     assert len(type_def.values) > 0
 
-    expected_values = ["one_value", "another_value"]
-    for value in expected_values:
-        assert any(item.name == value for item in type_def.values)
+    expected_values = [
+        (0, "one_value"),
+        (1, "another_value"),
+    ]
+    for value, name in expected_values:
+        assert any(item.name == name for item in type_def.values)
+        assert any(item.value == value for item in type_def.values)
 
 
 def test_enum_converter_serialization(codec):
