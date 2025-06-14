@@ -1,7 +1,6 @@
 import json
 import struct
 import typing
-import sys
 
 from abc import (
     ABC,
