@@ -16,14 +16,14 @@ from pathlib import (
 from .model import (
     ArrayType,
     EnumType,
+    hash_message,
+    hash_type,
     MapType,
+    Message,
     MessgenType,
     StructType,
     TypeClass,
     VectorType,
-    Message,
-    hash_type,
-    hash_message,
 )
 from .yaml_parser import (
     parse_protocols,
