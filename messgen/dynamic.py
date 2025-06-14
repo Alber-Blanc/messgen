@@ -1,7 +1,6 @@
 import json
 import struct
 import typing
-import sys
 
 from abc import (
     ABC,
@@ -17,14 +16,14 @@ from pathlib import (
 from .model import (
     ArrayType,
     EnumType,
+    hash_message,
+    hash_type,
     MapType,
+    Message,
     MessgenType,
     StructType,
     TypeClass,
     VectorType,
-    Message,
-    hash_type,
-    hash_message,
 )
 from .yaml_parser import (
     parse_protocols,
@@ -47,12 +46,12 @@ STRUCT_TYPES_MAP = {
 
 
 class JSONEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, bytes):
-            return f"0x{obj.hex()}"
-        elif isinstance(obj, Decimal):
-            return str(obj)
-        return super().default(obj)
+    def default(self, o):
+        if isinstance(o, bytes):
+            return f"0x{o.hex()}"
+        elif isinstance(o, Decimal):
+            return str(o)
+        return super().default(o)
 
 
 class MessgenError(Exception):
@@ -75,7 +74,10 @@ class TypeConverter(ABC):
         assert self._type_hash
         return self._type_hash
 
-    def serialize(self, data: dict) -> bytes:
+    def type_definition(self) -> MessgenType:
+        return self._type_def
+
+    def serialize(self, data: dict | Decimal) -> bytes:
         return self._serialize(data)
 
     def deserialize(self, data: bytes) -> dict:
@@ -95,6 +97,10 @@ class TypeConverter(ABC):
 
     @abstractmethod
     def _deserialize(self, data) -> tuple[typing.Any, int]:
+        pass
+
+    @abstractmethod
+    def default_value(self) -> typing.Any:
         pass
 
 
@@ -117,9 +123,11 @@ class ScalarConverter(TypeConverter):
             self.def_value = 0.0
 
     def _serialize(self, data):
+        assert self.struct_fmt
         return struct.pack(self.struct_fmt, data)
 
     def _deserialize(self, data):
+        assert self.struct_fmt
         return struct.unpack(self.struct_fmt, data[: self.size])[0], self.size
 
     def default_value(self):
@@ -139,20 +147,20 @@ class DecimalConverter(TypeConverter):
         self.def_value: Decimal = Decimal("0")
         self.size = self._type_def.size
 
-    def _serialize(self, value: Decimal) -> bytes:
-        if not isinstance(value, Decimal):
-            raise MessgenError(f"Expected Decimal type, got {type(value)}")
+    def _serialize(self, data: Decimal) -> bytes:
+        if not isinstance(data, Decimal):
+            raise MessgenError(f"Expected Decimal type, got {type(data)}")
 
         # Handle special values
-        if value.is_nan():
+        if data.is_nan():
             return int(0b11111 << 58).to_bytes(self.size, byteorder="little")
 
-        if value.is_infinite():
-            sign_bit = 1 if value < 0 else 0
+        if data.is_infinite():
+            sign_bit = 1 if data < 0 else 0
             return ((sign_bit << 63) | (0b11110 << 58)).to_bytes(self.size, byteorder="little")
 
         # Extract components from Decimal
-        sign, digits, exponent = value.as_tuple()
+        sign, digits, exponent = data.as_tuple()
         assert isinstance(exponent, int)
 
         # Convert digits to coefficient
@@ -269,16 +277,19 @@ class EnumConverter(TypeConverter):
 
     def _serialize(self, data):
         if (v := self.rev_mapping.get(data)) is not None:
+            assert self.struct_fmt
             return struct.pack(self.struct_fmt, v)
         raise MessgenError(f"Unsupported enum={self._type_name} value={v}")
 
     def _deserialize(self, data):
+        assert self.struct_fmt
         (v,) = struct.unpack(self.struct_fmt, data[: self.size])
         if (mapped := self.mapping.get(v)) is not None:
             return mapped, self.size
         raise MessgenError(f"Unsupported enum={self._type_name} value={v}")
 
     def default_value(self):
+        assert isinstance(self._type_def, EnumType)
         return self._type_def.values[0].name
 
 
@@ -562,6 +573,11 @@ class Codec:
             for msg_id, message in proto_def.messages.items():
                 self._id_by_name[(proto_name, message.name)] = (proto_def.proto_id, message)
                 self._name_by_id[(proto_def.proto_id, msg_id)] = (proto_name, message)
+
+    def type_definition(self, type_name: str) -> MessgenType:
+        if type_name in self._converters_by_name:
+            return self._converters_by_name[type_name].type_definition()
+        raise MessgenError(f"Unsupported type_name={type_name}")
 
     def type_converter(self, type_name: str) -> TypeConverter:
         if converter := self._converters_by_name.get(type_name):
