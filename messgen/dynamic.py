@@ -75,7 +75,10 @@ class TypeConverter(ABC):
         assert self._type_hash
         return self._type_hash
 
-    def serialize(self, data: dict) -> bytes:
+    def type_definition(self) -> MessgenType:
+        return self._type_def
+
+    def serialize(self, data: dict | Decimal) -> bytes:
         return self._serialize(data)
 
     def deserialize(self, data: bytes) -> dict:
@@ -562,6 +565,11 @@ class Codec:
             for msg_id, message in proto_def.messages.items():
                 self._id_by_name[(proto_name, message.name)] = (proto_def.proto_id, message)
                 self._name_by_id[(proto_def.proto_id, msg_id)] = (proto_name, message)
+
+    def type_definition(self, type_name: str) -> MessgenType:
+        if type_name in self._converters_by_name:
+            return self._converters_by_name[type_name].type_definition()
+        raise MessgenError(f"Unsupported type_name={type_name}")
 
     def type_converter(self, type_name: str) -> TypeConverter:
         if converter := self._converters_by_name.get(type_name):

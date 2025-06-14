@@ -7,13 +7,16 @@ from decimal import (
 )
 
 from messgen.model import (
-    TypeClass,
+    BasicType,
     DecimalType,
+    EnumValue,
+    TypeClass,
 )
 from messgen.dynamic import (
     Codec,
     DecimalConverter,
     MessgenError,
+    ScalarConverter,
 )
 
 
@@ -247,3 +250,80 @@ def test_decimal_encoding():
 
     with pytest.raises(MessgenError):
         converter.serialize(123)
+
+
+def test_type_definition(codec):
+    type_def = codec.type_definition("messgen/test/simple_struct")
+    assert type_def.type == "messgen/test/simple_struct"
+    assert type_def.type_class == TypeClass.struct
+
+    type_def = codec.type_definition("messgen/test/var_size_struct")
+    assert type_def.type == "messgen/test/var_size_struct"
+    assert type_def.type_class == TypeClass.struct
+
+    type_def = codec.type_definition("dec64")
+    assert type_def.type == "dec64"
+    assert type_def.type_class == TypeClass.decimal
+    assert type_def.size == 8
+
+    with pytest.raises(MessgenError):
+        codec.type_definition("non_existent_type")
+
+
+def test_enum_type_definition(codec):
+    type_def = codec.type_definition("messgen/test/simple_enum")
+    assert type_def.type == "messgen/test/simple_enum"
+    assert type_def.type_class == TypeClass.enum
+    assert type_def.base_type == "uint8"
+
+    assert len(type_def.values) > 0
+
+    expected_values = ["one_value", "another_value"]
+    for value in expected_values:
+        assert any(item.name == value for item in type_def.values)
+
+
+def test_enum_converter_serialization(codec):
+    type_converter = codec.type_converter("messgen/test/simple_enum")
+
+    serialized_val1 = type_converter.serialize("one_value")
+    assert serialized_val1 == (0).to_bytes()
+
+    serialized_val2 = type_converter.serialize("another_value")
+    assert serialized_val2 == (1).to_bytes()
+
+    assert type_converter.deserialize((0).to_bytes()) == "one_value"
+    assert type_converter.deserialize((1).to_bytes()) == "another_value"
+
+    with pytest.raises(MessgenError):
+        type_converter.serialize("NON_EXISTENT_VALUE")
+
+
+def test_struct_with_enum_serialization(codec):
+    type_converter = codec.type_converter("messgen/test/struct_with_enum")
+
+    message = {
+        "e0": "another_value",
+        "f1": 42,
+    }
+
+    serialized = type_converter.serialize(message)
+    deserialized = type_converter.deserialize(serialized)
+
+    assert deserialized["e0"] == message["e0"]
+    assert deserialized["f1"] == message["f1"]
+
+
+def test_type_converter_type_info(codec):
+    struct_converter = codec.type_converter("messgen/test/simple_struct")
+
+    assert struct_converter.type_name() == "messgen/test/simple_struct"
+    assert struct_converter.type_hash() > 0  # Hash should be non-zero
+    assert struct_converter.type_definition().type_class == TypeClass.struct
+
+    enum_converter = codec.type_converter("messgen/test/simple_enum")
+    assert enum_converter.type_name() == "messgen/test/simple_enum"
+    assert enum_converter.type_hash() > 0
+    assert enum_converter.type_definition().type_class == TypeClass.enum
+
+    assert struct_converter.type_hash() != enum_converter.type_hash()
