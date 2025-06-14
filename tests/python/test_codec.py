@@ -322,7 +322,7 @@ def test_type_converter_type_info(codec):
     struct_converter = codec.type_converter("messgen/test/simple_struct")
 
     assert struct_converter.type_name() == "messgen/test/simple_struct"
-    assert struct_converter.type_hash() > 0  # Hash should be non-zero
+    assert struct_converter.type_hash() > 0
     assert struct_converter.type_definition().type_class == TypeClass.struct
 
     enum_converter = codec.type_converter("messgen/test/simple_enum")
