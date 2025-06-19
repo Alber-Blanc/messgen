@@ -279,7 +279,7 @@ class EnumConverter(TypeConverter):
         if (v := self.rev_mapping.get(data)) is not None:
             assert self.struct_fmt
             return struct.pack(self.struct_fmt, v)
-        raise MessgenError(f"Unsupported enum={self._type_name} value={v}")
+        raise MessgenError(f"Unsupported value={data} for enum={self._type_name}")
 
     def _deserialize(self, data):
         assert self.struct_fmt
@@ -562,12 +562,11 @@ class Codec:
 
     def load(self, type_dirs: list[str | Path], protocols: list[str] | None = None):
         parsed_types = parse_types(type_dirs)
-        if not protocols:
-            return
-
         for type_name in parsed_types:
             self._converters_by_name[type_name] = create_type_converter(parsed_types, type_name)
 
+        if not protocols:
+            return
         parsed_protocols = parse_protocols(protocols)
         for proto_name, proto_def in parsed_protocols.items():
             for msg_id, message in proto_def.messages.items():
