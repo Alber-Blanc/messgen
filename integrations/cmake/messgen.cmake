@@ -87,14 +87,22 @@ endfunction()
 function(messgen_add_types_library LIBRARY_NAME BASE_DIRS MODE)
     string(JOIN "," OPTIONS "mode=${MODE}" ${ARGN})
     set(MESSAGES_OUT_DIR "${CMAKE_BINARY_DIR}/${LIBRARY_NAME}/generated_src")
+
     get_filename_component(MESSGEN_DIR ${CMAKE_CURRENT_FUNCTION_LIST_DIR} DIRECTORY)
     get_filename_component(MESSGEN_DIR ${MESSGEN_DIR} DIRECTORY)
-    add_library(${LIBRARY_NAME} INTERFACE)
     messgen_generate_types("${BASE_DIRS}" "${MESSAGES_OUT_DIR}" MESSGEN_OUT_FILES "${OPTIONS}")
+
+    add_library(${LIBRARY_NAME} INTERFACE)
     target_sources(${LIBRARY_NAME} INTERFACE ${MESSGEN_OUT_FILES})
     target_include_directories(${LIBRARY_NAME} INTERFACE
         ${MESSAGES_OUT_DIR}
         ${MESSGEN_DIR}/port/cpp_${MODE})
+
+    # Interface library might not generate sources
+    # INTERFACE library isn't added in the same binary folder as dependencies, so it doesn't build/generate
+    # anything in a such case. Custom target below forces code generation for a such case
+    add_custom_target("${LIBRARY_NAME}_messgen" DEPENDS ${MESSGEN_OUT_FILES})
+    add_dependencies(${LIBRARY_NAME} "${LIBRARY_NAME}_messgen")
 endfunction()
 
 #
@@ -103,9 +111,16 @@ endfunction()
 function(messgen_add_proto_library LIBRARY_NAME BASE_DIR PROTOCOL TYPES_TARGET)
     string(JOIN "," OPTIONS "mode=${MODE}" ${ARGN})
     set(MESSAGES_OUT_DIR "${CMAKE_BINARY_DIR}/${LIBRARY_NAME}/generated_src")
-    add_library(${LIBRARY_NAME} INTERFACE)
     messgen_generate_protocol(${BASE_DIR} ${PROTOCOL} "${MESSAGES_OUT_DIR}" MESSGEN_OUT_FILES)
+
+    add_library(${LIBRARY_NAME} INTERFACE)
     target_sources(${LIBRARY_NAME} INTERFACE ${MESSGEN_OUT_FILES})
     target_include_directories(${LIBRARY_NAME} INTERFACE ${MESSAGES_OUT_DIR})
     target_link_libraries(${LIBRARY_NAME} INTERFACE ${TYPES_TARGET})
+
+    # Interface library might not generate sources
+    # INTERFACE library isn't added in the same binary folder as dependencies, so it doesn't build/generate
+    # anything in a such case. Custom target below forces code generation for a such case
+    add_custom_target("${LIBRARY_NAME}_messgen" DEPENDS ${MESSGEN_OUT_FILES})
+    add_dependencies(${LIBRARY_NAME} "${LIBRARY_NAME}_messgen")
 endfunction()
