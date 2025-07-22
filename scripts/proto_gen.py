@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 
 def extract_id_from_file(filepath):
     """Extracts the ID from a line like 'id: 123'"""
@@ -10,7 +11,7 @@ def extract_id_from_file(filepath):
                 return int(match.group(1))
     return None
 
-def generate_proto_mapping(directory="."):
+def generate_proto_mapping(directory, output_file, proto_id):
     messages = {}
     files_needing_ids = []
 
@@ -44,14 +45,21 @@ def generate_proto_mapping(directory="."):
         }
 
     # Write output
-    with open("proto_mapping_geofence.yaml", "w") as out:
-        out.write("proto_id: 6\n")
+    with open(f"{output_file}", "w") as out:
+        out.write(f"proto_id: {proto_id}\n")
         out.write("messages:\n")
         for id_num in sorted(messages):
             msg = messages[id_num]
             out.write(f"  {id_num}: {{name: \"{msg['name']}\", type: \"{msg['type']}\"}}\n")
 
-    print("proto_mapping_geofence.yaml created successfully.")
+    print(f"{output_file} created successfully.")
 
-# Run it
-generate_proto_mapping("./geofence")
+
+if len(sys.argv) != 3:
+    print("Directory with yaml messages or output protocol file or proto_id is not specified")
+    sys.exit(-1)
+
+dir = sys.argv[1]
+file = sys.argv[2]
+proto_id = sys.argv[3]
+generate_proto_mapping(dir, file, proto_id)

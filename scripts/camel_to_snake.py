@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 
 def camel_to_snake(name):
     """Convert CamelCase or PascalCase to snake_case."""
@@ -36,5 +37,9 @@ def process_directory(directory):
         if os.path.isfile(full_path):
             process_file(full_path)
 
-# Run on current directory
-process_directory("./manet")
+if len(sys.argv) != 1:
+    print("Directory with yaml messages is not specified")
+    sys.exit(-1)
+
+dir = sys.argv[1]
+process_directory(dir)

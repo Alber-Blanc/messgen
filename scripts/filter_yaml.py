@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 
 def get_enum_type_filenames(directory):
     enum_filenames = set()
@@ -31,8 +32,12 @@ def filter_msg_definitions(filepath, enum_filenames):
         f.writelines(filtered_lines)
 
 if __name__ == "__main__":
-    directory = "./web"  # current directory
-    target_file = "../contracts/web-protocol/microavia/protocol.yaml"  # change this to the actual filename you want to clean
+    if len(sys.argv) != 2:
+        print("Directory with yaml messages or protocol file is not specified")
+        sys.exit(-1)
+
+    directory = sys.argv[1]  # current directory
+    target_file = sys.argv[2]  # change this to the actual filename you want to clean
 
     enum_files = get_enum_type_filenames(directory)
     filter_msg_definitions(target_file, enum_files)
