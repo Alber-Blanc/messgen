@@ -93,7 +93,6 @@ function(messgen_add_types_library LIBRARY_NAME BASE_DIRS MODE)
     messgen_generate_types("${BASE_DIRS}" "${MESSAGES_OUT_DIR}" MESSGEN_OUT_FILES "${OPTIONS}")
 
     add_library(${LIBRARY_NAME} INTERFACE)
-    target_sources(${LIBRARY_NAME} INTERFACE ${MESSGEN_OUT_FILES})
     target_include_directories(${LIBRARY_NAME} INTERFACE
         ${MESSAGES_OUT_DIR}
         ${MESSGEN_DIR}/port/cpp_${MODE})
@@ -114,7 +113,6 @@ function(messgen_add_proto_library LIBRARY_NAME BASE_DIR PROTOCOL TYPES_TARGET)
     messgen_generate_protocol(${BASE_DIR} ${PROTOCOL} "${MESSAGES_OUT_DIR}" MESSGEN_OUT_FILES)
 
     add_library(${LIBRARY_NAME} INTERFACE)
-    target_sources(${LIBRARY_NAME} INTERFACE ${MESSGEN_OUT_FILES})
     target_include_directories(${LIBRARY_NAME} INTERFACE ${MESSAGES_OUT_DIR})
     target_link_libraries(${LIBRARY_NAME} INTERFACE ${TYPES_TARGET})
 
