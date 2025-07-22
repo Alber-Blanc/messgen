@@ -602,7 +602,9 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield CODEGEN_FILE_PREFIX + "\n"
     yield f"package {pkg}\n"
     yield "import ("
+    yield "\t\"errors\""
     yield "\t\"fmt\""
+    yield "\t\"strconv\""
     yield "\t\"github.com/Alber-Blanc/messgen/port/golang/messgen\""
 
     seen = set()
@@ -696,10 +698,10 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield f""
     yield f"func (dispatcher *{proto_name}Dispatcher) Dispatch(mid messgen.MessageId, body []byte) error {{"
     yield f"\thandle := dispatcher[int(mid)]"
-    yield f"\tif err := handle(mid, body); err != nil {{"
-    yield f"\t\treturn err"
-    yield f"\t}}"
-    yield f"return nil"
+    yield f"\tif handle == nil {{"
+    yield f"\t\treturn errors.New(\"No handler for message \" + strconv.Itoa(int(mid)))"
+    yield f"\t}}\n"
+    yield f"\treturn handle(mid, body)"
     yield f"}}"
 
 
