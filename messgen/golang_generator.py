@@ -1,8 +1,8 @@
-from abc import abstractmethod
-from typing import cast
-from pathlib import Path
 import pathlib
 import subprocess
+from abc import abstractmethod
+from pathlib import Path
+from typing import cast
 
 from .model import (
     EnumType,
@@ -774,7 +774,7 @@ class GolangGenerator:
                 pkg = "/".join(type._package).removeprefix(f"{gomod_name}/{out_dir.name}")
                 pkg = pkg.removeprefix("/")
                 output = out_dir / pathlib.Path(pkg)
-                output = output.joinpath(f"{type._name}.gen.go")
+                output = output.joinpath(f"{type._name}_gen.go")
             else:
                 continue
 
@@ -793,7 +793,7 @@ class GolangGenerator:
         out_dir = out_dir / pkg_name
         for proto_full_name, proto_def in protocols.items():
             proto_name = proto_full_name.split("/")[-1]
-            file_name = out_dir / f"{proto_full_name}.gen.go"
+            file_name = out_dir / f"{proto_full_name}_gen.go"
             file_name.parent.mkdir(parents=True, exist_ok=True)
             with open(file_name, 'w') as file:
                 for line in render_protocol("proto", toGoName(proto_name), proto_def, self._resolved):
