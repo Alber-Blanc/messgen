@@ -240,6 +240,7 @@ class ResolvedEnum(ResolvedType):
 
         if self._base.imported(self._package):
             yield f"import \"{self._base.package_full()}\"\n"
+        yield f"import \"strconv\""
 
         yield f"type {self.name()} {self._base.name()} \n"
 
@@ -247,6 +248,14 @@ class ResolvedEnum(ResolvedType):
         for v in self.model().values:
             yield f"\t{self.name()}_{toGoName(v.name)} {self.name()} = {v.value}"
         yield ")"
+
+        yield f"func GetAll{self.name()}() [{len(self.model().values)}]{self.name()} {{\n\t return [{len(self.model().values)}]{self.name()} {{"
+        for v in self.model().values:
+            yield f"\t\t{self.name()}_{toGoName(v.name)},"
+        yield f"\t}}"
+        yield f"}}"
+
+        yield f"func (v {self.name()}) String() string {{ return strconv.FormatUint(uint64(v), 10) }}"
 
 
 class ResolvedStruct(ResolvedType):
