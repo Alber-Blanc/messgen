@@ -1,11 +1,12 @@
-#include <nested/another_proto.h>
 #include <messgen/messgen.h>
-#include <test_proto.h>
 #include <messgen/test/complex_struct_with_empty.h>
 #include <messgen/test/complex_struct.h>
 #include <messgen/test/flat_struct.h>
+#include <messgen/test/name_clash_struct.h>
 #include <messgen/test/struct_with_enum.h>
 #include <messgen/test/var_size_struct.h>
+#include <nested/another_proto.h>
+#include <test_proto.h>
 
 #include <gtest/gtest.h>
 
@@ -358,5 +359,5 @@ TEST_F(CppTest, ProtoHash) {
                          test_proto::complex_struct_nostl_msg::HASH ^      //
                          test_proto::flat_struct_msg::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
-    EXPECT_EQ(15505688617215257648ULL, hash_test_proto);
+    EXPECT_EQ(3525454337814114263ULL, hash_test_proto);
 }

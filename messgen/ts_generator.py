@@ -1,230 +1,179 @@
-import os
-from .common import SEPARATOR
+import re
+import textwrap
 from pathlib import Path
+from typing import Dict, Set, cast
 
+from .common import SEPARATOR
+from .model import MessgenType, EnumType, StructType, Protocol, TypeClass
 from .validation import validate_protocol
 
-from .model import (
-    MessgenType,
-    Protocol,
-    TypeClass,
-)
+
+# Helper regex patterns
+_ARRAY_RE = re.compile(r"(?P<base>[^\[{]+)(?P<dims>(?:\[[^\]]*\])*)$")
+_MAP_RE = re.compile(r"^(?P<base>[^\{]+)\{(?P<key>[^\}]+)\}$")
+
+
+def indent(lines: str, level: int = 1, width: int = 2) -> str:
+    prefix = ' ' * (level * width)
+    return '\n'.join(prefix + line if line else '' for line in lines.splitlines())
+
+
+def comment_block(*parts: str) -> str:
+    """Join parts into a single-line JSDoc comment if any part exists."""
+    text = ' '.join(p for p in parts if p)
+    return f"/** {text} */\n" if text else ''
+
+
+def camel(name: str) -> str:
+    return ''.join(word.capitalize() for word in re.split(f"[{SEPARATOR}_]", name) if word)
+
+
+def enum_key(name: str) -> str:
+    segments = re.split(f"[{SEPARATOR}_]", name)
+    return '_'.join(seg.upper() for seg in segments if seg)
+
 
 class TypeScriptTypes:
-    TYPE_MAP = {
-        "bool": "boolean",
-        "char": "string",
-        "int8": "number",
-        "uint8": "number",
-        "int16": "number",
-        "uint16": "number",
-        "int32": "number",
-        "uint32": "number",
-        "int64": "bigint",
-        "uint64": "bigint",
-        "float32": "number",
-        "float64": "number",
-        "string": "string",
-        "bytes": "Uint8Array",
+    PRIMITIVES = {
+        'bool': 'boolean', 'char': 'string', 'string': 'string', 'bytes': 'Uint8Array',
+        'int8': 'number', 'uint8': 'number', 'int16': 'number', 'uint16': 'number',
+        'int32': 'number', 'uint32': 'number', 'float32': 'number', 'float64': 'number',
+        'int64': 'bigint', 'uint64': 'bigint', 'dec64': 'Decimal',
     }
-
-    TYPED_ARRAY_MAP = {
-        "int8": "Int8Array",
-        "uint8": "Uint8Array",
-        "int16": "Int16Array",
-        "uint16": "Uint16Array",
-        "int32": "Int32Array",
-        "uint32": "Uint32Array",
-        "int64": "BigInt64Array",
-        "uint64": "BigUint64Array",
-        "float32": "Float32Array",
-        "float64": "Float64Array",
+    ARRAYS = {
+        'int8': 'Int8Array', 'uint8': 'Uint8Array', 'int16': 'Int16Array', 'uint16': 'Uint16Array',
+        'int32': 'Int32Array', 'uint32': 'Uint32Array', 'int64': 'BigInt64Array', 'uint64': 'BigUint64Array',
+        'float32': 'Float32Array', 'float64': 'Float64Array',
     }
 
     @classmethod
-    def get_type(cls, type_name):
-        return cls.TYPE_MAP.get(type_name, type_name)
+    def resolve(cls, t: str) -> str:
+        map_match = _MAP_RE.match(t)
+        if map_match:
+            base = cls.resolve(map_match.group('base'))
+            key = cls.resolve(map_match.group('key'))
+            return f"Map<{key}, {base}>"
 
-    @classmethod
-    def get_typed_array(cls, type_name):
-        return cls.TYPED_ARRAY_MAP.get(type_name, None)
+        arr_match = _ARRAY_RE.match(t)
+        if arr_match:
+            base, dims = arr_match.group('base'), arr_match.group('dims')
+            count = dims.count('[')
+            typed = cls.ARRAYS.get(base)
+            if typed and count:
+                return typed + '[]' * (count - 1)
+            core = cls.PRIMITIVES.get(base, camel(base))
+            return core + '[]' * count
+
+        return cls.PRIMITIVES.get(t, camel(t))
+
 
 class TypeScriptGenerator:
-    _TYPES_FILE = "types.ts"
-    _PROTOCOLS_FILE = "protocols.ts"
+    TYPES_FILE = 'types.ts'
+    PROTOCOLS_FILE = 'protocols.ts'
 
     def __init__(self, options):
-        self._options = options
-        self._types = []
+        self.options = options
 
+    def generate(self, output_dir: Path, types: Dict[str, MessgenType], protocols: Dict[str, Protocol]) -> None:
+        for proto in protocols.values():
+            validate_protocol(proto, types)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        self.generate_types(output_dir, types)
+        self.generate_protocols(output_dir, protocols)
 
-    def generate(self, out_dir: Path, types: dict[str, MessgenType], protocols: dict[str, Protocol]) -> None:
-        self.validate(types, protocols)
-        self.generate_types(out_dir, types)
-        self.generate_protocols(out_dir, protocols)
+    def generate_types(self, out_dir: Path, types: Dict[str, MessgenType]) -> None:
+        needs_decimal = any(
+            t.type_class is TypeClass.struct and
+            any(field.type == 'dec64' for field in cast(StructType, t).fields or [])
+            for t in types.values()
+        )
 
-    def validate(self, types: dict[str, MessgenType], protocols: dict[str, Protocol]):
-        for proto_def in protocols.values():
-            validate_protocol(proto_def, types)
+        blocks: list[str] = []
+        if needs_decimal:
+            blocks.append("import type { Decimal } from 'messgen';")
 
-    def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
-        types = set()
-        code = []
-        messages = []
+        for name, t in types.items():
+            if t.type_class is TypeClass.struct:
+                blocks.append(self._emit_struct(name, cast(StructType, t)))
 
-        code.append("export enum Protocol {")
-        for proto_def in protocols.values():
-            code.append(f"  {proto_def.name.upper()} = {proto_def.proto_id},")
-        code.append("}")
-        code.append("")
-        
-        for proto_def in protocols.values():
-            message_enum = self._to_camel_case(proto_def.name)
-            messages.append(message_enum)
-            
-            code.append(f"export enum {message_enum} {{")
-            for message in proto_def.messages.values():
-                code.append(f"  {message.name.upper()} = {message.message_id},")
-            code.append("}")
-            code.append("")
-            
-            proto_name = f"{self._to_camel_case(proto_def.name)}Map"
-            code.append(f"export interface {proto_name} {{")
-            code.append(f"  [Protocol.{proto_def.name.upper()}]: {{")
-            
-            for message in proto_def.messages.values():
-                ts_struct_name = self._to_camel_case(message.type)
-                code.append(f"    [{message_enum}.{message.name.upper()}]: {ts_struct_name};")
-                types.add(ts_struct_name)
-                
-            code.append("  }")
-            code.append("}")
-            code.append("")
-        
-        messages_union = " | ".join(messages)
-        code.append(f"export type Message = {messages_union};")
-        code.append("")
-        
-        protocol_types = " & ".join(f"{self._to_camel_case(proto_def.name)}Map" for proto_def in protocols.values())
-        code.append(f"export type ProtocolMap = {protocol_types};")
-        code.append("")
-        
-        import_statements = self._generate_protocol_imports(types)
-        final_code = "\n".join(import_statements + code)
-        
-        self._write_output_file(out_dir, self._PROTOCOLS_FILE, final_code)
+        for name, t in types.items():
+            if t.type_class is TypeClass.enum:
+                blocks.append(self._emit_enum(name, cast(EnumType, t)))
 
-    def _generate_protocol_imports(self, types: set[str]) -> list[str]:
-        import_statements = ["import type {"]
-        for struct_name in types:
-            import_statements.append(f"  {struct_name},")
-        import_statements.append("} from './types';")
-        import_statements.append("")
-        return import_statements
+        blocks.append(self._emit_type_name_enum(types))
+        content = '\n'.join(blocks)
+        self._write(out_dir / self.TYPES_FILE, content)
 
-    def generate_types(self, out_dir: Path, types: dict[str, MessgenType]) -> None:
-        self._types.clear()
+    def generate_protocols(self, out_dir: Path, protocols: Dict[str, Protocol]) -> None:
+        used: Set[str] = set()
+        parts: list[str] = [self._emit_protocol_enum(protocols)]
 
-        for type_name, type_def in types.items():
-            if type_def.type_class == TypeClass.struct:
-                self._generate_struct(type_name, type_def)
-            elif type_def.type_class == TypeClass.enum:
-                self._generate_enum(type_name, type_def)
-                
-        self._generate_type_name(types)
-        
-        code = "\n".join(self._types)
-        self._write_output_file(out_dir, self._TYPES_FILE, code)
-        
-    def _generate_type_name(self, types: dict[str, MessgenType]) -> None:
-        self._types.append("export enum TypeName {")
-        for type_name, type_def in types.items():
-            if type_def.type_class == TypeClass.struct:
-                enum_name = self._to_enum_key(type_name)
-                self._types.append(f"  {enum_name} = '{type_name}',")
-        self._types.append("}")
-        self._types.append("")
+        for proto in protocols.values():
+            name = camel(proto.name)
+            parts.append(self._emit_message_enum(proto, name))
+            parts.append(self._emit_map_interface(used, proto))
 
-    def _generate_enum(self, enum_name, type_def):
-        self._types.append(f"export enum {self._to_camel_case(enum_name)} {{")
+        union = textwrap.dedent(f"""
+            export type Message = {' | '.join(camel(p.name) for p in protocols.values())};
+            export type ProtocolMap = {' & '.join(camel(p.name) + 'Map' for p in protocols.values())};
+        """).strip()
 
-        for value in type_def.values or []:
-            if value.comment != None:
-                self._types.append(f"  /** {value.comment} */")
-            value_name = self._to_enum_key(value.name)
-            self._types.append(f"  {value_name.upper()} = {value.value},")
+        imports = self._build_imports(used)
+        content = '\n'.join([imports, *parts, union])
+        self._write(out_dir / self.PROTOCOLS_FILE, content)
 
-        self._types.append("}")
-        self._types.append("")
-    
-    def _to_enum_key(self, name: str):
-        words = [word for part in name.split(SEPARATOR) for word in part.split('_')]
-        return '_'.join(word.lower() for word in words if word).upper()
-    
+    def _emit_struct(self, name: str, struct: StructType) -> str:
+        header = comment_block(struct.comment or '', f"Size: {struct.size}" if struct.size is not None else '')
+        body: list[str] = []
+        for f in struct.fields or []:
+            if f.comment:
+                body.append(f"/** {f.comment} */")
+            body.append(f"{f.name}: {TypeScriptTypes.resolve(f.type)};")
+        block = indent('\n'.join(body))
+        return f"{header}export interface {camel(name)} {{\n{block}\n}}"
 
-    def _generate_struct(self, name: str, type_def: MessgenType):
-        self._types.append(f"export interface {self._to_camel_case(name)} {{")
-        fields = getattr(type_def, "fields", []) or []
+    def _emit_enum(self, name: str, enum: EnumType) -> str:
+        lines: list[str] = []
+        for v in enum.values or []:
+            lines.append(f"{enum_key(v.name)} = {v.value},")
+        body = indent('\n'.join(lines))
+        return f"export enum {camel(name)} {{\n{body}\n}}"
 
-        for field in fields:
-            if field.comment != None:
-                self._types.append(f"  /** {field.comment} */")
+    def _emit_type_name_enum(self, types: Dict[str, MessgenType]) -> str:
+        entries = [f"{enum_key(n)} = '{n}'," for n, t in types.items() if t.type_class is TypeClass.struct]
+        body = indent('\n'.join(entries))
+        return f"export enum TypeName {{\n{body}\n}}"
 
-            field_name = field.name
-            field_type = self._get_ts_type(field.type)
-            self._types.append(f"  {field_name}: {field_type};")
+    def _emit_protocol_enum(self, protocols: Dict[str, Protocol]) -> str:
+        entries = [f"{p.name.upper()} = {p.proto_id}," for p in protocols.values()]
+        body = indent('\n'.join(entries))
+        return f"export enum Protocol {{\n{body}\n}}"
 
-        self._types.append("}")
-        self._types.append("")
+    def _emit_message_enum(self, proto: Protocol, name: str) -> str:
+        lines = [f"{m.name.upper()} = {m.message_id}," for m in proto.messages.values()]
+        body = indent('\n'.join(lines))
+        return f"export enum {name} {{\n{body}\n}}"
 
-    def _get_ts_type(self, field_type: str):
-        typed_array_type = self._is_typed_array(field_type)
-        if typed_array_type:
-            return typed_array_type
+    def _emit_map_interface(self, used: Set[str], proto: Protocol) -> str:
+        name = camel(proto.name)
+        lines: list[str] = [f"export interface {name}Map {{"]
+        lines.append(indent(f"[Protocol.{proto.name.upper()}]: {{", level=1))
 
-        if field_type.endswith("[]"):
-            base_type = field_type[:-2]
-            ts_base_type = self._get_ts_type(base_type)
-            return f"{ts_base_type}[]"
-        if "[" in field_type and field_type.endswith("]"):
-            base_type = field_type[:field_type.find("[")]
-            ts_base_type = self._get_ts_type(base_type)
-            return f"{ts_base_type}[]"
+        for m in proto.messages.values():
+            tname = camel(m.type)
+            used.add(tname)
+            lines.append(indent(f"[{name}.{m.name.upper()}]: {tname};", level=2))
+        lines.append(indent("};", level=1, width=2))
+        lines.append("}")
+        return '\n'.join(lines)
 
-        if "{" in field_type and field_type.endswith("}"):
-            base_type = field_type[:field_type.find("{")]
-            key_type = field_type[field_type.find("{")+1:-1]
-            ts_value_type = self._get_ts_type(base_type)
-            ts_key_type = self._get_ts_type(key_type)
-            return f"Map<{ts_key_type}, {ts_value_type}>"
-
-        if field_type in TypeScriptTypes.TYPE_MAP:
-            return TypeScriptTypes.get_type(field_type)
-
-        return self._to_camel_case(field_type)
-
-    def _is_typed_array(self, field_type):
-        if field_type.endswith("[]"):
-            base_type = field_type[:-2]
-            typed_array = TypeScriptTypes.get_typed_array(base_type)
-            if typed_array:
-                return typed_array
-        if "[" in field_type and field_type.endswith("]"):
-            base_type = field_type[:field_type.find("[")]
-            typed_array = TypeScriptTypes.get_typed_array(base_type)
-            if typed_array:
-                return typed_array
-        return None
-
-    def _write_output_file(self, output_path, file, content):
-        output_file = os.path.join(output_path, f"{file}")
-
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(content)
+    def _write(self, path: Path, content: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content + '\n', encoding='utf-8')
 
     @staticmethod
-    def _to_camel_case(s: str):
-        name = "_".join(s.split(SEPARATOR))
-        return "".join(word.capitalize() for word in name.split("_"))
-
-
+    def _build_imports(types: Set[str]) -> str:
+        if not types:
+            return ''
+        imports = [f"import type {{ {t} }} from './types';" for t in sorted(types)]
+        return '\n'.join(imports) + '\n'

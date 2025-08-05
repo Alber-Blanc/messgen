@@ -4,10 +4,11 @@ import yaml
 from pathlib import Path
 from typing import Any
 
-from .common import SEPARATOR
+from .common import SEPARATOR, SIZE_TYPE
 from .model import (
     ArrayType,
     BasicType,
+    DecimalType,
     EnumType,
     EnumValue,
     FieldType,
@@ -16,6 +17,7 @@ from .model import (
     MessgenType,
     Protocol,
     StructType,
+    ExternalType,
     TypeClass,
     VectorType,
 )
@@ -107,7 +109,7 @@ def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType]:
                 validate_type_dict(type_file.stem, item)
                 type_descriptors[_type_name(type_file, base_dir)] = item
 
-    type_dependencies: set[str] = set()
+    type_dependencies: set[str] = {SIZE_TYPE}
     parsed_types = {type_name: _get_type(type_name, type_descriptors, type_dependencies) for type_name in type_descriptors}
 
     ignore_dependencies: set[str] = set()
@@ -130,6 +132,9 @@ def _get_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_
     if type_name in ["string", "bytes"]:
         return _get_basic_type(type_name)
 
+    if type_name == "dec64":
+        return _get_decimal_type(type_name)
+
     if len(type_name) > 2:
         if type_name.endswith("[]"):
             return _get_vector_type(type_name, type_descriptors, type_dependencies)
@@ -143,13 +148,22 @@ def _get_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_
     type_desc = type_descriptors.get(type_name)
     if not type_desc:
         raise RuntimeError(f"Invalid type: {type_name}")
-    type_class = TypeClass[type_desc.get("type_class", None)]
+
+    tc_name: str | None = type_desc.get("type_class", None)
+
+    if tc_name is None:
+        raise RuntimeError(f"Type descriptor for {type_name} does not contain 'type_class' or it is not a string")
+
+    type_class = TypeClass[tc_name]
 
     if type_class == TypeClass.enum:
         return _get_enum_type(type_name, type_descriptors, type_dependencies)
 
     if type_class == TypeClass.struct:
         return _get_struct_type(type_name, type_descriptors, type_dependencies)
+
+    if type_class == TypeClass.external:
+        return _get_external_type(type_name, type_descriptors, type_dependencies)
 
     raise RuntimeError("Invalid type class: %s" % type_class)
 
@@ -167,6 +181,15 @@ def _get_basic_type(type_name: str) -> BasicType:
         type=type_name,
         type_class=TypeClass[type_name],
         size=None,
+    )
+
+
+def _get_decimal_type(type_name: str) -> DecimalType:
+    assert type_name == "dec64"
+    return DecimalType(
+        type=type_name,
+        type_class=TypeClass.decimal,
+        size=8,
     )
 
 
@@ -292,6 +315,19 @@ def _get_struct_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
         struct_type.size = sz
 
     return struct_type
+
+
+def _get_external_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> ExternalType:
+    type_desc = type_descriptors[type_name]
+
+    external_type = ExternalType(
+        type=type_name,
+        type_class=TypeClass.external,
+        comment=type_desc.get("comment"),
+        size=type_desc.get("size"),
+    )
+
+    return external_type
 
 
 def _get_dependency_type(

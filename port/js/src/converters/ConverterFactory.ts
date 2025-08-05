@@ -1,5 +1,5 @@
-import type { Converter } from './Converter';
 import { Protocols } from '../protocol/Protocols';
+import { TypeClass } from '../types';
 import {
   ScalarConverter,
   StructConverter,
@@ -7,7 +7,9 @@ import {
   TypedArrayConverter,
   MapConverter,
   EnumConverter,
+  DecimalConverter,
 } from './base';
+import type { Converter } from './Converter';
 
 export class ConverterFactory {
   constructor(private protocols: Protocols = new Protocols()) {
@@ -18,17 +20,19 @@ export class ConverterFactory {
     const getType = this.toConverter.bind(this);
 
     switch (typeDef.typeClass) {
-      case 'scalar':
+      case TypeClass.SCALAR:
         return new ScalarConverter(typeDef.type);
-      case 'enum':
+      case TypeClass.DECIMAL:
+        return new DecimalConverter();
+      case TypeClass.ENUM:
         return new EnumConverter(typeDef, getType);
-      case 'struct':
+      case TypeClass.STRUCT:
         return new StructConverter(typeDef, getType);
-      case 'array':
+      case TypeClass.ARRAY:
         return new ArrayConverter(typeDef, getType);
-      case 'typed-array':
+      case TypeClass.TYPED_ARRAY:
         return new TypedArrayConverter(typeDef, getType);
-      case 'map':
+      case TypeClass.MAP:
         return new MapConverter(typeDef, getType);
       default:
         throw new Error(`Unsupported type class ${typeName}`);

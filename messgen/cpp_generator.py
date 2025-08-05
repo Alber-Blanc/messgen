@@ -16,6 +16,7 @@ from .common import (
 from .model import (
     ArrayType,
     BasicType,
+    DecimalType,
     EnumType,
     EnumValue,
     FieldType,
@@ -23,6 +24,7 @@ from .model import (
     MessgenType,
     Protocol,
     StructType,
+    ExternalType,
     TypeClass,
     VectorType,
     hash_message,
@@ -117,6 +119,7 @@ class CppGenerator:
         "int64": "int64_t",
         "float32": "float",
         "float64": "double",
+        "dec64": "messgen::decimal64",
     }
 
     def __init__(self, options: dict):
@@ -212,7 +215,7 @@ class CppGenerator:
                             constexpr inline static uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
                             constexpr inline static const char* NAME = "{_qual_name(proto_name)}::{message.name}";
 
-                            auto operator<=>(const {message.name} &) const = default;
+                            auto operator<=>(const struct {message.name} &) const = default;
 
                             data_type data;
                         }};"""),
@@ -336,6 +339,9 @@ class CppGenerator:
             elif type_class in [TypeClass.string, TypeClass.bytes]:
                 return self._get_alignment(self._types[SIZE_TYPE])
 
+        if isinstance(type_def, DecimalType):
+            return type_def.size
+
         if isinstance(type_def, EnumType):
             return type_def.size
 
@@ -347,6 +353,10 @@ class CppGenerator:
                 if a > a_max:
                     a_max = a
             return a_max
+
+        elif isinstance(type_def, ExternalType):
+            # Worst cast assumption about alignment of external type
+            return 8
 
         elif isinstance(type_def, ArrayType):
             # Alignment of array is equal to alignment of element
@@ -366,7 +376,7 @@ class CppGenerator:
             return max(a_sz, a_key, a_value)
 
         else:
-            raise RuntimeError("Unsupported type_class in _get_alignment: %s" % type_class)
+            raise RuntimeError("Unsupported type_class in _get_alignment: type_class=%s type_def=%s" % (type_class, type_def))
 
     def _check_alignment(self, type_def, offs):
         align = self._get_alignment(type_def)
@@ -514,7 +524,7 @@ class CppGenerator:
         if self._get_cpp_standard() >= 20:
             # Operator <=>
             code.append("")
-            code.append(_indent("auto operator<=>(const %s &) const = default;" % unqual_name))
+            code.append(_indent("auto operator<=>(const struct %s &) const = default;" % unqual_name))
 
         code.append("};")
 
@@ -534,7 +544,7 @@ class CppGenerator:
             code.extend(
                 [
                     "",
-                    f"bool operator==(const {unqual_name}& l, const {unqual_name}& r) {{",
+                    f"bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{",
                 ]
                 + _indent(code_eq)
                 + ["}"]
@@ -544,7 +554,7 @@ class CppGenerator:
 
     @staticmethod
     def _generate_schema(type_def: MessgenType):
-        return json.dumps(asdict(type_def)).replace(" ", "")
+        return json.dumps(asdict(type_def), separators=(',', ':'))
 
     def _add_include(self, inc, scope="global"):
         self._includes.add((inc, scope))
@@ -604,6 +614,10 @@ class CppGenerator:
                 else:
                     raise RuntimeError("Unsupported mode for bytes: %s" % mode)
 
+        elif isinstance(type_def, DecimalType):
+            self._add_include("messgen/decimal.h")
+            return self._CPP_TYPES_MAP[type_def.type]
+
         elif isinstance(type_def, ArrayType):
             self._add_include("array")
             el_c_type = self._cpp_type(type_def.element_type)
@@ -633,6 +647,12 @@ class CppGenerator:
 
         elif isinstance(type_def, (EnumType, StructType)):
             scope = "global" if SEPARATOR in type_name else "local"
+            self._add_include("%s.h" % type_name, scope)
+            return _qual_name(type_name)
+
+        elif isinstance(type_def, (ExternalType)):
+            scope = "global" if SEPARATOR in type_name else "local"
+            assert scope == "global", "External type must be in global scope"
             self._add_include("%s.h" % type_name, scope)
             return _qual_name(type_name)
 
@@ -669,13 +689,13 @@ class CppGenerator:
         type_class = field_type_def.type_class
 
         c.append("// %s" % field_name)
-        if type_class in [TypeClass.scalar, TypeClass.enum]:
+        if type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.decimal]:
             c_type = self._cpp_type(field_type_def.type)
             size = field_type_def.size
             c.append("*reinterpret_cast<%s *>(&_buf[_size]) = %s;" % (c_type, field_name))
             c.append("_size += %s;" % size)
 
-        elif type_class == TypeClass.struct:
+        elif type_class in [TypeClass.struct, TypeClass.external]:
             c.append("_size += %s.serialize(&_buf[_size]);" % field_name)
 
         elif type_class in [TypeClass.array, TypeClass.vector]:
@@ -732,13 +752,13 @@ class CppGenerator:
         mode = self._get_mode()
 
         c.append("// %s" % field_name)
-        if type_class in [TypeClass.scalar, TypeClass.enum]:
+        if type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.decimal]:
             c_type = self._cpp_type(field_type_def.type)
             size = field_type_def.size
             c.append("%s = *reinterpret_cast<const %s *>(&_buf[_size]);" % (field_name, c_type))
             c.append("_size += %s;" % size)
 
-        elif type_class == TypeClass.struct:
+        elif type_class in [TypeClass.struct, TypeClass.external]:
             alloc = ""
             if mode == "nostl":
                 alloc = ", _alloc"
@@ -846,7 +866,7 @@ class CppGenerator:
             size = field_type_def.size
             c.append("_size += %d;" % size)
 
-        elif type_class == TypeClass.struct:
+        elif type_class in [TypeClass.struct, TypeClass.external]:
             c.append("_size += %s.serialized_size();" % field_name)
 
         elif type_class in [TypeClass.array, TypeClass.vector]:

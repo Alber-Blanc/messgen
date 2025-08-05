@@ -60,6 +60,18 @@ export class Codec {
     return converter.deserialize(new Buffer(arrayBuffer));
   }
 
+  public serializeType<T = unknown>(typeName: string, data: T): Buffer {
+    const converter = this.typesMap.get(typeName);
+    if (!converter) {
+      throw new Error(`Converter not found for type: ${typeName}`);
+    }
+
+    const buffer = new Buffer(new ArrayBuffer(converter.size(data)));
+    converter.serialize(data, buffer);
+
+    return buffer;
+  }
+
   public deserializeType<T = unknown>(typeName: string, arrayBuffer: ArrayBufferLike): T {
     const converter = this.typesMap.get(typeName);
     if (!converter) {
