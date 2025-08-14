@@ -256,6 +256,7 @@ def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], 
     assert type_desc
 
     base_type = type_desc.get("base_type", "")
+    bitmask = type_desc.get("bitmask", False)
 
     if base_type:
         type_dependencies.add(_get_dependency_type(type_name, base_type, type_descriptors, type_dependencies)[0])
@@ -268,6 +269,7 @@ def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], 
         type=type_name,
         type_class=TypeClass.enum,
         base_type=base_type,
+        bitmask=bitmask,
         comment=type_desc.get("comment"),
         values=values,
         size=dependency.size or _SCALAR_TYPES_INFO["int"]["size"],

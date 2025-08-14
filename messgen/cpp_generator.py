@@ -167,6 +167,14 @@ class CppGenerator:
 
         code = self._PREAMBLE_HEADER + self._generate_includes() + code
 
+        # Enable bitmask operations for generated enums
+        if isinstance(type_def, EnumType):
+            if type_def.bitmask:
+                qual_name = _qual_name(type_name)
+                code.append("namespace messgen {")
+                code.append(f"ENABLE_BITMASK_OPERATORS(%s);" % qual_name)
+                code.append("} // messgen")
+
         return code
 
     def _generate_proto_file(self, proto_name: str, proto_def: Protocol) -> list[str]:
@@ -266,7 +274,7 @@ class CppGenerator:
         return textwrap.indent(
             textwrap.dedent("""
             template <class Fn>
-            constexpr static bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn);
+            constexpr static bool dispatch_message(int16_t msg_id, const uint8_t *payload, messgen::Allocator &alloc, Fn &&fn);
             """),
             "    ",
         ).splitlines()
@@ -275,13 +283,13 @@ class CppGenerator:
     def _generate_dispatcher(class_name: str) -> list[str]:
         return textwrap.dedent(f"""
             template <class Fn>
-            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn) {{
+            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, messgen::Allocator &alloc, Fn &&fn) {{
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
                     using message_type = messgen::splice_t<R>;
                     if constexpr (requires(message_type msg) {{ std::forward<Fn>(fn).operator()(msg); }}) {{
                         auto msg = message_type{{}};
-                        msg.data.deserialize(payload);
+                        msg.data.deserialize(payload, alloc);
                         std::forward<Fn>(fn).operator()(std::move(msg));
                         result = true;
                     }}
@@ -302,6 +310,9 @@ class CppGenerator:
 
     def _generate_type_enum(self, type_name, type_def):
         self._add_include("messgen/messgen.h")
+
+        if type_def.bitmask:
+            self._add_include("messgen/bitmasks.h")
 
         unqual_name = _unqual_name(type_name)
         qual_name = _qual_name(type_name)

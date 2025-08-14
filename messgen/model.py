@@ -89,6 +89,7 @@ class EnumType:
     type: str
     type_class: TypeClass
     base_type: str
+    bitmask: bool | None
     comment: str | None
     values: list[EnumValue]
     size: int

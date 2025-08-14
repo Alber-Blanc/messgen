@@ -1,5 +1,7 @@
 #pragma once
 
+#include "messgen.h"
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -138,6 +140,111 @@ template <class T>
 [[nodiscard]] std::string_view name_of(reflect_t<std::vector<T>>) {
     static auto name = "vector<" + std::string(name_of(reflect_type<T>)) + ">";
     return name.c_str();
+}
+
+// template <std::size_t N>
+// struct ConstexprString {
+//     char data[N + 1]{};
+//     std::size_t size = 0;
+//
+//     constexpr void append(char c) {
+//         if (size < N) {
+//             data[size++] = c;
+//             data[size] = '\0';
+//         }
+//     }
+//
+//     constexpr void append(const char* str) {
+//         while (*str) {
+//             append(*str++);
+//         }
+//     }
+//
+//     constexpr void append(std::string_view str) {
+//         for (char c : str) {
+//             append(c);
+//         }
+//     }
+//
+//     constexpr std::string_view view() const {
+//         return std::string_view{data, size};
+//     }
+// };
+
+template <std::size_t N>
+struct ConstexprString {
+    char data[N + 1]{};
+    std::size_t size = 0;
+
+    constexpr void append(std::string_view str) {
+        for (char c : str) {
+            if (size < N) {
+                data[size++] = c;
+            }
+        }
+        data[size] = '\0';
+    }
+
+    constexpr void append(char c) {
+        if (size < N) {
+            data[size++] = c;
+            data[size] = '\0'; // Keep it null-terminated if needed
+        }
+    }
+
+    constexpr std::string_view view() const {
+        return std::string_view{data, size};
+    }
+};
+
+template <std::size_t MaxDigits = 20>
+constexpr auto uint_to_string(std::size_t value) {
+    char buf[MaxDigits];
+    std::size_t len = 0;
+
+    do {
+        buf[len++] = '0' + (value % 10);
+        value /= 10;
+    } while (value > 0);
+
+    ConstexprString<MaxDigits> result;
+
+    // reverse
+    for (std::size_t i = 0; i < len; ++i) {
+        result.append(buf[len - i - 1]);
+    }
+
+    return result;
+}
+
+template <typename T, std::size_t N>
+constexpr std::string_view name_of(reflect_t<std::array<T, N>>) {
+    constexpr auto type_name = name_of(reflect_type<T>);
+    constexpr auto n_str = uint_to_string(N);
+
+    ConstexprString<128> buffer;
+    buffer.append(type_name);
+    buffer.append("[");
+    buffer.append(n_str.view());
+    buffer.append("]");
+    return buffer.view();
+}
+
+// Forward declaration
+template <class T>
+struct vector;
+
+template <typename T>
+constexpr std::string_view name_of(reflect_t<messgen::vector<T>>) {
+    constexpr auto elem_name = name_of(reflect_type<T>);
+    constexpr ConstexprString<64> buffer = []() constexpr {
+        ConstexprString<64> result;
+        result.append(elem_name);
+        result.append("[]");
+        return result;
+    }();
+
+    return buffer.view();
 }
 
 } // namespace messgen
