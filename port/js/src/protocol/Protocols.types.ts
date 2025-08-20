@@ -2,13 +2,13 @@ import type { IName, NumberType, Field } from '../types';
 
 export interface RawStructType {
   type: string;
-  type_class: '8'
+  type_class: 'struct'
   fields: Field[];
 }
 
 export interface RawEnumType {
   type: string;
-  type_class: '7';
+  type_class: 'enum';
   base_type: NumberType;
   values: EnumValue[];
 }
@@ -21,8 +21,8 @@ interface EnumValue {
 }
 
 export enum RawTypeClass {
-  STRUCT = '8',
-  ENUM = '7',
+  STRUCT = 'struct',
+  ENUM = 'enum',
 }
 
 export interface StructTypeClass {

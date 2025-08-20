@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(__GNUG__)
+#if defined(__GNUG__) && !defined(__clang__)
 #ifndef MESSGEN_DEC_FP
 #define MESSGEN_DEC_FP
 #endif
@@ -572,4 +572,4 @@ template <char... C>
 
 } // namespace messgen
 
-#endif // defined(__GNUG__)
+#endif // defined(__GNUG__) && !defined(__clang__)
