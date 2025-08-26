@@ -232,6 +232,8 @@ class ResolvedEnum(ResolvedType):
         return self._base.is_flat()
 
     def render(self, mod: str):
+        yield CODEGEN_FILE_PREFIX + "\n"
+
         if self._package is not None:
             yield f"package {self.package_name()}\n"
         else:
