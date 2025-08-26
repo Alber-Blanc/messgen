@@ -28,14 +28,12 @@ def toGoName(name: str) -> str:
 
 # Wraps messgen model
 class ResolvedType:
-    def __init__(self, model: MessgenType):
+    def __init__(self, model: MessgenType, package: str):
         parsed = model.type.split("/")
 
         self._model = model
-        self._package : list[str] = []
+        self._package : list[str] = package.split('/')
         self._name = toGoName(parsed[-1])
-        if len(parsed) > 1:
-            self._package = parsed[:-1]
 
     def name(self) -> str:
         return self._name
@@ -51,7 +49,7 @@ class ResolvedType:
 
     def reference(self, caller_pkg = None):
         if self.imported(caller_pkg):
-            assert(self._package != None)
+            assert(self._package is not None)
             return "%s.%s" % (self.package_name(), self._name)
 
         return self._name
@@ -98,8 +96,8 @@ class FieldGroup:
 
 
 class ResolvedBuiltin(ResolvedType):
-    def __init__(self, type_def: MessgenType):
-        super().__init__(type_def)
+    def __init__(self, type_def: MessgenType, package: str):
+        super().__init__(type_def, package)
         if type_def.type_class == TypeClass.bytes:
             self._name = "[]byte"
         else:
@@ -151,8 +149,8 @@ class ResolvedBuiltin(ResolvedType):
 
 
 class ResolvedSlice(ResolvedType):
-    def __init__(self, model: ArrayType | VectorType, elem_type : ResolvedType):
-        super().__init__(model)
+    def __init__(self, model: ArrayType | VectorType, elem_type : ResolvedType, package: str):
+        super().__init__(model, package)
         self._element = elem_type
 
     def imported(self, caller_pkg = None):
@@ -189,8 +187,8 @@ class ResolvedSlice(ResolvedType):
 
 
 class ResolvedMap(ResolvedType):
-    def __init__(self, type_def: MapType, key: ResolvedType, value: ResolvedType):
-        super().__init__(type_def)
+    def __init__(self, type_def: MapType, key: ResolvedType, value: ResolvedType, package : str):
+        super().__init__(type_def, package)
         self._key = key 
         self._value = value 
 
@@ -217,8 +215,8 @@ class ResolvedMap(ResolvedType):
 
 
 class ResolvedEnum(ResolvedType):
-    def __init__(self, type_def: EnumType, base):
-        super().__init__(type_def)
+    def __init__(self, type_def: EnumType, base: ResolvedType, package: str):
+        super().__init__(type_def, package)
         self._base = base
 
     def model(self):
@@ -234,7 +232,7 @@ class ResolvedEnum(ResolvedType):
         return self._base.is_flat()
 
     def render(self, mod: str):
-        if self._package != None:
+        if self._package is not None:
             yield f"package {self.package_name()}\n"
         else:
             yield f"package {mod.split("/")[-1]}\n"
@@ -260,8 +258,8 @@ class ResolvedEnum(ResolvedType):
 
 
 class ResolvedStruct(ResolvedType):
-    def __init__(self, type_def: StructType, struct_hash: int | None):
-        super().__init__(type_def)
+    def __init__(self, type_def: StructType, struct_hash: int | None, package: str):
+        super().__init__(type_def, package)
         self._fields: List[Tuple[str, ResolvedType]] = []
         self._imports: List[str]  = []
         self._size: None | int  = 0
@@ -680,7 +678,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield f"\treturn fmt.Sprintf(\"Unknown message for th protocol {proto_name}: %d\", mid)"
     yield f"}}"
     yield f""
-    yield f"type {proto_name}Dispatcher [{maxid+1}]func(mid messgen.MessageId, body []byte) error";
+    yield f"type {proto_name}Dispatcher [{maxid+1}]func(mid messgen.MessageId, body []byte) error"
     yield f""
     yield f"func New{proto_name}Dispatcher() *{proto_name}Dispatcher {{"
     yield f"return &{proto_name}Dispatcher{{}}"
@@ -751,32 +749,38 @@ class GolangGenerator:
 
         # All types except builtin has package name
         if type_def.type_class not in [TypeClass.scalar, TypeClass.bytes, TypeClass.string]:
-            type_def.type = f"{gomod_name}/{out_dir.name}/{type_def.type}"
+            # type_def.type = f"{gomod_name}/{out_dir.name}/{type_def.type}"
+            package_with_type = f"{gomod_name}/{out_dir.name}/{type_def.type}"
+            package = package_with_type.rsplit("/", 1)[0]
+        else:
+            package = ""
 
         if type_def.type_class == TypeClass.array or type_def.type_class == TypeClass.vector:
             slice_type = cast(ArrayType | VectorType, type_def)
             tmp = self.generate_type(out_dir, slice_type.element_type, ident+2)
-            resolved = ResolvedSlice(slice_type, tmp)
+            resolved = ResolvedSlice(slice_type, tmp, package)
         elif type_def.type_class == TypeClass.map:
             map_type = cast(MapType, type_def)
             key_t = self.generate_type(out_dir, map_type.key_type, ident+2)
             val_t = self.generate_type(out_dir, map_type.value_type, ident+2)
-            resolved = ResolvedMap(map_type, key_t, val_t)
+            resolved = ResolvedMap(map_type, key_t, val_t, package)
         elif type_def.type_class == TypeClass.enum:
             enum_type = cast(EnumType, type_def)
             base = self.generate_type(out_dir, enum_type.base_type, ident+2)
-            resolved = ResolvedEnum(enum_type, base)
+            resolved = ResolvedEnum(enum_type, base, package)
         elif type_def.type_class == TypeClass.struct:
             struct_hash: int | None = hash_type(type_def, self._types)
 
             struct_type = cast(StructType, type_def)
-            resolved = ResolvedStruct(struct_type, struct_hash)
+            resolved_struct = ResolvedStruct(struct_type, struct_hash, package)
 
             for field in struct_type.fields:
                 fresolved = self.generate_type(out_dir, field.type, ident+2)
-                resolved.add_field(field.name, fresolved)
+                resolved_struct.add_field(field.name, fresolved)
+
+            resolved = resolved_struct
         elif isinstance(type_def, BasicType):
-            resolved = ResolvedBuiltin(type_def)
+            resolved = ResolvedBuiltin(type_def, package)
         else:
             raise Exception("Type %s is not struct/enum: %s" % (typename, type_def))
 
