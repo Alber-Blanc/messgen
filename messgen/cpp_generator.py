@@ -287,11 +287,12 @@ class CppGenerator:
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
                     using message_type = messgen::splice_t<R>;
-                    if constexpr (requires(message_type msg) {{ std::forward<Fn>(fn).operator()(msg); }}) {{
+                    if constexpr (requires(message_type msg) {{{{ std::forward<Fn>(fn).operator()(msg) }} -> std::convertible_to<bool>; }}) {{
                         auto msg = message_type{{}};
                         msg.data.deserialize(payload, alloc);
-                        std::forward<Fn>(fn).operator()(std::move(msg));
-                        result = true;
+                        result = std::forward<Fn>(fn).operator()(std::move(msg));
+                    }} else {{
+                        static_assert([]{{ return false; }}(), "Handler must be callable with message and return bool.");
                     }}
                 }});
                 return result;

@@ -4,7 +4,7 @@
 function(messgen_add_types_library LIBRARY_NAME BASE_DIRS MODE)
     string(JOIN "," OPTIONS "mode=${MODE}" ${ARGN})
 
-    set(MESSAGES_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/${LIBRARY_NAME}/generated_src")
+    set(MESSAGES_OUT_DIR "${CMAKE_BINARY_DIR}/${LIBRARY_NAME}/generated_src")
 
     get_filename_component(MESSGEN_DIR ${CMAKE_CURRENT_FUNCTION_LIST_DIR} DIRECTORY)
     get_filename_component(MESSGEN_DIR ${MESSGEN_DIR} DIRECTORY)
@@ -44,7 +44,7 @@ endfunction()
 #
 function(messgen_add_proto_library LIBRARY_NAME BASE_DIR PROTOCOL TYPES_TARGET)
     string(JOIN "," OPTIONS "mode=${MODE}" ${ARGN})
-    set(MESSAGES_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/${LIBRARY_NAME}/generated_src")
+    set(MESSAGES_OUT_DIR "${CMAKE_BINARY_DIR}/${LIBRARY_NAME}/generated_src")
 
     get_filename_component(MESSGEN_DIR ${CMAKE_CURRENT_FUNCTION_LIST_DIR} DIRECTORY)
     get_filename_component(MESSGEN_DIR ${MESSGEN_DIR} DIRECTORY)

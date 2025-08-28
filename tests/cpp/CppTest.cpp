@@ -286,15 +286,17 @@ TEST_F(CppTest, DispatchMessage) {
     size_t ser_size = expected.serialize(_buf.data());
 
     auto invoked = false;
-    auto handler = [&](auto &&actual) {
+    auto handler = [&](auto &&actual) -> bool {
         using ActualType = std::decay_t<decltype(actual)>;
 
         if constexpr (std::is_same_v<ActualType, test_proto::simple_struct_msg>) {
             EXPECT_EQ(expected.f0, actual.data.f0);
             EXPECT_EQ(expected.f1, actual.data.f1);
             invoked = true;
+            return true;
         } else {
             FAIL() << "Unexpected message type handled.";
+            return false;
         }
     };
 

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
 namespace messgen {
 
@@ -94,6 +95,26 @@ public:
 
 private:
     uint8_t _memory[MEM_SIZE]{};
+    Allocator _alloc;
+};
+
+/**
+ * @brief Class which allows to allocate memory on heap for messgen parsing
+ */
+class HeapAllocator {
+public:
+    explicit HeapAllocator(size_t size) noexcept : _size(size) {}
+
+    operator Allocator &() noexcept { return get(); }
+
+    Allocator &get() noexcept {
+        _alloc = Allocator(_memory.get(), _size);
+        return _alloc;
+    }
+
+private:
+    size_t _size;
+    std::unique_ptr<uint8_t[]> _memory{new uint8_t[_size]};
     Allocator _alloc;
 };
 

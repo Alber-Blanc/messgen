@@ -1,10 +1,10 @@
 #pragma once
-
 #include "messgen.h"
 
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <array>
 
 namespace messgen {
 
@@ -142,35 +142,6 @@ template <class T>
     return name.c_str();
 }
 
-// template <std::size_t N>
-// struct ConstexprString {
-//     char data[N + 1]{};
-//     std::size_t size = 0;
-//
-//     constexpr void append(char c) {
-//         if (size < N) {
-//             data[size++] = c;
-//             data[size] = '\0';
-//         }
-//     }
-//
-//     constexpr void append(const char* str) {
-//         while (*str) {
-//             append(*str++);
-//         }
-//     }
-//
-//     constexpr void append(std::string_view str) {
-//         for (char c : str) {
-//             append(c);
-//         }
-//     }
-//
-//     constexpr std::string_view view() const {
-//         return std::string_view{data, size};
-//     }
-// };
-
 template <std::size_t N>
 struct ConstexprString {
     char data[N + 1]{};
@@ -188,7 +159,7 @@ struct ConstexprString {
     constexpr void append(char c) {
         if (size < N) {
             data[size++] = c;
-            data[size] = '\0'; // Keep it null-terminated if needed
+            data[size] = '\0';
         }
     }
 
@@ -222,11 +193,15 @@ constexpr std::string_view name_of(reflect_t<std::array<T, N>>) {
     constexpr auto type_name = name_of(reflect_type<T>);
     constexpr auto n_str = uint_to_string(N);
 
-    ConstexprString<128> buffer;
-    buffer.append(type_name);
-    buffer.append("[");
-    buffer.append(n_str.view());
-    buffer.append("]");
+    constexpr ConstexprString<128> buffer = [&]() constexpr {
+        ConstexprString<128> result;
+        result.append(type_name);
+        result.append("[");
+        result.append(n_str.view());
+        result.append("]");
+        return result;
+    }();
+
     return buffer.view();
 }
 
@@ -236,11 +211,22 @@ struct vector;
 
 template <typename T>
 constexpr std::string_view name_of(reflect_t<messgen::vector<T>>) {
-    constexpr auto elem_name = name_of(reflect_type<T>);
+    constexpr auto type_name = name_of(reflect_type<T>);
     constexpr ConstexprString<64> buffer = []() constexpr {
         ConstexprString<64> result;
-        result.append(elem_name);
+        result.append(type_name);
         result.append("[]");
+        return result;
+    }();
+
+    return buffer.view();
+}
+
+template <typename T>
+constexpr std::string_view name_of(reflect_t<std::basic_string_view<T>>) {
+    constexpr ConstexprString<64> buffer = []() constexpr {
+        ConstexprString<64> result;
+        result.append("string");
         return result;
     }();
 
