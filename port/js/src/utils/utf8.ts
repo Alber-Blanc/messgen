@@ -61,3 +61,11 @@ export function decodeUTF8(bytes: Uint8Array): string {
   }
   return s;
 }
+
+/**
+ * Returns the byte length of a string
+ * This is not the same as String.prototype.length
+ */
+export function byteLength(str: string): number {
+  return new TextEncoder().encode(str).length;
+}

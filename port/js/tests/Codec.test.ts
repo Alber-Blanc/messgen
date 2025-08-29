@@ -65,6 +65,18 @@ describe('Codec', () => {
 
       expect(message.buffer).toEqual(crossProtoMessage);
     });
+
+    it('should properly serialize Chinese characters', () => {
+      const rawData = {
+        f0: 0n,
+        f1_vec: new BigInt64Array([]),
+        str: '你好',
+      };
+
+      const message = codec.serialize(1, 2, rawData);
+
+      expect(message.buffer).toEqual(new Int8Array([-17, -51, -85, -112, 120, 86, 52, 18, 1]).buffer);
+    });
   });
 
   describe('#deserialize', () => {
@@ -101,6 +113,18 @@ describe('Codec', () => {
       const message = codec.serialize(2, 0, rawData);
 
       expect(codec.deserialize(2, 0, message.buffer)).toEqual(rawData);
+    });
+
+    it('should properly deserialize Chinese characters', () => {
+      const rawData = {
+        f0: 0n,
+        f1_vec: new BigInt64Array([]),
+        str: '你好',
+      };
+
+      const data = codec.deserialize(1, 2, codec.serialize(1, 2, rawData).buffer);
+
+      expect(data).toEqual(rawData);
     });
   });
 
