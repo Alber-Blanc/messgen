@@ -41,10 +41,10 @@ enumerator_value(const char *, T) -> enumerator_value<T>;
 
 template <class C, class M>
 struct member_variable : member<C, M> {
+    using pointer_type = M C::*;
     using member<C, M>::name;
-    using type = M C::*;
 
-    type ptr;
+    pointer_type ptr;
 };
 
 template <class C, class M>
@@ -52,7 +52,7 @@ member_variable(const char *, M C::*) -> member_variable<C, M>;
 
 template <class S, class C, class M>
 [[nodiscard]] constexpr auto value_of(S &&obj, const member_variable<C, M> &m) noexcept
-    -> std::enable_if_t<std::is_same_v<remove_cvref_t<S>, remove_cvref_t<C>>, typename member_variable<C, M>::type> {
+    -> std::enable_if_t<std::is_same_v<remove_cvref_t<S>, remove_cvref_t<C>>, typename member_variable<C, M>::member_type> {
     return std::forward<S>(obj).*m.ptr;
 }
 
