@@ -7,7 +7,7 @@ on:
     branches: ["master", "v1"]
 
 jobs:
-  build:
+  build-cpp20:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -20,7 +20,7 @@ jobs:
       - name: Build Debug
         run: |
           mkdir -p build_debug
-          cmake -Bbuild_debug -S. -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DCMAKE_BUILD_TYPE=Debug
+          cmake -Bbuild_debug -S. -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=20
           cmake --build build_debug
 
       - name: Test Debug
@@ -29,8 +29,36 @@ jobs:
       - name: Build Release
         run: |
           mkdir -p build_release
-          cmake -Bbuild_release -S. -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DCMAKE_BUILD_TYPE=Release
+          cmake -Bbuild_release -S. -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20
           cmake --build build_release
 
       - name: Test Release
         run: ctest --test-dir build_release/tests/ --output-on-failure
+
+  build-cpp17:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libgtest-dev cmake ninja-build gcc g++
+          version: 1.0
+
+      - name: Build Debug
+        run: |
+          mkdir -p build_debug_cpp17
+          cmake -Bbuild_debug_cpp17 -S. -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=17
+          cmake --build build_debug_cpp17
+
+      - name: Test Debug
+        run: ctest --test-dir build_debug_cpp17/tests/ --output-on-failure
+
+      - name: Build Release
+        run: |
+          mkdir -p build_release_cpp17
+          cmake -Bbuild_release_cpp17 -S. -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17
+          cmake --build build_release_cpp17
+
+      - name: Test Release
+        run: ctest --test-dir build_release_cpp17/tests/ --output-on-failure

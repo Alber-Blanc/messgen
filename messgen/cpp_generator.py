@@ -147,7 +147,7 @@ class CppGenerator:
         return self._options.get("mode", "stl")
 
     def _get_cpp_standard(self):
-        return int(self._options.get("cpp_standard", "11"))
+        return int(self._options.get("cpp_standard", "20"))
 
     def _reset_file(self):
         self._includes.clear()
@@ -163,7 +163,8 @@ class CppGenerator:
 
             elif isinstance(type_def, StructType):
                 code.extend(self._generate_type_struct(type_name, type_def, types))
-                code.extend(self._generate_type_members_of(type_name, type_def))
+                if self._get_cpp_standard() >= 20:
+                    code.extend(self._generate_type_members_of(type_name, type_def))
 
         code = self._PREAMBLE_HEADER + self._generate_includes() + code
 
@@ -197,12 +198,16 @@ class CppGenerator:
                     code.append(f"    constexpr static inline int16_t PROTO_ID = {proto_id};")
 
                 code.extend(self._generate_messages(proto_name, class_name, proto_def))
-                code.extend(self._generate_reflect_message_decl())
-                code.extend(self._generate_dispatcher_decl())
 
-            code.extend(self._generate_protocol_members_of(class_name, proto_def))
-            code.extend(self._generate_reflect_message(class_name, proto_def))
-            code.extend(self._generate_dispatcher(class_name))
+                if self._get_cpp_standard() >= 20:
+                    code.extend(self._generate_reflect_message_decl())
+                    code.extend(self._generate_dispatcher_decl())
+
+            if self._get_cpp_standard() >= 20:
+                code.extend(self._generate_protocol_members_of(class_name, proto_def))
+                code.extend(self._generate_reflect_message(class_name, proto_def))
+                code.extend(self._generate_dispatcher(class_name))
+
             code.append("")
 
         return self._PREAMBLE_HEADER + self._generate_includes() + code
@@ -223,13 +228,29 @@ class CppGenerator:
                             constexpr inline static uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
                             constexpr inline static const char* NAME = "{_qual_name(proto_name)}::{message.name}";
 
-                            auto operator<=>(const struct {message.name} &) const = default;
-
                             data_type data;
-                        }};"""),
+                        """),
                     "    ",
                 ).splitlines()
             )
+            if self._get_cpp_standard() >= 20:
+                code.append(f"    auto operator<=>(const struct {message.name} &) const = default;")
+            else:
+                code.extend(
+                    textwrap.indent(
+                        textwrap.dedent(f"""
+                            friend bool operator==(const struct {message.name}& l, const struct {message.name}& r) {{
+                                return l.data == r.data;
+                            }}
+
+                            friend bool operator!=(const struct {message.name}& l, const struct {message.name}& r) {{
+                                return !(l == r);
+                            }}
+                        """),
+                        "        ",
+                    ).splitlines()
+                )
+            code.append("    };")
         return code
 
     def _generate_protocol_members_of(self, class_name: str, proto_def: Protocol):
@@ -311,6 +332,7 @@ class CppGenerator:
 
     def _generate_type_enum(self, type_name, type_def):
         self._add_include("messgen/messgen.h")
+        self._add_include("string_view")
 
         if type_def.bitmask:
             self._add_include("messgen/bitmasks.h")
@@ -325,20 +347,21 @@ class CppGenerator:
             code.append("    %s = %s,%s" % (enum_value.name, enum_value.value, _inline_comment(enum_value)))
         code.append("};")
 
-        code.extend(
-            textwrap.dedent(f"""
-                [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
-                    return "{qual_name}";
-                }}""").splitlines()
-        )
+        if self._get_cpp_standard() >= 20:
+            code.extend(
+                textwrap.dedent(f"""
+                    [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                        return "{qual_name}";
+                    }}""").splitlines()
+            )
 
-        code.append("")
-        code.append(f"[[nodiscard]] consteval auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
-        code.append("    return std::tuple{")
-        for enum_value in type_def.values:
-            code.append(f'        ::messgen::enumerator_value{{{{"{enum_value.name}"}}, {unqual_name}::{enum_value.name}}},')
-        code.append("    };")
-        code.append("}")
+            code.append("")
+            code.append(f"[[nodiscard]] consteval auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
+            code.append("    return std::tuple{")
+            for enum_value in type_def.values:
+                code.append(f'        ::messgen::enumerator_value{{{{"{enum_value.name}"}}, {unqual_name}::{enum_value.name}}},')
+            code.append("    };")
+            code.append("}")
 
         return code
 
@@ -559,14 +582,20 @@ class CppGenerator:
                     f"bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{",
                 ]
                 + _indent(code_eq)
-                + ["}"]
+                + [
+                    "}",
+                    "",
+                    f"bool operator!=(const struct {unqual_name}& l, const struct {unqual_name}& r) {{",
+                    "   return !(l == r);",
+                    "}",
+                ]
             )
 
         return code
 
     @staticmethod
     def _generate_schema(type_def: MessgenType):
-        return json.dumps(asdict(type_def), separators=(',', ':'))
+        return json.dumps(asdict(type_def), separators=(",", ":"))
 
     def _add_include(self, inc, scope="global"):
         self._includes.add((inc, scope))

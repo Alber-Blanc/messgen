@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus < 202002L
+#error "C++20 or higher is required"
+#endif
+
 #include "Allocator.h"
 
 #include "reflection.h"

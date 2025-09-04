@@ -43,11 +43,18 @@ endfunction()
 # Function creates a target for specified protocol.
 #
 function(messgen_add_proto_library LIBRARY_NAME BASE_DIR PROTOCOL TYPES_TARGET)
-    string(JOIN "," OPTIONS "mode=${MODE}" ${ARGN})
+    string(JOIN "," OPTIONS ${ARGN})
+
     set(MESSAGES_OUT_DIR "${CMAKE_BINARY_DIR}/${LIBRARY_NAME}/generated_src")
+
 
     get_filename_component(MESSGEN_DIR ${CMAKE_CURRENT_FUNCTION_LIST_DIR} DIRECTORY)
     get_filename_component(MESSGEN_DIR ${MESSGEN_DIR} DIRECTORY)
+
+    if (OPTIONS)
+        list(APPEND MESSGEN_ARGS "--options")
+        list(APPEND MESSGEN_ARGS ${OPTIONS})
+    endif ()
 
     set(GENERATE_TARGET_NAME "${LIBRARY_NAME}__generate__")
     # Run messgen protocol generation. Output files will be overwritten only if changed
@@ -55,6 +62,7 @@ function(messgen_add_proto_library LIBRARY_NAME BASE_DIR PROTOCOL TYPES_TARGET)
         ${GENERATE_TARGET_NAME}
         COMMAND "python3"
         ${MESSGEN_DIR}/messgen-generate.py
+        ${MESSGEN_ARGS}
         "--protocol" "${BASE_DIR}:${PROTOCOL}"
         "--outdir" ${MESSAGES_OUT_DIR}
         "--lang" "cpp"

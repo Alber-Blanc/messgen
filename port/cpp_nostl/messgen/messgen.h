@@ -1,10 +1,14 @@
 #pragma once
 
+#if __cplusplus >= 202002L
 #include "concepts.h"
 #include "reflection.h"
+#endif
+
 #include "MessageInfo.h"
 #include "Allocator.h"
 
+#include <cstdint>
 #include <vector>
 
 namespace messgen {
@@ -83,6 +87,10 @@ struct vector {
         return true;
     }
 
+    bool operator!=(const vector<T> &other) const {
+        return !(*this == other);
+    }
+
     T &operator[](size_t idx) {
         return _ptr[idx];
     }
@@ -99,6 +107,10 @@ struct vector {
         return _ptr;
     }
 };
+
+using size_type = uint32_t;
+
+#if __cplusplus >= 202002L
 
 template <protocol Protocol>
 consteval auto members_of() {
@@ -124,7 +136,7 @@ consteval uint64_t hash_of() {
     return hash_of(reflect_type<T>);
 }
 
-using size_type = uint32_t;
+#endif
 
 /**
  * @brief   Get serialized size (message size + header size)

@@ -1,6 +1,10 @@
 #pragma once
 #include "messgen.h"
 
+#if __cplusplus < 202002L
+#error "C++20 or higher is required"
+#endif
+
 #include <cstdint>
 #include <string>
 #include <vector>

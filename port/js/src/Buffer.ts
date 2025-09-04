@@ -1,11 +1,11 @@
 export class Buffer {
   size: number;
-  buffer: ArrayBuffer;
+  buffer: ArrayBufferLike;
   dataView: DataView;
 
   private _offset: number;
 
-  constructor(arrayBuffer: ArrayBuffer) {
+  constructor(arrayBuffer: ArrayBufferLike) {
     this.buffer = arrayBuffer;
     this.dataView = new DataView(arrayBuffer);
     this._offset = 0;
