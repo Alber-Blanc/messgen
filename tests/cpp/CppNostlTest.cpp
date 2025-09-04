@@ -63,7 +63,9 @@ TEST_F(CppNostlTest, VarSizeStruct) {
     test_serialization(msg);
 }
 
-TEST_F(CppNostlTest, ComplexStructNpstl) {
+TEST_F(CppNostlTest, ComplexStructNostl) {
+    using namespace std::string_view_literals;
+
     messgen::test::complex_struct_nostl msg{};
     msg.f0 = 255;
     std::vector<double> f2_vec;
@@ -76,7 +78,7 @@ TEST_F(CppNostlTest, ComplexStructNpstl) {
     std::vector<int64_t> v_vec0_0_0;
     v_vec0_0_0.emplace_back(777);
     std::vector<messgen::test::var_size_struct> v_vec0_0;
-    v_vec0_0.emplace_back(234, v_vec0_0_0);
+    v_vec0_0.push_back(messgen::test::var_size_struct{234, v_vec0_0_0, ""sv});
     std::vector<messgen::vector<messgen::test::var_size_struct>> v_vec0;
     v_vec0.emplace_back(v_vec0_0);
     msg.v_vec0 = v_vec0;
@@ -91,6 +93,8 @@ TEST_F(CppNostlTest, EmptyStruct) {
     ASSERT_EQ(e.serialized_size(), 0);
     test_serialization(e);
 }
+
+#if __cplusplus >= 202002L
 
 TEST_F(CppNostlTest, TypeConcept) {
     using namespace messgen;
@@ -109,3 +113,5 @@ TEST_F(CppNostlTest, FlatTypeConcept) {
     EXPECT_FALSE(flat_type<test::var_size_struct>);
     EXPECT_FALSE(flat_type<int>);
 }
+
+#endif

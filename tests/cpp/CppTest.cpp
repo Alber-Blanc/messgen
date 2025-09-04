@@ -194,6 +194,8 @@ TEST_F(CppTest, ComplexStructWithEmpty) {
     test_serialization(e);
 }
 
+#if __cplusplus >= 202002L
+
 template <class Func, class... T>
 constexpr void for_each(std::tuple<T...> &&obj, Func &&func) {
     std::apply([&]<class... M>(M &&...members) { (func(members), ...); }, obj);
@@ -361,3 +363,5 @@ TEST_F(CppTest, ProtoHash) {
     EXPECT_EQ(expected_hash, hash_test_proto);
     EXPECT_EQ(11460364063552977134ULL, hash_test_proto);
 }
+
+#endif
