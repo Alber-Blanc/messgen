@@ -1,11 +1,15 @@
 #pragma once
 
+#if __cplusplus >= 202002L
 #include "concepts.h"
 #include "reflection.h"
+#endif
 
 #include <cstdint>
 
 namespace messgen {
+
+#if __cplusplus >= 202002L
 
 template <protocol Protocol>
 consteval auto members_of() {
@@ -30,6 +34,8 @@ template <class T>
 consteval uint64_t hash_of() {
     return hash_of(reflect_type<T>);
 }
+
+#endif
 
 using size_type = uint32_t;
 
