@@ -1,6 +1,5 @@
 #pragma once
 
-#include <type_traits>
 #if __cplusplus >= 202002L
 #include "concepts.h"
 #endif
@@ -9,6 +8,7 @@
 #include "reflection.h"
 
 #include <cstdint>
+#include <type_traits>
 
 namespace messgen {
 
