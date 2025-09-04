@@ -6,7 +6,7 @@
 #include <messgen/test/flat_struct.h>
 #include <gtest/gtest.h>
 
-class CppNostlTest : public ::testing::Test {
+class Cpp17NostlTest : public ::testing::Test {
 protected:
     std::vector<uint8_t> _buf;
     messgen::StaticAllocator<1024 * 1024> _alloc;
@@ -27,7 +27,7 @@ protected:
     }
 };
 
-TEST_F(CppNostlTest, SimpleStruct) {
+TEST_F(Cpp17NostlTest, SimpleStruct) {
     messgen::test::simple_struct msg{};
     msg.f0 = 1;
     msg.f1 = 2;
@@ -41,7 +41,7 @@ TEST_F(CppNostlTest, SimpleStruct) {
     test_serialization(msg);
 }
 
-TEST_F(CppNostlTest, StructWithEnum) {
+TEST_F(Cpp17NostlTest, StructWithEnum) {
     messgen::test::struct_with_enum msg{};
     msg.f0 = 1;
     msg.f1 = 2;
@@ -50,7 +50,7 @@ TEST_F(CppNostlTest, StructWithEnum) {
     test_serialization(msg);
 }
 
-TEST_F(CppNostlTest, VarSizeStruct) {
+TEST_F(Cpp17NostlTest, VarSizeStruct) {
     messgen::test::var_size_struct msg{};
     std::vector<int64_t> v;
     v.resize(2);
@@ -63,7 +63,7 @@ TEST_F(CppNostlTest, VarSizeStruct) {
     test_serialization(msg);
 }
 
-TEST_F(CppNostlTest, ComplexStructNostl) {
+TEST_F(Cpp17NostlTest, ComplexStructNostl) {
     using namespace std::string_view_literals;
 
     messgen::test::complex_struct_nostl msg{};
@@ -86,32 +86,10 @@ TEST_F(CppNostlTest, ComplexStructNostl) {
     test_serialization(msg);
 }
 
-TEST_F(CppNostlTest, EmptyStruct) {
+TEST_F(Cpp17NostlTest, EmptyStruct) {
     messgen::test::empty_struct e{};
     ASSERT_TRUE(e.IS_FLAT);
     ASSERT_EQ(e.FLAT_SIZE, 0);
     ASSERT_EQ(e.serialized_size(), 0);
     test_serialization(e);
 }
-
-#if __cplusplus >= 202002L
-
-TEST_F(CppNostlTest, TypeConcept) {
-    using namespace messgen;
-
-    struct not_a_message {};
-
-    EXPECT_TRUE(type<test::simple_struct>);
-    EXPECT_FALSE(type<not_a_message>);
-    EXPECT_FALSE(type<int>);
-}
-
-TEST_F(CppNostlTest, FlatTypeConcept) {
-    using namespace messgen;
-
-    EXPECT_TRUE(flat_type<test::flat_struct>);
-    EXPECT_FALSE(flat_type<test::var_size_struct>);
-    EXPECT_FALSE(flat_type<int>);
-}
-
-#endif
