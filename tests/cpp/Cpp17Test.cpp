@@ -321,3 +321,23 @@ TEST_F(CppTest17, ProtoHash) {
     EXPECT_EQ(expected_hash, hash_test_proto);
     EXPECT_EQ(11460364063552977134ULL, hash_test_proto);
 }
+
+TEST_F(CppTest17, TypeTraits) {
+    using namespace messgen;
+
+    static_assert(is_flat_type_v<messgen::test::flat_struct>);
+    static_assert(!is_flat_type_v<messgen::test::complex_struct>);
+
+    static_assert(is_type_v<messgen::test::flat_struct>);
+    static_assert(is_type_v<messgen::test::complex_struct>);
+    static_assert(!is_type_v<test_proto::simple_struct_msg>);
+    static_assert(!is_type_v<test_proto>);
+
+    static_assert(is_message_v<test_proto::simple_struct_msg>);
+    static_assert(!is_message_v<messgen::test::flat_struct>);
+    static_assert(!is_message_v<test_proto>);
+
+    static_assert(is_protocol_v<test_proto>);
+    static_assert(!is_protocol_v<messgen::test::flat_struct>);
+    static_assert(!is_protocol_v<test_proto::simple_struct_msg>);
+}
