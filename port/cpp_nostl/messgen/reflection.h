@@ -51,9 +51,15 @@ template <class C, class M>
 member_variable(const char *, M C::*) -> member_variable<C, M>;
 
 template <class S, class C, class M>
-[[nodiscard]] constexpr auto value_of(S &&obj, const member_variable<C, M> &m) noexcept
+[[nodiscard]] constexpr auto value_of(S &obj, const member_variable<C, M> &m) noexcept
     -> std::enable_if_t<std::is_same_v<remove_cvref_t<S>, remove_cvref_t<C>>, std::add_lvalue_reference_t<typename member_variable<C, M>::member_type>> {
-    return std::forward<S>(obj).*m.ptr;
+    return obj.*m.ptr;
+}
+
+template <class S, class C, class M>
+[[nodiscard]] constexpr auto value_of(const S &obj, const member_variable<C, M> &m) noexcept
+    -> std::enable_if_t<std::is_same_v<remove_cvref_t<S>, remove_cvref_t<C>>, std::add_lvalue_reference_t<const typename member_variable<C, M>::member_type>> {
+    return obj.*m.ptr;
 }
 
 template <class E>
