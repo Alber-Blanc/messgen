@@ -163,8 +163,7 @@ class CppGenerator:
 
             elif isinstance(type_def, StructType):
                 code.extend(self._generate_type_struct(type_name, type_def, types))
-                if self._get_cpp_standard() >= 20:
-                    code.extend(self._generate_type_members_of(type_name, type_def))
+                code.extend(self._generate_type_members_of(type_name, type_def))
 
         code = self._PREAMBLE_HEADER + self._generate_includes() + code
 
@@ -198,15 +197,12 @@ class CppGenerator:
                     code.append(f"    constexpr static inline int16_t PROTO_ID = {proto_id};")
 
                 code.extend(self._generate_messages(proto_name, class_name, proto_def))
+                code.extend(self._generate_reflect_message_decl())
+                code.extend(self._generate_dispatcher_decl())
 
-                if self._get_cpp_standard() >= 20:
-                    code.extend(self._generate_reflect_message_decl())
-                    code.extend(self._generate_dispatcher_decl())
-
-            if self._get_cpp_standard() >= 20:
-                code.extend(self._generate_protocol_members_of(class_name, proto_def))
-                code.extend(self._generate_reflect_message(class_name, proto_def))
-                code.extend(self._generate_dispatcher(class_name))
+            code.extend(self._generate_protocol_members_of(class_name, proto_def))
+            code.extend(self._generate_reflect_message(class_name, proto_def))
+            code.extend(self._generate_dispatcher(class_name))
 
             code.append("")
 
@@ -256,7 +252,7 @@ class CppGenerator:
     def _generate_protocol_members_of(self, class_name: str, proto_def: Protocol):
         self._add_include("tuple")
         code: list[str] = []
-        code.append(f"[[nodiscard]] consteval auto members_of(::messgen::reflect_t<{class_name}>) noexcept {{")
+        code.append(f"[[nodiscard]] constexpr auto members_of(::messgen::reflect_t<{class_name}>) noexcept {{")
         code.append("    return std::tuple{")
         for message in proto_def.messages.values():
             code.append(f'        ::messgen::member<{class_name}, {class_name}::{message.name}>{{"{message.name}"}},')
@@ -308,7 +304,7 @@ class CppGenerator:
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
                     using message_type = messgen::splice_t<R>;
-                    if constexpr (requires(message_type msg) {{{{ std::forward<Fn>(fn).operator()(msg) }} -> std::convertible_to<bool>; }}) {{
+                    if constexpr (std::is_invocable_r_v<bool, ::messgen::remove_cvref_t<Fn>, message_type>) {{
                         auto msg = message_type{{}};
                         msg.data.deserialize(payload, alloc);
                         result = std::forward<Fn>(fn).operator()(std::move(msg));
@@ -347,21 +343,20 @@ class CppGenerator:
             code.append("    %s = %s,%s" % (enum_value.name, enum_value.value, _inline_comment(enum_value)))
         code.append("};")
 
-        if self._get_cpp_standard() >= 20:
-            code.extend(
-                textwrap.dedent(f"""
-                    [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
-                        return "{qual_name}";
-                    }}""").splitlines()
-            )
+        code.extend(
+            textwrap.dedent(f"""
+                [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                    return "{qual_name}";
+                }}""").splitlines()
+        )
 
-            code.append("")
-            code.append(f"[[nodiscard]] consteval auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
-            code.append("    return std::tuple{")
-            for enum_value in type_def.values:
-                code.append(f'        ::messgen::enumerator_value{{{{"{enum_value.name}"}}, {unqual_name}::{enum_value.name}}},')
-            code.append("    };")
-            code.append("}")
+        code.append("")
+        code.append(f"[[nodiscard]] constexpr auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
+        code.append("    return std::tuple{")
+        for enum_value in type_def.values:
+            code.append(f'        ::messgen::enumerator_value{{{{"{enum_value.name}"}}, {unqual_name}::{enum_value.name}}},')
+        code.append("    };")
+        code.append("}")
 
         return code
 
@@ -618,7 +613,7 @@ class CppGenerator:
 
         code: list[str] = []
         code.append("")
-        code.append(f"[[nodiscard]] consteval auto members_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
+        code.append(f"[[nodiscard]] constexpr auto members_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
         code.append("    return std::tuple{")
         for field in type_def.fields:
             code.append(f'        ::messgen::member_variable{{{{"{field.name}"}}, &{unqual_name}::{field.name}}},')

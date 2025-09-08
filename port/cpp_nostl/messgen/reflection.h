@@ -1,9 +1,7 @@
 #pragma once
 #include "messgen.h"
 
-#if __cplusplus < 202002L
-#error "C++20 or higher is required"
-#endif
+#include "traits.h"
 
 #include <cstdint>
 #include <string>
@@ -23,14 +21,14 @@ template <class T>
 constexpr reflect_t<T> reflect_type = {};
 
 template <class T>
-constexpr reflect_t<std::remove_cvref_t<T>> reflect_object(T &&t) {
+constexpr reflect_t<remove_cvref_t<T>> reflect_object(T &&t) {
     return &t;
 }
 
 template <class C, class M>
 struct member {
     using class_type = C;
-    using member_type = std::remove_cvref_t<M>;
+    using member_type = remove_cvref_t<M>;
 
     const char *name;
 };
@@ -45,17 +43,25 @@ enumerator_value(const char *, T) -> enumerator_value<T>;
 
 template <class C, class M>
 struct member_variable : member<C, M> {
+    using pointer_type = M C::*;
     using member<C, M>::name;
-    M C::*ptr;
+
+    pointer_type ptr;
 };
 
 template <class C, class M>
 member_variable(const char *, M C::*) -> member_variable<C, M>;
 
 template <class S, class C, class M>
-    requires std::same_as<std::remove_cvref_t<S>, std::remove_cvref_t<C>>
-[[nodiscard]] constexpr decltype(auto) value_of(S &&obj, const member_variable<C, M> &m) noexcept {
-    return std::forward<S>(obj).*m.ptr;
+[[nodiscard]] constexpr auto value_of(S &obj, const member_variable<C, M> &m) noexcept
+    -> std::enable_if_t<std::is_same_v<remove_cvref_t<S>, remove_cvref_t<C>>, std::add_lvalue_reference_t<typename member_variable<C, M>::member_type>> {
+    return obj.*m.ptr;
+}
+
+template <class S, class C, class M>
+[[nodiscard]] constexpr auto value_of(const S &obj, const member_variable<C, M> &m) noexcept
+    -> std::enable_if_t<std::is_same_v<remove_cvref_t<S>, remove_cvref_t<C>>, std::add_lvalue_reference_t<const typename member_variable<C, M>::member_type>> {
+    return obj.*m.ptr;
 }
 
 template <class E>
@@ -79,16 +85,12 @@ template <class C, class M>
 }
 
 template <class T>
-    requires requires(T &&t) {
-        { t.NAME };
-    }
-[[nodiscard]] constexpr std::string_view name_of(reflect_t<T>) noexcept {
+[[nodiscard]] constexpr auto name_of(reflect_t<T>) noexcept -> std::enable_if_t<has_name_member<T>::value, std::string_view> {
     return T::NAME;
 }
 
 template <class T>
-    requires std::is_enum_v<T>
-[[nodiscard]] constexpr std::string_view name_of(reflect_t<T> r) noexcept {
+[[nodiscard]] constexpr auto name_of(reflect_t<T> r) noexcept -> std::enable_if_t<std::is_enum_v<T>, std::string_view> {
     return name_of(r);
 }
 
