@@ -175,23 +175,15 @@ struct ConstexprString {
 };
 
 template <std::size_t MaxDigits = 20>
-constexpr auto uint_to_string(std::size_t value) {
-    char buf[MaxDigits];
-    std::size_t len = 0;
-
+constexpr std::array<char, MaxDigits> uint_to_string(std::size_t value) {
+    std::array<char, MaxDigits> buf{}; // zero-init
+    std::size_t pos = MaxDigits;
     do {
-        buf[len++] = '0' + (value % 10);
+        buf[--pos] = char('0' + (value % 10));
         value /= 10;
-    } while (value > 0);
-
-    ConstexprString<MaxDigits> result;
-
-    // reverse
-    for (std::size_t i = 0; i < len; ++i) {
-        result.append(buf[len - i - 1]);
-    }
-
-    return result;
+    } while (value && pos > 0);
+    // digits are in buf[pos..]
+    return buf;  // whole thing is a constexpr object
 }
 
 template <typename T, std::size_t N>
@@ -203,7 +195,7 @@ constexpr std::string_view name_of(reflect_t<std::array<T, N>>) {
         ConstexprString<128> result;
         result.append(type_name);
         result.append("[");
-        result.append(n_str.view());
+        result.append(std::string_view(n_str.data(), n_str.size()));
         result.append("]");
         return result;
     }();

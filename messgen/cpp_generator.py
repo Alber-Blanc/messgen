@@ -556,35 +556,33 @@ class CppGenerator:
             code.append("")
             code.append(_indent("auto operator<=>(const struct %s &) const = default;" % unqual_name))
 
-        code.append("};")
-
         if self._get_cpp_standard() < 20:
-            # Operator ==
-            code_eq = []
+            # Member operator== and operator!=
             if len(fields) > 0:
-                field_name = fields[0].name
-                code_eq.append("return l.%s == r.%s" % (field_name, field_name))
-                for field in fields[1:]:
-                    field_name = field.name
-                    code_eq.append("   and l.%s == r.%s" % (field_name, field_name))
+                # Build equality check: each comparison on its own line using 'and'
+                eq_checks = [f"this->{f.name} == other.{f.name}" for f in fields]
+                # Prepend 'return ' to first line, append ';' to last line
+                eq_checks = ["return " + eq_checks[0]] + ["   and " + e for e in eq_checks[1:]]
+                eq_checks[-1] += ";"
             else:
-                code_eq.append("return true")
-            code_eq[-1] += ";"
+                eq_checks = ["return true;"]
 
-            code.extend(
+            code.extend(_indent(
                 [
                     "",
-                    f"bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{",
+                    f"bool operator==(const struct {unqual_name}& other) const {{",
                 ]
-                + _indent(code_eq)
+                + _indent(eq_checks)
                 + [
                     "}",
                     "",
-                    f"bool operator!=(const struct {unqual_name}& l, const struct {unqual_name}& r) {{",
-                    "   return !(l == r);",
+                    f"bool operator!=(const struct {unqual_name}& other) const {{",
+                    "    return !(*this == other);",
                     "}",
                 ]
-            )
+            ))
+
+        code.append("};")
 
         return code
 
