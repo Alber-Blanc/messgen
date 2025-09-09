@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <tuple>
 
 namespace messgen {
 
