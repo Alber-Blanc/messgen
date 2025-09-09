@@ -573,6 +573,15 @@ class Codec:
                 self._id_by_name[(proto_name, message.name)] = (proto_def.proto_id, message)
                 self._name_by_id[(proto_def.proto_id, msg_id)] = (proto_name, message)
 
+    def types(self) -> list[str]:
+        return sorted(list(self._converters_by_name.keys()))
+
+    def protocols(self) -> list[str]:
+        proto_names = set()
+        for proto_name, _ in self._id_by_name.keys():
+            proto_names.add(proto_name)
+        return sorted(list(proto_names))
+
     def type_definition(self, type_name: str) -> MessgenType:
         if type_name in self._converters_by_name:
             return self._converters_by_name[type_name].type_definition()
