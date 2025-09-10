@@ -544,8 +544,6 @@ class CppGenerator:
             code.append("")
             code.append(_indent("auto operator<=>(const struct %s &) const = default;" % unqual_name))
 
-        code.append("};")
-
         if self._get_cpp_standard() < 20:
             # Operator ==
             code_eq = []
@@ -562,17 +560,19 @@ class CppGenerator:
             code.extend(
                 [
                     "",
-                    f"bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{",
+                    _indent(f"friend bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"),
                 ]
-                + _indent(code_eq)
+                + _indent(_indent(code_eq))
                 + [
-                    "}",
+                    _indent("}"),
                     "",
-                    f"bool operator!=(const struct {unqual_name}& l, const struct {unqual_name}& r) {{",
-                    "   return !(l == r);",
-                    "}",
+                    _indent(f"friend bool operator!=(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"),
+                    _indent("   return !(l == r);"),
+                    _indent("}"),
                 ]
             )
+
+        code.append("};")
 
         return code
 
