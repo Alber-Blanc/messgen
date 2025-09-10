@@ -557,17 +557,19 @@ class CppGenerator:
             code.append(_indent("auto operator<=>(const struct %s &) const = default;" % unqual_name))
 
         if self._get_cpp_standard() < 20:
-            # Member operator== and operator!=
+            # Operator ==
+            code_eq = []
             if len(fields) > 0:
-                # Build equality check: each comparison on its own line using 'and'
-                eq_checks = [f"this->{f.name} == other.{f.name}" for f in fields]
-                # Prepend 'return ' to first line, append ';' to last line
-                eq_checks = ["return " + eq_checks[0]] + ["   and " + e for e in eq_checks[1:]]
-                eq_checks[-1] += ";"
+                field_name = fields[0].name
+                code_eq.append("return l.%s == r.%s" % (field_name, field_name))
+                for field in fields[1:]:
+                    field_name = field.name
+                    code_eq.append("   and l.%s == r.%s" % (field_name, field_name))
             else:
-                eq_checks = ["return true;"]
+                code_eq.append("return true")
+            code_eq[-1] += ";"
 
-            code.extend(_indent(
+            code.extend(
                 [
                     "",
                     _indent(f"friend bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"),
