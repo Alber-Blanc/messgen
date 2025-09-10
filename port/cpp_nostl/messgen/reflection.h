@@ -176,14 +176,14 @@ struct ConstexprString {
 
 template <std::size_t MaxDigits = 20>
 constexpr std::array<char, MaxDigits> uint_to_string(std::size_t value) {
-    std::array<char, MaxDigits> buf{}; // zero-init
+    std::array<char, MaxDigits> buf{};
     std::size_t pos = MaxDigits;
     do {
         buf[--pos] = char('0' + (value % 10));
         value /= 10;
     } while (value && pos > 0);
-    // digits are in buf[pos..]
-    return buf;  // whole thing is a constexpr object
+
+    return buf;
 }
 
 template <typename T, std::size_t N>
