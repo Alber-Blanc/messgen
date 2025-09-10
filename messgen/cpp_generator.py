@@ -304,12 +304,11 @@ class CppGenerator:
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
                     using message_type = messgen::splice_t<R>;
-                    if constexpr (std::is_invocable_r_v<bool, ::messgen::remove_cvref_t<Fn>, message_type>) {{
+                    if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
                         auto msg = message_type{{}};
                         msg.data.deserialize(payload, alloc);
-                        result = std::forward<Fn>(fn).operator()(std::move(msg));
-                    }} else {{
-                        static_assert([]{{ return false; }}(), "Handler must be callable with message and return bool.");
+                        std::forward<Fn>(fn).operator()(std::move(msg));
+                        result = true;
                     }}
                 }});
                 return result;
