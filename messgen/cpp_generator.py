@@ -570,17 +570,17 @@ class CppGenerator:
             code.extend(_indent(
                 [
                     "",
-                    f"bool operator==(const struct {unqual_name}& other) const {{",
+                    _indent(f"friend bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"),
                 ]
-                + _indent(eq_checks)
+                + _indent(_indent(code_eq))
                 + [
-                    "}",
+                    _indent("}"),
                     "",
-                    f"bool operator!=(const struct {unqual_name}& other) const {{",
-                    "    return !(*this == other);",
-                    "}",
+                    _indent(f"friend bool operator!=(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"),
+                    _indent("   return !(l == r);"),
+                    _indent("}"),
                 ]
-            ))
+            )
 
         code.append("};")
 

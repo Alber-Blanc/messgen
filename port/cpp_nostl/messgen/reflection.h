@@ -3,6 +3,8 @@
 
 #include "traits.h"
 
+#include "traits.h"
+
 #include <cstdint>
 #include <string>
 #include <vector>
