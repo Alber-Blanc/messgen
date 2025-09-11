@@ -42,8 +42,8 @@ endfunction()
 #
 # Function creates a target for specified protocol.
 #
-function(messgen_add_proto_library LIBRARY_NAME BASE_DIR PROTOCOL TYPES_TARGET)
-    string(JOIN "," OPTIONS ${ARGN})
+function(messgen_add_proto_library LIBRARY_NAME BASE_DIR PROTOCOL TYPES_TARGET MODE)
+    string(JOIN "," OPTIONS "mode=${MODE}" ${ARGN})
 
     set(MESSAGES_OUT_DIR "${CMAKE_BINARY_DIR}/${LIBRARY_NAME}/generated_src")
 

@@ -286,33 +286,57 @@ class CppGenerator:
         code.append("}")
         return code
 
-    @staticmethod
-    def _generate_dispatcher_decl() -> list[str]:
-        return textwrap.indent(
-            textwrap.dedent("""
+    def _generate_dispatcher_decl(self) -> list[str]:
+        if self._get_mode() == "nostl":
+            out = """
             template <class Fn>
-            constexpr static bool dispatch_message(int16_t msg_id, const uint8_t *payload, messgen::Allocator &alloc, Fn &&fn);
-            """),
-            "    ",
-        ).splitlines()
+            constexpr static bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, uint8_t *dynamic_buf = nullptr, size_t dynamic_buf_size = 0);
+            """
+        else:
+            out = """
+            template <class Fn>
+            constexpr static bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn);
+            """
+        return textwrap.indent(textwrap.dedent(out), "    ").splitlines()
 
-    @staticmethod
-    def _generate_dispatcher(class_name: str) -> list[str]:
-        return textwrap.dedent(f"""
+    def _generate_dispatcher(self, class_name: str) -> list[str]:
+        if self._get_mode() == "nostl":
+            out = f"""
             template <class Fn>
-            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, messgen::Allocator &alloc, Fn &&fn) {{
+            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, uint8_t *dynamic_buf, size_t dynamic_buf_size) {{
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
                     using message_type = messgen::splice_t<R>;
                     if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
                         auto msg = message_type{{}};
+                        messgen::Allocator alloc(dynamic_buf, dynamic_buf_size);
                         msg.data.deserialize(payload, alloc);
                         std::forward<Fn>(fn).operator()(std::move(msg));
                         result = true;
                     }}
                 }});
                 return result;
-            }}""").splitlines()
+            }}
+            """
+        else:
+            out = f"""
+            template <class Fn>
+            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn) {{
+                auto result = false;
+                reflect_message(msg_id, [&]<class R>(R) {{
+                    using message_type = messgen::splice_t<R>;
+                    if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
+                        auto msg = message_type{{}};
+                        msg.data.deserialize(payload);
+                        std::forward<Fn>(fn).operator()(std::move(msg));
+                        result = true;
+                    }}
+                }});
+                return result;
+            }}
+            """
+
+        return textwrap.dedent(out).splitlines()
 
     @staticmethod
     def _generate_comment_type(type_def):
@@ -353,7 +377,8 @@ class CppGenerator:
         code.append(f"[[nodiscard]] constexpr auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
         code.append("    return std::tuple{")
         for enum_value in type_def.values:
-            code.append(f'        ::messgen::enumerator_value{{{{"{enum_value.name}"}}, {unqual_name}::{enum_value.name}}},')
+            code.append(
+                f'        ::messgen::enumerator_value{{{{"{enum_value.name}"}}, {unqual_name}::{enum_value.name}}},')
         code.append("    };")
         code.append("}")
 
@@ -405,7 +430,8 @@ class CppGenerator:
             return max(a_sz, a_key, a_value)
 
         else:
-            raise RuntimeError("Unsupported type_class in _get_alignment: type_class=%s type_def=%s" % (type_class, type_def))
+            raise RuntimeError(
+                "Unsupported type_class in _get_alignment: type_class=%s type_def=%s" % (type_class, type_def))
 
     def _check_alignment(self, type_def, offs):
         align = self._get_alignment(type_def)
@@ -426,7 +452,9 @@ class CppGenerator:
 
         groups = self._field_groups(fields)
         if len(groups) > 1 and self._all_fields_scalar(fields):
-            print("Warn: padding in '%s' after '%s' causes extra memcpy call during serialization." % (type_name, groups[0].fields[0].name))
+            print("Warn: padding in '%s' after '%s' causes extra memcpy call during serialization." % (type_name,
+                                                                                                       groups[0].fields[
+                                                                                                           0].name))
 
         # IS_FLAT flag
         is_flat_str = "false"
@@ -472,12 +500,12 @@ class CppGenerator:
         code_ser.append("return _size;")
 
         code_ser = (
-            [
-                "",
-                "size_t serialize(uint8_t *" + ("_buf" if not is_empty else "") + ") const {",
-            ]
-            + _indent(code_ser)
-            + ["}"]
+                [
+                    "",
+                    "size_t serialize(uint8_t *" + ("_buf" if not is_empty else "") + ") const {",
+                ]
+                + _indent(code_ser)
+                + ["}"]
         )
         code.extend(_indent(code_ser))
 
@@ -510,12 +538,12 @@ class CppGenerator:
         if self._get_mode() == "nostl":
             alloc = ", messgen::Allocator &_alloc"
         code_deser = (
-            [
-                "",
-                "size_t deserialize(const uint8_t *" + ("_buf" if not is_empty else "") + alloc + ") {",
-            ]
-            + _indent(code_deser)
-            + ["}"]
+                [
+                    "",
+                    "size_t deserialize(const uint8_t *" + ("_buf" if not is_empty else "") + alloc + ") {",
+                ]
+                + _indent(code_deser)
+                + ["}"]
         )
         code.extend(_indent(code_deser))
 
@@ -538,15 +566,15 @@ class CppGenerator:
         code_ss.append("return _size;")
 
         code_ss = (
-            [
-                "",
-                "[[nodiscard]] size_t serialized_size() const {",
-                _indent("// %s" % ", ".join(fixed_fields)),
-                _indent("size_t _size = %d;" % fixed_size),
-                "",
-            ]
-            + _indent(code_ss)
-            + ["}"]
+                [
+                    "",
+                    "[[nodiscard]] size_t serialized_size() const {",
+                    _indent("// %s" % ", ".join(fixed_fields)),
+                    _indent("size_t _size = %d;" % fixed_size),
+                    "",
+                ]
+                + _indent(code_ss)
+                + ["}"]
         )
         code.extend(_indent(code_ss))
 
@@ -704,7 +732,9 @@ class CppGenerator:
             size = field_def.size
 
             # Check if there is padding before this field
-            if len(groups[-1].fields) > 0 and ((size is None) or (groups[-1].size is None) or (groups[-1].size % align != 0) or (size % align != 0)):
+            if len(groups[-1].fields) > 0 and (
+                    (size is None) or (groups[-1].size is None) or (groups[-1].size % align != 0) or (
+                    size % align != 0)):
                 # Start next group
                 groups.append(FieldsGroup())
 
@@ -856,13 +886,15 @@ class CppGenerator:
 
         elif type_class == TypeClass.map:
             c.append("{")
-            c.append(_indent("size_t _map_size%d = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);" % level_n))
+            c.append(
+                _indent("size_t _map_size%d = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);" % level_n))
             c.append(_indent("_size += sizeof(messgen::size_type);"))
             key_c_type = self._cpp_type(field_type_def.key_type)
             key_type_def = self._types.get(field_type_def.key_type)
             value_c_type = self._cpp_type(field_type_def.value_type)
             value_type_def = self._types.get(field_type_def.value_type)
-            c.append(_indent("for (size_t _i%d = 0; _i%d < _map_size%d; ++_i%d) {" % (level_n, level_n, level_n, level_n)))
+            c.append(
+                _indent("for (size_t _i%d = 0; _i%d < _map_size%d; ++_i%d) {" % (level_n, level_n, level_n, level_n)))
             c.append(_indent(_indent("%s _key%d;" % (key_c_type, level_n))))
             c.append(_indent(_indent("%s _value%d;" % (value_c_type, level_n))))
             c.append("")
@@ -944,7 +976,8 @@ class CppGenerator:
         return c
 
     def _memcpy_to_buf(self, src: str, size) -> list:
-        return ["::memcpy(&_buf[_size], reinterpret_cast<const uint8_t *>(%s), %s);" % (src, size), "_size += %s;" % size]
+        return ["::memcpy(&_buf[_size], reinterpret_cast<const uint8_t *>(%s), %s);" % (src, size),
+                "_size += %s;" % size]
 
     def _memcpy_from_buf(self, dst: str, size) -> list:
         return ["::memcpy(reinterpret_cast<uint8_t *>(%s), &_buf[_size], %s);" % (dst, size), "_size += %s;" % size]
