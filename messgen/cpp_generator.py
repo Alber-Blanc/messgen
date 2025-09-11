@@ -464,6 +464,11 @@ class CppGenerator:
             code.append(_indent("constexpr static inline size_t FLAT_SIZE = %d;" % (0 if is_empty else groups[0].size)))
             is_flat_str = "true"
         code.append(_indent(f"constexpr static inline bool IS_FLAT = {is_flat_str};"))
+        if self._get_mode() == "nostl":
+            need_alloc_str = "false"
+            if self._need_alloc(type_name):
+                need_alloc_str = "true"
+            code.append(_indent(f"constexpr static inline bool NEED_ALLOC = {need_alloc_str};"))
         if type_hash := hash_type(type_def, types):
             code.append(_indent(f"constexpr inline static uint64_t HASH = {type_hash}ULL;"))
         code.append(_indent(f'constexpr inline static const char* NAME = "{_qual_name(type_name)}";'))
@@ -473,6 +478,11 @@ class CppGenerator:
         for field in type_def.fields:
             field_c_type = self._cpp_type(field.type)
             code.append(_indent(f"{field_c_type} {field.name}; {_inline_comment(field)}"))
+
+        need_alloc = False
+        if self._get_mode() == "nostl":
+            for field in type_def.fields:
+                need_alloc = need_alloc or self._need_alloc(field.type)
 
         # Serialize function
         code_ser = []
@@ -535,7 +545,7 @@ class CppGenerator:
         code_deser.append("return _size;")
 
         alloc = ""
-        if self._get_mode() == "nostl":
+        if need_alloc:
             alloc = ", messgen::Allocator &_alloc"
         code_deser = (
                 [
@@ -721,6 +731,40 @@ class CppGenerator:
 
         raise RuntimeError("Can't get c++ type for %s" % type_name)
 
+    def _need_alloc(self, type_name: str) -> bool:
+        type_def = self._types[type_name]
+
+        if isinstance(type_def, BasicType):
+            return False
+
+        elif isinstance(type_def, DecimalType):
+            return False
+
+        elif isinstance(type_def, ArrayType):
+            return self._need_alloc(type_def.element_type)
+
+        elif isinstance(type_def, VectorType):
+            el_type_def = self._types[type_def.element_type]
+            return self._need_alloc(type_def.element_type) or self._get_alignment(el_type_def) > 1
+
+        elif isinstance(type_def, MapType):
+            value_type_def = self._types[type_def.value_type]
+            return self._need_alloc(type_def.value_type) or self._get_alignment(value_type_def) > 1
+
+        elif isinstance(type_def, EnumType):
+            return False
+
+        elif isinstance(type_def, StructType):
+            for field in type_def.fields:
+                if self._need_alloc(field.type):
+                    return True
+            return False
+
+        elif isinstance(type_def, ExternalType):
+            return False
+
+        raise RuntimeError("Can't check if allocator is needed for %s" % type_name)
+
     def _all_fields_scalar(self, fields: list[FieldType]):
         return all(self._types[field.type].type_class != TypeClass.scalar for field in fields)
 
@@ -825,7 +869,7 @@ class CppGenerator:
 
         elif type_class in [TypeClass.struct, TypeClass.external]:
             alloc = ""
-            if mode == "nostl":
+            if self._need_alloc(field_type_def.type):
                 alloc = ", _alloc"
             c.append("_size += %s.deserialize(&_buf[_size]%s);" % (field_name, alloc))
 
@@ -869,7 +913,10 @@ class CppGenerator:
                 el_size = el_type_def.size
                 el_align = self._get_alignment(el_type_def)
                 c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
-                c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), _field_size}};")
+                if el_align > 1:
+                    c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), _field_size}};")
+                else:
+                    c.append(f"{field_name} = {{&_buf[_size], _field_size}};")
                 c.append("_size += sizeof(messgen::size_type);")
                 if el_size == 0:
                     pass
