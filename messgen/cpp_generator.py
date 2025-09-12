@@ -167,14 +167,6 @@ class CppGenerator:
 
         code = self._PREAMBLE_HEADER + self._generate_includes() + code
 
-        # Enable bitmask operations for generated enums
-        if isinstance(type_def, EnumType):
-            if type_def.bitmask:
-                qual_name = _qual_name(type_name)
-                code.append("namespace messgen {")
-                code.append(f"ENABLE_BITMASK_OPERATORS(%s);" % qual_name)
-                code.append("} // messgen")
-
         return code
 
     def _generate_proto_file(self, proto_name: str, proto_def: Protocol) -> list[str]:
@@ -352,9 +344,6 @@ class CppGenerator:
     def _generate_type_enum(self, type_name, type_def):
         self._add_include("messgen/messgen.h")
         self._add_include("string_view")
-
-        if type_def.bitmask:
-            self._add_include("messgen/bitmasks.h")
 
         unqual_name = _unqual_name(type_name)
         qual_name = _qual_name(type_name)
