@@ -869,7 +869,7 @@ class CppGenerator:
 
         elif type_class in [TypeClass.struct, TypeClass.external]:
             alloc = ""
-            if self._need_alloc(field_type_def.type):
+            if mode == "nostl" and self._need_alloc(field_type_def.type):
                 alloc = ", _alloc"
             c.append("_size += %s.deserialize(&_buf[_size]%s);" % (field_name, alloc))
 
@@ -931,7 +931,7 @@ class CppGenerator:
                         c.append("}")
                 else:
                     # For alignment == 1 simply point to data in source buffer
-                    c.append(f"{field_name} = {{&_buf[_size], _field_size}};")
+                    c.append(f"{field_name} = {{reinterpret_cast<const {el_c_type} *>(&_buf[_size]), _field_size}};")
                     c.append("_size += _field_size * %d;" % el_size)
 
         elif type_class == TypeClass.map:
