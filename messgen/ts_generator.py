@@ -156,7 +156,7 @@ class TypeScriptGenerator:
 
     def _emit_map_interface(self, used: Set[str], proto: Protocol) -> str:
         name = camel(proto.name)
-        lines: list[str] = [f"export interface {name}Map {{"]
+        lines: list[str] = [f"export interface {name}ProtocolMap {{"]
         lines.append(indent(f"[Protocol.{proto.name.upper()}]: {{", level=1))
 
         for m in proto.messages.values():
