@@ -913,23 +913,26 @@ class CppGenerator:
                 el_size = el_type_def.size
                 el_align = self._get_alignment(el_type_def)
                 c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
-                if el_align > 1:
-                    c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), _field_size}};")
-                else:
-                    c.append(f"{field_name} = {{&_buf[_size], _field_size}};")
                 c.append("_size += sizeof(messgen::size_type);")
-                if el_size == 0:
-                    pass
-                elif el_size is not None and el_size % el_align == 0:
-                    # Vector or array of fixed size elements, optimize with single memcpy
-                    if el_size != 1:
-                        c.append("_field_size *= %d;" % el_size)
-                    c.extend(self._memcpy_from_buf("%s.data()" % field_name, "_field_size"))
+                if el_align > 1:
+                    # Allocate memory and copy data to recover alignment
+                    c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), _field_size}};")
+                    if el_size == 0:
+                        pass
+                    elif el_size is not None and el_size % el_align == 0:
+                        # Vector or array of fixed size elements, optimize with single memcpy
+                        if el_size != 1:
+                            c.append("_field_size *= %d;" % el_size)
+                        c.extend(self._memcpy_from_buf("%s.data()" % field_name, "_field_size"))
+                    else:
+                        # Vector or array of variable size elements
+                        c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
+                        c.extend(_indent(self._deserialize_field("_i%d" % level_n, el_type_def, level_n + 1)))
+                        c.append("}")
                 else:
-                    # Vector or array of variable size elements
-                    c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
-                    c.extend(_indent(self._deserialize_field("_i%d" % level_n, el_type_def, level_n + 1)))
-                    c.append("}")
+                    # For alignment == 1 simply point to data in source buffer
+                    c.append(f"{field_name} = {{&_buf[_size], _field_size}};")
+                    c.append("_size += _field_size * %d;" % el_size)
 
         elif type_class == TypeClass.map:
             c.append("{")
