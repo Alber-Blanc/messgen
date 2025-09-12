@@ -539,7 +539,7 @@ class ResolvedStruct(ResolvedType):
         if self._hash is not None:
             yield f"const {self._name}_Hash = uint64({self._hash})\n"
 
-            yield f"func (s *{self._name}) Hash() uint64 {{ return {self._name}_Hash }}\n"
+            yield f"func (s *{self._name}) MessageHash() uint64 {{ return {self._name}_Hash }}\n"
 
         ##################################################################
         # Generate size count method
@@ -684,7 +684,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
         yield f"\treturn messgen.PayloadId{{Protocol: {proto_name}_Id, Message: {proto_name}_{toGoName(msg.name)}_Id}}"
         yield f"}}"
         yield f""
-        yield f"func (m *{proto_name}_{toGoName(msg.name)}) Hash() uint64{{"
+        yield f"func (m *{proto_name}_{toGoName(msg.name)}) MessageHash() uint64{{"
         yield f"\treturn {proto_name}_{toGoName(msg.name)}_Hash"
         yield f"}}"
         yield f""
