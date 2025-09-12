@@ -399,17 +399,29 @@ class ResolvedStruct(ResolvedType):
 
     def renderDeserialize(self, name: str, cur: ResolvedType, step = 0):
         if cur._model.type_class == TypeClass.string:
+            yield f"  if len(input) <= inputOfs {{"
+            yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
+            yield f"  }}"
             yield f"  size := int(binary.LittleEndian.Uint32(input[inputOfs:]))"
             yield f"  tmp  := make([]byte, size)"
+            yield f"  if len(input) <= inputOfs + 4 {{"
+            yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
+            yield f"  }}"
             yield f"  copy(tmp, input[inputOfs+4:])"
             yield f"  {name} = string(tmp)"
             yield f"  inputOfs += (4+size)"
         elif cur._model.type_class == TypeClass.bytes:
             yield f"  size := int(binary.LittleEndian.Uint32(input[inputOfs:]))"
             yield f"  {name} = make([]byte, size)"
+            yield f"  if len(input) <= inputOfs + 4 {{"
+            yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
+            yield f"  }}"
             yield f"  copy({name}, input[inputOfs+4:])"
             yield f"  inputOfs += (4+size)"
         elif cur._model.type_class == TypeClass.struct:
+            yield f"  if len(input) <= inputOfs {{"
+            yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
+            yield f"  }}"
             yield f"  sz, err := {name}.Deserialize(input[inputOfs:])"
             yield f"  if err != nil {{"
             yield f"     return uint32(inputOfs), fmt.Errorf(\"Failed to decode field '{name}'\")"
@@ -417,6 +429,9 @@ class ResolvedStruct(ResolvedType):
             yield f"  inputOfs += int(sz)"
         elif isinstance(cur, ResolvedBuiltin):
             yield f"  buf := (*[{cur.type_size()}]byte)(unsafe.Pointer(&{name}))"
+            yield f"  if len(input) <= inputOfs {{"
+            yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
+            yield f"  }}"
             yield f"  copy((*buf)[0:{cur.type_size()}], input[inputOfs:])"
             yield f"  inputOfs += {cur.type_size()}"
         elif isinstance(cur, ResolvedSlice):
@@ -426,12 +441,18 @@ class ResolvedStruct(ResolvedType):
             if cur._model.type_class == TypeClass.array:
                 yield f"  size := len({name})"
             else:
+                yield f"  if len(input) <= inputOfs {{"
+                yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
+                yield f"  }}"
                 yield f"  size := int(binary.LittleEndian.Uint32(input[inputOfs:]))"
                 yield f"  {name} = make({cur.reference(self._package)}, size)"
                 yield f"  inputOfs += 4"
             if cur._element.data_size() != None and cur._element.is_flat():
                 yield f"  uptr := unsafe.Pointer(unsafe.SliceData({name}[0:]))"
                 yield f"  bytes := unsafe.Slice((*byte)(uptr), size*{cur._element.type_size()})"
+                yield f"  if len(input) <= inputOfs {{"
+                yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
+                yield f"  }}"
                 yield f"  copy(bytes, input[inputOfs:])"
                 yield f"  inputOfs += len(bytes)"
             else:
