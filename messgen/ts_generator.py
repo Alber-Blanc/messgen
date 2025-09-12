@@ -115,7 +115,7 @@ class TypeScriptGenerator:
 
         union = textwrap.dedent(f"""
             export type Message = {' | '.join(camel(p.name) for p in protocols.values())};
-            export type ProtocolMap = {' & '.join(camel(p.name) + 'Map' for p in protocols.values())};
+            export type ProtocolMap = {' & '.join(camel(p.name) + 'ProtocolMap' for p in protocols.values())};
         """).strip()
 
         imports = self._build_imports(used)
