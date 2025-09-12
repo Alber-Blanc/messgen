@@ -271,7 +271,7 @@ class ResolvedStruct(ResolvedType):
     def add_field(self, name: str, type: ResolvedType):
         if type.imported(self._package):
             self._imports.append(type.package_full())
-        
+
         self._alignment = max(self._alignment, type.alignment())
 
         if self._size is not None:
@@ -319,7 +319,7 @@ class ResolvedStruct(ResolvedType):
             if cur._model.type_class != TypeClass.array:
                 yield f" result += 4"
             if cur._element.data_size() != None and cur._element.is_flat():
-                 yield f"  result += len({name})*({cur._element.type_size()})"
+                yield f"  result += len({name})*({cur._element.type_size()})"
             else:
                 yield f"for {elem_idx} := 0; {elem_idx} < len({name}); {elem_idx}++ {{"
                 yield from self.renderSize(elem_name, cur._element, step+1)
@@ -374,10 +374,10 @@ class ResolvedStruct(ResolvedType):
                 yield f"  outputOfs += 4"
 
             if cur._element.data_size() != None and cur._element.is_flat():
-                 yield f"  uptr := unsafe.Pointer(unsafe.SliceData({name}[0:]))"
-                 yield f"  bytes := unsafe.Slice((*byte)(uptr), len({name})*{cur._element.type_size()})"
-                 yield f"  copy(output[outputOfs:], bytes)"
-                 yield f"  outputOfs += len(bytes)"
+                yield f"  uptr := unsafe.Pointer(unsafe.SliceData({name}[0:]))"
+                yield f"  bytes := unsafe.Slice((*byte)(uptr), len({name})*{cur._element.type_size()})"
+                yield f"  copy(output[outputOfs:], bytes)"
+                yield f"  outputOfs += len(bytes)"
             else:
                 yield f"for {elem_idx} := 0; {elem_idx} < len({name}); {elem_idx}++ {{"
                 yield from self.renderSerialize(elem_name, cur._element, step+1)
@@ -430,10 +430,10 @@ class ResolvedStruct(ResolvedType):
                 yield f"  {name} = make({cur.reference(self._package)}, size)"
                 yield f"  inputOfs += 4"
             if cur._element.data_size() != None and cur._element.is_flat():
-                 yield f"  uptr := unsafe.Pointer(unsafe.SliceData({name}[0:]))"
-                 yield f"  bytes := unsafe.Slice((*byte)(uptr), size*{cur._element.type_size()})"
-                 yield f"  copy(bytes, input[inputOfs:])"
-                 yield f"  inputOfs += len(bytes)"
+                yield f"  uptr := unsafe.Pointer(unsafe.SliceData({name}[0:]))"
+                yield f"  bytes := unsafe.Slice((*byte)(uptr), size*{cur._element.type_size()})"
+                yield f"  copy(bytes, input[inputOfs:])"
+                yield f"  inputOfs += len(bytes)"
             else:
                 yield f"for {elem_idx} := 0; {elem_idx} < size; {elem_idx}++ {{"
                 yield from self.renderDeserialize(elem_name, cur._element, step+1)
@@ -525,7 +525,7 @@ class ResolvedStruct(ResolvedType):
         yield f"func (s *{self._name}) SerializedSize() uint32 {{"
         yield f" result := 0"
         for g in self.fieldGroups():
-            names = [name for name, _ in g.fields] 
+            names = [name for name, _ in g.fields]
             yield f"\n// Count group {",".join(names)}"
             if g.size != None and g.flat:
                 yield f" result += {g.size}"
@@ -535,7 +535,7 @@ class ResolvedStruct(ResolvedType):
                 yield from self.renderSize("s."+name, type)
                 yield "}"
         yield " return uint32(result)\n}\n"
-    
+
         ##################################################################
         # Generate write methods
         yield f"func (s *{self._name}) Serialize(output []byte) (uint32, error) {{"
@@ -546,7 +546,7 @@ class ResolvedStruct(ResolvedType):
         else:
             yield "  outputOfs := 0"
         for g in self.fieldGroups():
-            names = [name for name, _ in g.fields] 
+            names = [name for name, _ in g.fields]
             yield f"\n// Write group {",".join(names)}"
             if g.size != None and g.flat:
                 yield f" {{"
@@ -572,7 +572,7 @@ class ResolvedStruct(ResolvedType):
         else:
             yield "  inputOfs := 0"
         for g in self.fieldGroups():
-            names = [name for name, _ in g.fields] 
+            names = [name for name, _ in g.fields]
             yield f"\n// Read group {",".join(names)}"
             if g.size != None and g.flat:
                 yield f" {{"
@@ -600,10 +600,10 @@ class ResolvedStruct(ResolvedType):
 
             # Check if there is padding before this field
             if len(group.fields) > 0 and (
-                (data_size is None) or
-                (group.size is None) or
-                (data_size % align != 0) or
-                (group.size % align != 0)):
+                    (data_size is None) or
+                    (group.size is None) or
+                    (data_size % align != 0) or
+                    (group.size % align != 0)):
                 # Start next group
                 group.pad = (align - offset % align) % align
                 offset += group.pad
@@ -629,13 +629,13 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     seen = set()
 
     for _, msg in proto_def.messages.items():
-          tp = types[msg.type]
-          fp = tp.package_full()
-          if fp in seen:
+        tp = types[msg.type]
+        fp = tp.package_full()
+        if fp in seen:
             continue
 
-          yield f"\t\"{fp}\""
-          seen.add(fp)
+        yield f"\t\"{fp}\""
+        seen.add(fp)
     yield ")\n"
 
     yield f"const {proto_name}_Id messgen.ProtocolId = {proto_def.proto_id}"
@@ -686,7 +686,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield f"return &{proto_name}Dispatcher{{}}"
     yield f"}}"
     yield f""
-    yield f"func {proto_name}Setup[T any, P interface {{messgen.ProtocolMessage; *T}}](dispatcher *{proto_name}Dispatcher, mid messgen.MessageId, process func(P) error) error {{"
+    yield f"func {proto_name}Setup[T any, P interface {{messgen.ProtocolMessage; *T}}](dispatcher *{proto_name}Dispatcher, mid messgen.MessageId, process func(context.Context, P) error) error {{"
     yield f"\tmsg := P(new(T))"
     yield f"expectedId := messgen.PayloadId{{Protocol: {proto_name}_Id, Message: mid}}"
     yield f""
@@ -694,7 +694,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield f"\treturn fmt.Errorf(\"message id doesn't match for the message {proto_name}_%s: %s != %s \", {proto_name}MessageName(mid), msg.Id(), expectedId)"
     yield f"}}"
     yield f""
-    yield f"\tdispatcher[int(mid)] = func(mid messgen.MessageId, body []byte) error {{"
+    yield f"\tdispatcher[int(mid)] = func(ctx context.Context, mid messgen.MessageId, body []byte) error {{"
     yield f"\tmsg := P(new(T))"
     yield f""
     yield f"\tsz, err := msg.Data().Deserialize(body)"
@@ -704,7 +704,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield f"\t\treturn fmt.Errorf(\"size isn't valid for the message {proto_name}_%s: %d != %d\", {proto_name}MessageName(mid), sz, len(body))"
     yield f"\t}}"
     yield f"\t"
-    yield f"\terr = process(msg)"
+    yield f"\terr = process(ctx, msg)"
     yield f"\tif err != nil {{"
     yield f"\t\treturn fmt.Errorf(\"failed to handle message {proto_name}_%s: %s\", {proto_name}MessageName(mid),  err)"
     yield f"\t}}"
@@ -715,7 +715,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield f"\treturn nil"
     yield f"}}"
     yield f""
-    yield f"func (dispatcher *{proto_name}Dispatcher) Dispatch(mid messgen.MessageId, body []byte) error {{"
+    yield f"func (dispatcher *{proto_name}Dispatcher) Dispatch(ctx context.Context, mid messgen.MessageId, body []byte) error {{"
     yield f"\tif len(dispatcher) <= int(mid) {{"
     yield f"\t\treturn errors.New(\"mismatching versions, dispatcher doesn't have a handler for message \" + strconv.Itoa(int(mid)))"
     yield f"\t}}\n"
@@ -723,7 +723,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield f"\tif handle == nil {{"
     yield f"\t\treturn errors.New(\"no handler for message \" + strconv.Itoa(int(mid)))"
     yield f"\t}}\n"
-    yield f"\treturn handle(mid, body)"
+    yield f"\treturn handle(ctx, mid, body)"
     yield f"}}"
 
 
@@ -744,7 +744,7 @@ class GolangGenerator:
 
         # The problem is: this type could refers another types. So first check if there are
         # dependencies and render it. Use recursion for simplicity.
-        # TODO(andrphi): Detect and report cycles if any 
+        # TODO(andrphi): Detect and report cycles if any
         resolved : ResolvedType | None = None
         type_def = self._types[typename]
         gomod_name = self._options["mod_name"]
