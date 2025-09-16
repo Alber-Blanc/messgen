@@ -29,6 +29,8 @@ from .model import (
     VectorType,
     hash_message,
     hash_type,
+    BitsetBit,
+    BitsetType,
 )
 
 
@@ -72,7 +74,7 @@ def _struct(name: str, code: list[str]):
         code.append("")
 
 
-def _inline_comment(type_def: FieldType | EnumValue):
+def _inline_comment(type_def: FieldType | EnumValue | BitsetBit):
     if type_def.comment:
         return " ///< %s" % type_def.comment
     return ""
@@ -131,7 +133,7 @@ class CppGenerator:
     def generate_types(self, out_dir: Path, types: dict[str, MessgenType]) -> None:
         self._types = types
         for type_name, type_def in types.items():
-            if type_def.type_class not in [TypeClass.struct, TypeClass.enum]:
+            if type_def.type_class not in [TypeClass.struct, TypeClass.enum, TypeClass.bitset]:
                 continue
             file_name = out_dir / (type_name + self._EXT_HEADER)
             file_name.parent.mkdir(parents=True, exist_ok=True)
@@ -164,6 +166,8 @@ class CppGenerator:
             elif isinstance(type_def, StructType):
                 code.extend(self._generate_type_struct(type_name, type_def, types))
                 code.extend(self._generate_type_members_of(type_name, type_def))
+            elif isinstance(type_def, BitsetType):
+                code.extend(self._generate_type_bitset(type_name, type_def))
 
         code = self._PREAMBLE_HEADER + self._generate_includes() + code
 
@@ -370,6 +374,48 @@ class CppGenerator:
                 f'        ::messgen::enumerator_value{{{{"{enum_value.name}"}}, {unqual_name}::{enum_value.name}}},')
         code.append("    };")
         code.append("}")
+
+        return code
+
+    def _generate_type_bitset(self, type_name, type_def):
+        self._add_include("messgen/messgen.h")
+        self._add_include("string_view")
+        self._add_include("messgen/bitset_operators.h")
+
+        unqual_name = _unqual_name(type_name)
+        qual_name = _qual_name(type_name)
+
+        code = []
+        code.extend(self._generate_comment_type(type_def))
+        code.append(f"class {unqual_name}: public messgen::detail::bitmask_operators_mixin<{unqual_name}> {{")
+        code.append(f"    enum class Values : {self._cpp_type(type_def.base_type)} {{")
+        for bit in type_def.bits:
+            code.append("        %s = %s,%s" % (bit.name, bit.offset, _inline_comment(bit)))
+        code.append("    };")
+
+        code.append("")
+        code.append("public:")
+        code.append("    using underlying_type = std::underlying_type_t<Values>;")
+
+        code.append("")
+        if self._get_cpp_standard() >= 20:
+            code.append("    using enum Values;")
+        else:
+            for bit in type_def.bits:
+                code.append("    static constexpr Values %s = Values::%s;" % (bit.name, bit.name))
+
+        code.append("")
+        code.append("private:")
+        code.append(f"    friend class messgen::detail::bitmask_operators_mixin<{unqual_name}>;")
+        code.append(f"    std::bitset<sizeof(underlying_type) * CHAR_BIT> _bits;")
+        code.append("};")
+
+        code.extend(
+            textwrap.dedent(f"""
+                [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                    return "{qual_name}";
+                }}""").splitlines()
+        )
 
         return code
 
