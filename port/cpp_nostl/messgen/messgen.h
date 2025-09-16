@@ -1,8 +1,5 @@
 #pragma once
 
 #include <messgen/messgen_common.h>
-
-namespace messgen {
-
-
-} // namespace messgen
+#include "vector.h"
+#include "traits_nostl.h"
