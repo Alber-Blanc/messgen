@@ -6,7 +6,7 @@
 
 namespace messgen::detail {
 
-template<class M>
+template<class M, class U>
 struct bitmask_operators_mixin {
     template<typename E>
     friend M& operator|=(M& lhs, E rhs)
@@ -22,9 +22,49 @@ struct bitmask_operators_mixin {
         return lhs;
     }
 
-    auto to_string() const {
-        return static_cast<const M&>(*this)._bits.to_string();
+    template<typename E>
+    friend M& operator&=(M& lhs, E rhs)
+    {
+        lhs._bits &= std::bitset<sizeof(U) * CHAR_BIT>(1 << static_cast<U>(rhs));
+        return lhs;
     }
-};
 
+    template<typename E>
+    friend M operator&(M lhs, E rhs)
+    {
+        lhs &= rhs;
+        return lhs;
+    }
+
+    template<typename E>
+    friend M& operator^=(M& lhs, E rhs)
+    {
+        lhs._bits ^= std::bitset<sizeof(U) * CHAR_BIT>(1 << static_cast<U>(rhs));
+        return lhs;
+    }
+
+    template<typename E>
+    friend M operator^(M lhs, E rhs)
+    {
+        lhs ^= rhs;
+        return lhs;
+    }
+
+    friend M operator~(const M& rhs) {
+        M result;
+        result._bits = ~rhs._bits;
+        return result;
+    }
+
+    auto to_string() const {
+        return _bits.to_string();
+    }
+
+    operator U() const {
+        return static_cast<U>(_bits.to_ullong());
+    }
+
+private:
+    std::bitset<sizeof(U) * CHAR_BIT> _bits;
+};
 } // namespace messgen::detail

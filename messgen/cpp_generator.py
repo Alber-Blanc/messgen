@@ -387,7 +387,7 @@ class CppGenerator:
 
         code = []
         code.extend(self._generate_comment_type(type_def))
-        code.append(f"class {unqual_name}: public messgen::detail::bitmask_operators_mixin<{unqual_name}> {{")
+        code.append(f"class {unqual_name}: public messgen::detail::bitmask_operators_mixin<{unqual_name}, {self._cpp_type(type_def.base_type)}> {{")
         code.append(f"    enum class Values : {self._cpp_type(type_def.base_type)} {{")
         for bit in type_def.bits:
             code.append("        %s = %s,%s" % (bit.name, bit.offset, _inline_comment(bit)))
@@ -403,11 +403,6 @@ class CppGenerator:
         else:
             for bit in type_def.bits:
                 code.append("    static constexpr Values %s = Values::%s;" % (bit.name, bit.name))
-
-        code.append("")
-        code.append("private:")
-        code.append(f"    friend class messgen::detail::bitmask_operators_mixin<{unqual_name}>;")
-        code.append(f"    std::bitset<sizeof(underlying_type) * CHAR_BIT> _bits;")
         code.append("};")
 
         code.extend(
