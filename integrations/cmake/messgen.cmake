@@ -35,6 +35,7 @@ function(messgen_add_types_library LIBRARY_NAME BASE_DIRS MODE)
     add_dependencies(${LIBRARY_NAME} ${GENERATE_TARGET_NAME})
     target_include_directories(${LIBRARY_NAME} INTERFACE
         ${MESSAGES_OUT_DIR}
+        ${MESSGEN_DIR}/port/cpp
         ${MESSGEN_DIR}/port/cpp_${MODE}
     )
 endfunction()

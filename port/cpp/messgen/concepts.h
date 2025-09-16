@@ -4,7 +4,7 @@
 #error "C++20 or higher is required"
 #endif
 
-#include "reflection.h"
+#include <messgen/reflection.h>
 
 #include <concepts>
 #include <cstddef>

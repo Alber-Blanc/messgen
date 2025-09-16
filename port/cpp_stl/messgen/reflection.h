@@ -1,12 +1,12 @@
 #pragma once
 
-#include "traits.h"
+#include "../../cpp/messgen/traits.h"
 
 #include <array>
 #include <cstdint>
 #include <map>
-#include <string_view>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
