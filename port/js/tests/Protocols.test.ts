@@ -9,7 +9,7 @@ describe('Protocols', () => {
     protocols.load([
       {
         type: 'simple_struct',
-        type_class: '8',
+        type_class: 'struct',
         fields: [
           { name: 'f0', type: 'uint64' },
           { name: 'f1', type: 'int64' },
@@ -17,7 +17,7 @@ describe('Protocols', () => {
       },
       {
         type: 'simple_enum',
-        type_class: '7',
+        type_class: 'enum',
         base_type: 'uint8',
         values: [
           { name: 'one_value', value: 0 },

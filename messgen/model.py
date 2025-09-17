@@ -2,21 +2,21 @@ import hashlib
 import json
 
 from dataclasses import dataclass, asdict
-from enum import Enum, auto
+from enum import Enum
 from typing import Union
 
 
 class TypeClass(str, Enum):
-    scalar = auto()
-    string = auto()
-    bytes = auto()
-    vector = auto()
-    array = auto()
-    map = auto()
-    enum = auto()
-    struct = auto()
-    decimal = auto()
-    external = auto()
+    scalar = "scalar"
+    string = "string"
+    bytes = "bytes"
+    vector = "vector"
+    array = "array"
+    map = "map"
+    enum = "enum"
+    struct = "struct"
+    decimal = "decimal"
+    external = "external"
 
 
 @dataclass
