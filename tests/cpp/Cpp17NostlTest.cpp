@@ -9,7 +9,7 @@
 class Cpp17NostlTest : public ::testing::Test {
 protected:
     std::vector<uint8_t> _buf;
-    messgen::StaticAllocator<1024 * 1024> _alloc;
+    uint8_t _alloc_buf[1024 * 1024] = {};
 
     template <class T>
     void test_serialization(const T &msg) {
@@ -20,7 +20,13 @@ protected:
         EXPECT_EQ(ser_size, sz_check);
 
         T msg1{};
-        size_t deser_size = msg1.deserialize(&_buf[0], _alloc);
+        size_t deser_size;
+        if constexpr (T::NEED_ALLOC) {
+            auto alloc = messgen::Allocator(_alloc_buf, sizeof(_alloc_buf));
+            deser_size = msg1.deserialize(&_buf[0], alloc);
+        } else {
+            deser_size = msg1.deserialize(&_buf[0]);
+        }
         EXPECT_EQ(deser_size, sz_check);
 
         EXPECT_TRUE(msg == msg1);

@@ -4,6 +4,8 @@
 #include "concepts.h"
 #endif
 
+#include <messgen/reflection.h>
+
 #include <cstdint>
 #include <type_traits>
 
