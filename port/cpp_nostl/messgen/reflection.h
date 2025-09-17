@@ -1,11 +1,11 @@
 #pragma once
 
-#include "traits.h"
+#include "traits_nostl.h"
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
-#include <array>
 
 namespace messgen {
 

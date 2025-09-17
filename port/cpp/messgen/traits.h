@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Allocator.h"
-
 #include <cstdint>
 #include <type_traits>
 
@@ -64,8 +62,7 @@ template <typename T, typename = void>
 struct has_deserialize_method : std::false_type {};
 
 template <typename T>
-struct has_deserialize_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)(const uint8_t *, Allocator &_alloc)>(&T::deserialize))>> : std::true_type {
-};
+struct has_deserialize_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)(const uint8_t *)>(&T::deserialize))>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool has_deserialize_method_v = has_deserialize_method<T>::value;
