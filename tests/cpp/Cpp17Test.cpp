@@ -207,11 +207,11 @@ TEST_F(CppTest17, MessageReflectionFieldNames) {
 
     auto names = std::vector<std::string_view>{};
     for_each(members_of(reflect_object(message)), [&](auto &&param) { names.push_back(name_of(param)); });
-    EXPECT_EQ(names.size(), 17);
+    EXPECT_EQ(names.size(), 18);
 
     auto expected_names = std::vector<std::string_view>{
-        "f0",     "f1",     "f2",     "s_arr", "f1_arr", "v_arr",   "f2_vec",         "e_vec",          "s_vec",
-        "v_vec0", "v_vec1", "v_vec2", "str",   "bs",     "str_vec", "map_str_by_int", "map_vec_by_str",
+            "f0",    "f1",     "f2",     "bits0",  "s_arr", "f1_arr", "v_arr",   "f2_vec",         "e_vec",
+            "s_vec", "v_vec0", "v_vec1", "v_vec2", "str",   "bs",     "str_vec", "map_str_by_int", "map_vec_by_str",
     };
     EXPECT_EQ(expected_names, names);
 }
@@ -223,12 +223,13 @@ TEST_F(CppTest17, MessageReflectionFieldTypes) {
 
     auto types = std::vector<std::string_view>{};
     for_each(members_of(reflect_object(message)), [&](auto &&param) { types.push_back(name_of(type_of(param))); });
-    EXPECT_EQ(types.size(), 17);
+    EXPECT_EQ(types.size(), 18);
 
     auto expected_types = std::vector<std::string_view>{
         "uint64_t",
         "uint32_t",
         "uint64_t",
+        "messgen::test::test_bitset",
         "array<messgen::test::simple_struct, 2>",
         "array<int64_t, 4>",
         "array<messgen::test::var_size_struct, 2>",
@@ -320,7 +321,7 @@ TEST_F(CppTest17, ProtoHash) {
                          test_proto::complex_struct_nostl_msg::HASH ^      //
                          test_proto::flat_struct_msg::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
-    EXPECT_EQ(11460364063552977134ULL, hash_test_proto);
+    EXPECT_EQ(4336069957896564965, hash_test_proto);
 }
 
 TEST_F(CppTest17, TypeTraits) {

@@ -423,10 +423,7 @@ class CppGenerator:
             elif type_class in [TypeClass.string, TypeClass.bytes]:
                 return self._get_alignment(self._types[SIZE_TYPE])
 
-        if isinstance(type_def, DecimalType):
-            return type_def.size
-
-        if isinstance(type_def, EnumType):
+        if isinstance(type_def, (DecimalType, EnumType, BitsetType)):
             return type_def.size
 
         elif isinstance(type_def, StructType):
@@ -748,7 +745,7 @@ class CppGenerator:
             else:
                 raise RuntimeError("Unsupported mode for map: %s" % mode)
 
-        elif isinstance(type_def, (EnumType, StructType)):
+        elif isinstance(type_def, (EnumType, BitsetType, StructType)):
             scope = "global" if SEPARATOR in type_name else "local"
             self._add_include("%s.h" % type_name, scope)
             return _qual_name(type_name)
@@ -764,10 +761,7 @@ class CppGenerator:
     def _need_alloc(self, type_name: str) -> bool:
         type_def = self._types[type_name]
 
-        if isinstance(type_def, BasicType):
-            return False
-
-        elif isinstance(type_def, DecimalType):
+        if isinstance(type_def, (BasicType, DecimalType, EnumType, BitsetType)):
             return False
 
         elif isinstance(type_def, ArrayType):
@@ -780,9 +774,6 @@ class CppGenerator:
         elif isinstance(type_def, MapType):
             value_type_def = self._types[type_def.value_type]
             return self._need_alloc(type_def.value_type) or self._get_alignment(value_type_def) > 1
-
-        elif isinstance(type_def, EnumType):
-            return False
 
         elif isinstance(type_def, StructType):
             for field in type_def.fields:
