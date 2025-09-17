@@ -702,7 +702,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield f"\treturn fmt.Sprintf(\"Unknown message for th protocol {proto_name}: %d\", mid)"
     yield f"}}"
     yield f""
-    yield f"type {proto_name}Dispatcher [{maxid+1}]func(mid messgen.MessageId, body []byte) error"
+    yield f"type {proto_name}Dispatcher [{maxid+1}]func(ctx context.Context, mid messgen.MessageId, body []byte) error";
     yield f""
     yield f"func New{proto_name}Dispatcher() *{proto_name}Dispatcher {{"
     yield f"return &{proto_name}Dispatcher{{}}"
