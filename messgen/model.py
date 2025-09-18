@@ -17,6 +17,7 @@ class TypeClass(str, Enum):
     struct = "struct"
     decimal = "decimal"
     external = "external"
+    bitset = "bitset"
 
 
 @dataclass
@@ -130,6 +131,29 @@ class ExternalType:
         return set()
 
 
+@dataclass
+class BitsetBit:
+    name: str
+    offset: int
+    comment: str | None
+
+    def dependencies(self) -> set[str]:
+        return set()
+
+
+@dataclass
+class BitsetType:
+    type: str
+    type_class: TypeClass
+    base_type: str
+    comment: str | None
+    bits: list[BitsetBit]
+    size: int
+
+    def dependencies(self) -> set[str]:
+        return set()
+
+
 MessgenType = Union[
     ArrayType,
     BasicType,
@@ -139,6 +163,7 @@ MessgenType = Union[
     MapType,
     StructType,
     VectorType,
+    BitsetType,
 ]
 
 

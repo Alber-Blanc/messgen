@@ -331,3 +331,58 @@ def test_type_converter_type_info(codec):
     assert enum_converter.type_definition().type_class == TypeClass.enum
 
     assert struct_converter.type_hash() != enum_converter.type_hash()
+
+
+def test_codec_types(codec):
+    types = codec.types()
+
+    assert isinstance(types, list)
+    assert types == sorted(types)
+
+    expected_types = [
+        "bool",
+        "bytes",
+        "dec64",
+        "float32",
+        "float64",
+        "int16",
+        "int32",
+        "int64",
+        "int8",
+        "messgen/test/complex_struct_nostl",
+        "messgen/test/complex_struct_with_empty",
+        "messgen/test/complex_struct",
+        "messgen/test/empty_struct",
+        "messgen/test/flat_struct_with_decimal",
+        "messgen/test/flat_struct",
+        "messgen/test/simple_enum",
+        "messgen/test/simple_struct",
+        "messgen/test/struct_with_enum",
+        "messgen/test/var_size_struct",
+        "string",
+        "uint16",
+        "uint32",
+        "uint64",
+        "uint8",
+    ]
+
+    for expected_type in expected_types:
+        assert expected_type in types
+
+
+def test_codec_protocols(codec):
+    protocols = codec.protocols()
+
+    assert isinstance(protocols, list)
+    assert protocols == sorted(protocols)
+
+    expected_protocols = ["test_proto"]
+    assert protocols == expected_protocols
+
+
+def test_codec_empty():
+    # Test empty codec (no types or protocols loaded)
+    empty_codec = Codec()
+
+    assert empty_codec.types() == []
+    assert empty_codec.protocols() == []
