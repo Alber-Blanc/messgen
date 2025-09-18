@@ -1,6 +1,10 @@
 #pragma once
 
-#include "reflection.h"
+#if __cplusplus < 202002L
+#error "C++20 or higher is required"
+#endif
+
+#include <messgen/reflection.h>
 
 #include <concepts>
 #include <cstddef>
