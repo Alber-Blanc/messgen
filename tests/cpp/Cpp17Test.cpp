@@ -114,6 +114,7 @@ TEST_F(CppTest17, ComplexStruct) {
     msg.map_vec_by_str["cat"].push_back(3);
     msg.map_vec_by_str["dog"].push_back(30);
     msg.map_vec_by_str["dog"].push_back(40);
+    msg.bits0 |= messgen::test::test_bitset::error;
 
     test_serialization(msg);
 }
