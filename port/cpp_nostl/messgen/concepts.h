@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus < 202002L
+#error "C++20 or higher is required"
+#endif
+
 #include "Allocator.h"
 
 #include "reflection.h"
@@ -26,14 +30,21 @@ concept enumeration = std::is_enum_v<T> && requires(T t) {
 };
 
 template <class Type>
-concept serializable = requires(std::remove_cvref_t<Type> msg, uint8_t *buf, Allocator &allocator) {
+concept serializable = requires(std::remove_cvref_t<Type> msg, uint8_t *buf) {
+    { msg.serialized_size() } -> std::same_as<size_t>;
+    { msg.serialize(buf) } -> std::same_as<size_t>;
+    { msg.deserialize(buf) } -> std::same_as<size_t>;
+};
+
+template <class Type>
+concept serializable_alloc = requires(std::remove_cvref_t<Type> msg, uint8_t *buf, Allocator &allocator) {
     { msg.serialized_size() } -> std::same_as<size_t>;
     { msg.serialize(buf) } -> std::same_as<size_t>;
     { msg.deserialize(buf, allocator) } -> std::same_as<size_t>;
 };
 
 template <class Type>
-concept type = serializable<Type> && requires(std::remove_cvref_t<Type> msg) {
+concept type = (serializable<Type> || serializable_alloc<Type>) && requires(std::remove_cvref_t<Type> msg) {
     { msg.NAME } -> std::convertible_to<const char *>;
     { msg.SCHEMA } -> std::convertible_to<const char *>;
     { msg.IS_FLAT } -> std::convertible_to<bool>;

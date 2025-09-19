@@ -1,5 +1,8 @@
 #pragma once
 
+#include "traits_nostl.h"
+
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -17,14 +20,14 @@ template <class T>
 constexpr reflect_t<T> reflect_type = {};
 
 template <class T>
-constexpr reflect_t<std::remove_cvref_t<T>> reflect_object(T &&t) {
+constexpr reflect_t<remove_cvref_t<T>> reflect_object(T &&t) {
     return &t;
 }
 
 template <class C, class M>
 struct member {
     using class_type = C;
-    using member_type = std::remove_cvref_t<M>;
+    using member_type = remove_cvref_t<M>;
 
     const char *name;
 };
@@ -39,17 +42,25 @@ enumerator_value(const char *, T) -> enumerator_value<T>;
 
 template <class C, class M>
 struct member_variable : member<C, M> {
+    using pointer_type = M C::*;
     using member<C, M>::name;
-    M C::*ptr;
+
+    pointer_type ptr;
 };
 
 template <class C, class M>
 member_variable(const char *, M C::*) -> member_variable<C, M>;
 
 template <class S, class C, class M>
-    requires std::same_as<std::remove_cvref_t<S>, std::remove_cvref_t<C>>
-[[nodiscard]] constexpr decltype(auto) value_of(S &&obj, const member_variable<C, M> &m) noexcept {
-    return std::forward<S>(obj).*m.ptr;
+[[nodiscard]] constexpr auto value_of(S &obj, const member_variable<C, M> &m) noexcept
+    -> std::enable_if_t<std::is_same_v<remove_cvref_t<S>, remove_cvref_t<C>>, std::add_lvalue_reference_t<typename member_variable<C, M>::member_type>> {
+    return obj.*m.ptr;
+}
+
+template <class S, class C, class M>
+[[nodiscard]] constexpr auto value_of(const S &obj, const member_variable<C, M> &m) noexcept
+    -> std::enable_if_t<std::is_same_v<remove_cvref_t<S>, remove_cvref_t<C>>, std::add_lvalue_reference_t<const typename member_variable<C, M>::member_type>> {
+    return obj.*m.ptr;
 }
 
 template <class E>
@@ -73,16 +84,12 @@ template <class C, class M>
 }
 
 template <class T>
-    requires requires(T &&t) {
-        { t.NAME };
-    }
-[[nodiscard]] constexpr std::string_view name_of(reflect_t<T>) noexcept {
+[[nodiscard]] constexpr auto name_of(reflect_t<T>) noexcept -> std::enable_if_t<has_name_member<T>::value, std::string_view> {
     return T::NAME;
 }
 
 template <class T>
-    requires std::is_enum_v<T>
-[[nodiscard]] constexpr std::string_view name_of(reflect_t<T> r) noexcept {
+[[nodiscard]] constexpr auto name_of(reflect_t<T> r) noexcept -> std::enable_if_t<std::is_enum_v<T>, std::string_view> {
     return name_of(r);
 }
 
@@ -138,6 +145,89 @@ template <class T>
 [[nodiscard]] std::string_view name_of(reflect_t<std::vector<T>>) {
     static auto name = "vector<" + std::string(name_of(reflect_type<T>)) + ">";
     return name.c_str();
+}
+
+template <std::size_t N>
+struct ConstexprString {
+    char data[N + 1]{};
+    std::size_t size = 0;
+
+    constexpr void append(std::string_view str) {
+        for (char c : str) {
+            if (size < N) {
+                data[size++] = c;
+            }
+        }
+        data[size] = '\0';
+    }
+
+    constexpr void append(char c) {
+        if (size < N) {
+            data[size++] = c;
+            data[size] = '\0';
+        }
+    }
+
+    constexpr std::string_view view() const {
+        return std::string_view{data, size};
+    }
+};
+
+template <std::size_t MaxDigits = 20>
+constexpr std::array<char, MaxDigits> uint_to_string(std::size_t value) {
+    std::array<char, MaxDigits> buf{};
+    std::size_t pos = MaxDigits;
+    do {
+        buf[--pos] = char('0' + (value % 10));
+        value /= 10;
+    } while (value && pos > 0);
+
+    return buf;
+}
+
+template <typename T, std::size_t N>
+constexpr std::string_view name_of(reflect_t<std::array<T, N>>) {
+    constexpr auto type_name = name_of(reflect_type<T>);
+    constexpr auto n_str = uint_to_string(N);
+
+    constexpr ConstexprString<128> buffer = [&]() constexpr {
+        ConstexprString<128> result;
+        result.append(type_name);
+        result.append("[");
+        result.append(std::string_view(n_str.data(), n_str.size()));
+        result.append("]");
+        return result;
+    }();
+
+    return buffer.view();
+}
+
+// Forward declaration
+template <class T>
+struct vector;
+
+template <typename T>
+constexpr std::string_view name_of(reflect_t<messgen::vector<T>>) {
+    constexpr auto type_name = name_of(reflect_type<T>);
+    constexpr ConstexprString<64> buffer = []() constexpr {
+        ConstexprString<64> result;
+        result.append(type_name);
+        result.append("[]");
+        return result;
+    }();
+
+    return buffer.view();
+}
+
+template <typename T>
+constexpr std::string_view name_of(reflect_t<std::basic_string_view<T>>) {
+    constexpr ConstexprString<64> buffer = []() constexpr {
+        ConstexprString<64> result;
+        result.append("string");
+        return result;
+    }();
+
+    return buffer.view();
 }
 
 } // namespace messgen

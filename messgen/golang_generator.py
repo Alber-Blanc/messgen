@@ -6,6 +6,7 @@ from typing import cast, List, Tuple
 
 from .model import (
     EnumType,
+    BitsetType,
     ArrayType,
     BasicType,
     MapType,
@@ -252,6 +253,50 @@ class ResolvedEnum(ResolvedType):
 
         yield f"func GetAll{self.name()}() [{len(self.model().values)}]{self.name()} {{\n\t return [{len(self.model().values)}]{self.name()} {{"
         for v in self.model().values:
+            yield f"\t\t{self.name()}_{toGoName(v.name)},"
+        yield f"\t}}"
+        yield f"}}"
+
+        yield f"func (v {self.name()}) String() string {{ return strconv.FormatUint(uint64(v), 10) }}"
+
+class ResolvedBitset(ResolvedType):
+    def __init__(self, type_def: BitsetType, base: ResolvedType, package: str):
+        super().__init__(type_def, package)
+        self._base = base
+
+    def model(self):
+        return cast(BitsetType, self._model)
+
+    def alignment(self):
+        return self._base.alignment()
+
+    def data_size(self):
+        return self._base.data_size()
+
+    def is_flat(self):
+        return self._base.is_flat()
+
+    def render(self, mod: str):
+        yield CODEGEN_FILE_PREFIX + "\n"
+
+        if self._package is not None:
+            yield f"package {self.package_name()}\n"
+        else:
+            yield f"package {mod.split("/")[-1]}\n"
+
+        if self._base.imported(self._package):
+            yield f"import \"{self._base.package_full()}\"\n"
+        yield f"import \"strconv\""
+
+        yield f"type {self.name()} {self._base.name()} \n"
+
+        yield "const ("
+        for v in self.model().bits:
+            yield f"\t{self.name()}_{toGoName(v.name)} {self.name()} = 1 << {v.offset}"
+        yield ")"
+
+        yield f"func GetAll{self.name()}() [{len(self.model().bits)}]{self.name()} {{\n\t return [{len(self.model().bits)}]{self.name()} {{"
+        for v in self.model().bits:
             yield f"\t\t{self.name()}_{toGoName(v.name)},"
         yield f"\t}}"
         yield f"}}"
@@ -796,6 +841,10 @@ class GolangGenerator:
             enum_type = cast(EnumType, type_def)
             base = self.generate_type(out_dir, enum_type.base_type, ident+2)
             resolved = ResolvedEnum(enum_type, base, package)
+        elif type_def.type_class == TypeClass.bitset:
+            bitset_type = cast(BitsetType, type_def)
+            base = self.generate_type(out_dir, bitset_type.base_type, ident+2)
+            resolved = ResolvedBitset(bitset_type, base, package)
         elif type_def.type_class == TypeClass.struct:
             struct_hash: int | None = hash_type(type_def, self._types)
 
@@ -810,7 +859,7 @@ class GolangGenerator:
         elif isinstance(type_def, BasicType):
             resolved = ResolvedBuiltin(type_def, package)
         else:
-            raise Exception("Type %s is not struct/enum: %s" % (typename, type_def))
+            raise Exception("Type %s is not struct/enum/bitset: %s" % (typename, type_def))
 
         self._resolved[typename] = resolved
         return resolved
@@ -825,9 +874,9 @@ class GolangGenerator:
         for type_name, _ in types.items():
             type = self.generate_type(out_dir, type_name)
 
-            # Only struct/enum gets generated
+            # Only struct/enum/bitset gets generated
             output = None
-            if type._model.type_class in [TypeClass.struct, TypeClass.enum]:
+            if type._model.type_class in [TypeClass.struct, TypeClass.enum, TypeClass.bitset]:
                 pkg = "/".join(type._package).removeprefix(f"{gomod_name}/{out_dir.name}")
                 pkg = pkg.removeprefix("/")
                 output = out_dir / pathlib.Path(pkg)
