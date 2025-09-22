@@ -498,7 +498,7 @@ class ResolvedStruct(ResolvedType):
             if cur._element.data_size() != None and cur._element.is_flat():
                 yield f"  uptr := unsafe.Pointer(unsafe.SliceData({name}[0:]))"
                 yield f"  bytes := unsafe.Slice((*byte)(uptr), size*{cur._element.type_size()})"
-                yield f"  if len(input) < inputOfs + bytes {{"
+                yield f"  if len(input) < inputOfs + len(bytes) {{"
                 yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
                 yield f"  }}"
                 yield f"  copy(bytes, input[inputOfs:])"
@@ -509,6 +509,9 @@ class ResolvedStruct(ResolvedType):
                 yield f"}}"
         elif isinstance(cur, ResolvedMap):
             elem_idx  = f"i{step}"
+            yield f"  if len(input) < inputOfs + 4 {{"
+            yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
+            yield f"  }}"
             yield f"  size := int(binary.LittleEndian.Uint32(input[inputOfs:]))"
             yield f"  {name} = make({cur.reference(self._package)}, size)"
             yield f"  inputOfs += 4\n"
