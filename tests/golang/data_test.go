@@ -1,6 +1,8 @@
 package tests
 
-import "github.com/Alber-Blanc/messgen/build-golang-test/msgs/messgen/test"
+import (
+	"github.com/Alber-Blanc/messgen/golang_tests/messgen/test"
+)
 
 type MessgenStruct interface {
 	SerializedSize() uint32
