@@ -2,11 +2,10 @@ package tests
 
 import (
 	"fmt"
+	"github.com/kr/pretty"
 	"os"
 	"reflect"
 	"testing"
-
-	"github.com/kr/pretty"
 )
 
 func TestEncode(t *testing.T) {
