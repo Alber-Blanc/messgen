@@ -24,6 +24,7 @@ from .model import (
     StructType,
     TypeClass,
     VectorType,
+    BitsetType
 )
 from .yaml_parser import (
     parse_protocols,
@@ -84,7 +85,8 @@ class TypeConverter(ABC):
         try:
             msg, sz = self._deserialize(data)
         except Exception as e:
-            raise MessgenError(f'Failed to deserialize data_size={len(data)} type_name={self._type_name} error="{e}"') from e
+            raise MessgenError(
+                f'Failed to deserialize data_size={len(data)} type_name={self._type_name} error="{e}"') from e
 
         if sz != len(data):
             raise MessgenError(f"Invalid message size expected={sz} actual={len(data)} type_name={self._type_name}")
@@ -135,7 +137,7 @@ class ScalarConverter(TypeConverter):
 
 
 class DecimalConverter(TypeConverter):
-    _MAX_COEFFICIENT = 10**16 - 1
+    _MAX_COEFFICIENT = 10 ** 16 - 1
     _MAX_EXPONENT = 369
     _MIN_EXPONENT = -398
 
@@ -293,6 +295,28 @@ class EnumConverter(TypeConverter):
         return self._type_def.values[0].name
 
 
+class BitsetConverter(TypeConverter):
+    def __init__(self, types: dict[str, MessgenType], type_name: str):
+        super().__init__(types, type_name)
+        assert self._type_class == TypeClass.bitset
+        self.base_type = self._type_def.base_type
+        self.struct_fmt = STRUCT_TYPES_MAP.get(self.base_type, None)
+        if self.struct_fmt is None:
+            raise RuntimeError(f'Unsupported base type "{self.base_type}" in {type_name}')
+        self.struct_fmt = "<" + self.struct_fmt
+        self.size = struct.calcsize(self.struct_fmt)
+        self.def_value = 0
+
+    def _serialize(self, data: int) -> bytes:
+        return struct.pack(self.struct_fmt, data)
+
+    def _deserialize(self, data: bytes) -> tuple[int, int]:
+        (v,) = struct.unpack(self.struct_fmt, data[: self.size])
+        return v, self.size
+
+    def default_value(self) -> int:
+        return self.def_value
+
 class StructConverter(TypeConverter):
     def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
@@ -431,7 +455,7 @@ class StringConverter(TypeConverter):
     def _deserialize(self, data):
         n, n_size = self.size_type._deserialize(data)
         offset = n_size
-        value = struct.unpack(self.struct_fmt % n, data[offset : offset + n])[0]
+        value = struct.unpack(self.struct_fmt % n, data[offset: offset + n])[0]
         offset += n
         return value.decode("utf-8"), offset
 
@@ -452,7 +476,7 @@ class BytesConverter(TypeConverter):
     def _deserialize(self, data):
         n, n_size = self.size_type._deserialize(data)
         offset = n_size
-        value = struct.unpack(self.struct_fmt % n, data[offset : offset + n])[0]
+        value = struct.unpack(self.struct_fmt % n, data[offset: offset + n])[0]
         offset += n
         return value, offset
 
@@ -484,6 +508,8 @@ def create_type_converter(types: dict[str, MessgenType], type_name: str) -> Type
         return DecimalConverter(types, type_name)
     elif type_class == TypeClass.enum:
         return EnumConverter(types, type_name)
+    elif type_class == TypeClass.bitset:
+        return BitsetConverter(types, type_name)
     elif type_class == TypeClass.struct:
         return StructConverter(types, type_name)
     elif type_class == TypeClass.array:
