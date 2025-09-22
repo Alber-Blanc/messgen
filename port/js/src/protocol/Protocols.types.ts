@@ -13,7 +13,14 @@ export interface RawEnumType {
   values: EnumValue[];
 }
 
-export type RawType = RawStructType | RawEnumType;
+export interface RawBitsetType {
+  type: string;
+  type_class: 'bitset';
+  base_type: NumberType;
+  values: EnumValue[];
+}
+
+export type RawType = RawStructType | RawEnumType | RawBitsetType;
 
 interface EnumValue {
   name: IName;
@@ -23,6 +30,7 @@ interface EnumValue {
 export enum RawTypeClass {
   STRUCT = 'struct',
   ENUM = 'enum',
+  BITSET = 'bitset',
 }
 
 export interface StructTypeClass {

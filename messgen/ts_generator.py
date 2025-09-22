@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Set, cast
 
 from .common import SEPARATOR
-from .model import MessgenType, EnumType, StructType, Protocol, TypeClass
+from .model import MessgenType, EnumType, StructType, Protocol, TypeClass, BitsetType
 from .validation import validate_protocol
 
 
@@ -99,7 +99,9 @@ class TypeScriptGenerator:
         for name, t in types.items():
             if t.type_class is TypeClass.enum:
                 blocks.append(self._emit_enum(name, cast(EnumType, t)))
-
+        for name, t in types.items():
+            if t.type_class is TypeClass.bitset:
+                blocks.append(self._emit_bitset(name, cast(BitsetType, t)))
         blocks.append(self._emit_type_name_enum(types))
         content = '\n'.join(blocks)
         self._write(out_dir / self.TYPES_FILE, content)
@@ -136,6 +138,14 @@ class TypeScriptGenerator:
         lines: list[str] = []
         for v in enum.values or []:
             lines.append(f"{enum_key(v.name)} = {v.value},")
+        body = indent('\n'.join(lines))
+        return f"export enum {camel(name)} {{\n{body}\n}}"
+
+    def _emit_bitset(self, name: str, bitset) -> str:
+        lines: list[str] = []
+        for b in bitset.bits or []:
+            val = f"1 << {b.offset}"
+            lines.append(f"{enum_key(b.name)} = {val},")
         body = indent('\n'.join(lines))
         return f"export enum {camel(name)} {{\n{body}\n}}"
 
