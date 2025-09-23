@@ -30,7 +30,7 @@ def toGoName(name: str) -> str:
 # Wraps messgen model
 class ResolvedType:
     def __init__(self, model: MessgenType, package: str):
-        parsed = model.type.split("/")
+        parsed = model.type.split('/')
 
         self._model = model
         self._package : list[str] = package.split('/')
@@ -238,7 +238,7 @@ class ResolvedEnum(ResolvedType):
         if self._package is not None:
             yield f"package {self.package_name()}\n"
         else:
-            yield f"package {mod.split("/")[-1]}\n"
+            yield f"package {mod.split('/')[-1]}\n"
 
         if self._base.imported(self._package):
             yield f"import \"{self._base.package_full()}\"\n"
@@ -282,7 +282,7 @@ class ResolvedBitset(ResolvedType):
         if self._package is not None:
             yield f"package {self.package_name()}\n"
         else:
-            yield f"package {mod.split("/")[-1]}\n"
+            yield f"package {mod.split('/')[-1]}\n"
 
         if self._base.imported(self._package):
             yield f"import \"{self._base.package_full()}\"\n"
@@ -535,7 +535,7 @@ class ResolvedStruct(ResolvedType):
         if self._package is not None:
             yield f"package {self.package_name()}\n"
         else:
-            yield f"package {mod.split("/")[-1]}%s\n"
+            yield f"package {mod.split('/')[-1]}%s\n"
 
         # Overall info about type:
         # Note that totalSize is struct size in memory, not size of data in the struct
@@ -904,7 +904,7 @@ class GolangGenerator:
         pkg_name = "proto"
         out_dir = out_dir / pkg_name
         for proto_full_name, proto_def in protocols.items():
-            proto_name = proto_full_name.split("/")[-1]
+            proto_name = proto_full_name.split('/')[-1]
             file_name = out_dir / f"{proto_full_name}_gen.go"
             file_name.parent.mkdir(parents=True, exist_ok=True)
             with open(file_name, 'w') as file:
