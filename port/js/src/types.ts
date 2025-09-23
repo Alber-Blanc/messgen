@@ -42,6 +42,7 @@ export enum TypeClass {
   MAP = 'map',
   STRUCT = 'struct',
   ENUM = 'enum',
+  BITSET = 'bitset',
 }
 
 export interface Field {
@@ -100,6 +101,13 @@ export type EnumTypeDefinition = {
   typeName: IName;
 };
 
+export type BitsetTypeDefinition = {
+  type: IType;
+  typeClass: TypeClass.BITSET;
+  values: EnumValue[];
+  typeName: IName;
+};
+
 export type TypeDefinition =
   | ScalarTypeDefinition
   | DecimalTypeDefinition
@@ -107,4 +115,5 @@ export type TypeDefinition =
   | ArrayTypeDefinition
   | MapTypeDefinition
   | StructTypeDefinition
-  | EnumTypeDefinition;
+  | EnumTypeDefinition
+  | BitsetTypeDefinition;
