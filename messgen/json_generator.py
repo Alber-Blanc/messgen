@@ -30,7 +30,8 @@ class JsonGenerator:
     def generate_types(self, out_dir: Path, types: dict[str, MessgenType]) -> None:
         combined: list = []
 
-        for type_def in types.values():
+        for type_name in sorted(types.keys()):
+            type_def = types[type_name]
             if type_def.type_class in [TypeClass.struct, TypeClass.enum]:
                 combined.append(asdict(type_def))
             elif type_def.type_class is TypeClass.bitset:
@@ -41,7 +42,8 @@ class JsonGenerator:
     def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
         combined: list = []
 
-        for proto_def in protocols.values():
+        for proto_name in sorted(protocols.keys()):
+            proto_def = protocols[proto_name]
             proto_dict = asdict(proto_def)
             proto_dict["version"] = version_hash(proto_dict)
             combined.append(proto_dict)
