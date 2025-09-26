@@ -30,7 +30,7 @@ def toGoName(name: str) -> str:
 # Wraps messgen model
 class ResolvedType:
     def __init__(self, model: MessgenType, package: str):
-        parsed = model.type.split("/")
+        parsed = model.type.split('/')
 
         self._model = model
         self._package : list[str] = package.split('/')
@@ -238,7 +238,7 @@ class ResolvedEnum(ResolvedType):
         if self._package is not None:
             yield f"package {self.package_name()}\n"
         else:
-            yield f"package {mod.split("/")[-1]}\n"
+            yield f"package {mod.split('/')[-1]}\n"
 
         if self._base.imported(self._package):
             yield f"import \"{self._base.package_full()}\"\n"
@@ -282,7 +282,7 @@ class ResolvedBitset(ResolvedType):
         if self._package is not None:
             yield f"package {self.package_name()}\n"
         else:
-            yield f"package {mod.split("/")[-1]}\n"
+            yield f"package {mod.split('/')[-1]}\n"
 
         if self._base.imported(self._package):
             yield f"import \"{self._base.package_full()}\"\n"
@@ -444,27 +444,30 @@ class ResolvedStruct(ResolvedType):
 
     def renderDeserialize(self, name: str, cur: ResolvedType, step = 0):
         if cur._model.type_class == TypeClass.string:
-            yield f"  if len(input) <= inputOfs {{"
+            yield f"  if len(input) < inputOfs + 4 {{"
             yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
             yield f"  }}"
             yield f"  size := int(binary.LittleEndian.Uint32(input[inputOfs:]))"
             yield f"  tmp  := make([]byte, size)"
-            yield f"  if len(input) <= inputOfs + 4 {{"
+            yield f"  if len(input) < inputOfs + 4 + size {{"
             yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
             yield f"  }}"
             yield f"  copy(tmp, input[inputOfs+4:])"
             yield f"  {name} = string(tmp)"
             yield f"  inputOfs += (4+size)"
         elif cur._model.type_class == TypeClass.bytes:
+            yield f"  if len(input) < inputOfs + 4 {{"
+            yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
+            yield f"  }}"
             yield f"  size := int(binary.LittleEndian.Uint32(input[inputOfs:]))"
             yield f"  {name} = make([]byte, size)"
-            yield f"  if len(input) <= inputOfs + 4 {{"
+            yield f"  if len(input) < inputOfs + 4 + size{{"
             yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
             yield f"  }}"
             yield f"  copy({name}, input[inputOfs+4:])"
             yield f"  inputOfs += (4+size)"
         elif cur._model.type_class == TypeClass.struct:
-            yield f"  if len(input) <= inputOfs {{"
+            yield f"  if len(input) < inputOfs {{"
             yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
             yield f"  }}"
             yield f"  sz, err := {name}.Deserialize(input[inputOfs:])"
@@ -474,7 +477,7 @@ class ResolvedStruct(ResolvedType):
             yield f"  inputOfs += int(sz)"
         elif isinstance(cur, ResolvedBuiltin):
             yield f"  buf := (*[{cur.type_size()}]byte)(unsafe.Pointer(&{name}))"
-            yield f"  if len(input) <= inputOfs {{"
+            yield f"  if len(input) < inputOfs + {cur.type_size()} {{"
             yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
             yield f"  }}"
             yield f"  copy((*buf)[0:{cur.type_size()}], input[inputOfs:])"
@@ -486,7 +489,7 @@ class ResolvedStruct(ResolvedType):
             if cur._model.type_class == TypeClass.array:
                 yield f"  size := len({name})"
             else:
-                yield f"  if len(input) <= inputOfs {{"
+                yield f"  if len(input) < inputOfs + 4 {{"
                 yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
                 yield f"  }}"
                 yield f"  size := int(binary.LittleEndian.Uint32(input[inputOfs:]))"
@@ -495,7 +498,7 @@ class ResolvedStruct(ResolvedType):
             if cur._element.data_size() != None and cur._element.is_flat():
                 yield f"  uptr := unsafe.Pointer(unsafe.SliceData({name}[0:]))"
                 yield f"  bytes := unsafe.Slice((*byte)(uptr), size*{cur._element.type_size()})"
-                yield f"  if len(input) <= inputOfs {{"
+                yield f"  if len(input) < inputOfs + len(bytes) {{"
                 yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
                 yield f"  }}"
                 yield f"  copy(bytes, input[inputOfs:])"
@@ -506,6 +509,9 @@ class ResolvedStruct(ResolvedType):
                 yield f"}}"
         elif isinstance(cur, ResolvedMap):
             elem_idx  = f"i{step}"
+            yield f"  if len(input) < inputOfs + 4 {{"
+            yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
+            yield f"  }}"
             yield f"  size := int(binary.LittleEndian.Uint32(input[inputOfs:]))"
             yield f"  {name} = make({cur.reference(self._package)}, size)"
             yield f"  inputOfs += 4\n"
@@ -529,7 +535,7 @@ class ResolvedStruct(ResolvedType):
         if self._package is not None:
             yield f"package {self.package_name()}\n"
         else:
-            yield f"package {mod.split("/")[-1]}%s\n"
+            yield f"package {mod.split('/')[-1]}%s\n"
 
         # Overall info about type:
         # Note that totalSize is struct size in memory, not size of data in the struct
@@ -898,7 +904,7 @@ class GolangGenerator:
         pkg_name = "proto"
         out_dir = out_dir / pkg_name
         for proto_full_name, proto_def in protocols.items():
-            proto_name = proto_full_name.split("/")[-1]
+            proto_name = proto_full_name.split('/')[-1]
             file_name = out_dir / f"{proto_full_name}_gen.go"
             file_name.parent.mkdir(parents=True, exist_ok=True)
             with open(file_name, 'w') as file:

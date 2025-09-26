@@ -8,7 +8,7 @@
 *.pyc
 *.pyd
 cmake-build-*/
-build-golang-test/
+golang_tests/
 build
 Testing
 msg

@@ -1,6 +1,8 @@
 package tests
 
-import "github.com/Alber-Blanc/messgen/build-golang-test/msgs/messgen/test"
+import (
+	"github.com/Alber-Blanc/messgen/golang_tests/messgen/test"
+)
 
 type MessgenStruct interface {
 	SerializedSize() uint32
@@ -82,6 +84,7 @@ var TEST_DATA = []TestCase{
 		F0:    0x1234567890abcdef,
 		F1:    0x12345678,
 		F2:    0x1234567890abcdef,
+		Bits0: test.TestBitset_One,
 		SArr:  [2]test.SimpleStruct{simple, simple},
 		F1Arr: [4]int64{0x1234567890abcdef, 0x1234567890abcdef, 0x1234567890abcdef, 0x1234567890abcdef},
 		VArr:  [2]test.VarSizeStruct{varSize, varSize},
@@ -111,6 +114,7 @@ var TEST_DATA = []TestCase{
 		F0:    0x1234567890abcdef,
 		F1:    0x12345678,
 		F2:    0x1234567890abcdef,
+		Bits0: test.TestBitset_Two,
 		SArr:  [2]test.SimpleStruct{simple, simple},
 		F1Arr: [4]int64{0x1234567890abcdef, 0x1234567890abcdef, 0x1234567890abcdef, 0x1234567890abcdef},
 		VArr:  [2]test.VarSizeStruct{varSize, varSize},

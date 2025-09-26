@@ -26,6 +26,8 @@ export class ConverterFactory {
         return new DecimalConverter();
       case TypeClass.ENUM:
         return new EnumConverter(typeDef, getType);
+      case TypeClass.BITSET:
+        return new EnumConverter(typeDef, getType);
       case TypeClass.STRUCT:
         return new StructConverter(typeDef, getType);
       case TypeClass.ARRAY:

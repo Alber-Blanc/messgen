@@ -121,6 +121,7 @@ if __name__ == "__main__":
         "v_vec2": [[[0x1234 for _ in range(3)] for _ in range(4)] for _ in range(2)],
         "str": "Example String",
         "str_vec": ["string1", "string2", "string3"],
+        "bits0": 0b101
     }
     b = t.serialize(msg1)
     with open('tests/data/serialized/bin/complex_struct_nostl.bin', 'wb') as f:
@@ -165,6 +166,7 @@ if __name__ == "__main__":
         "str_vec": ["string1", "string2", "string3"],
         "map_str_by_int": {i: "string" + str(i) for i in range(3)},
         "map_vec_by_str": {"key" + str(i): [0x1234 for _ in range(3)] for i in range(3)},
+        "bits0": 0b101,
     }
     b = t.serialize(msg1)
     with open('tests/data/serialized/bin/complex_struct.bin', 'wb') as f:

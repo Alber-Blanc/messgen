@@ -1,6 +1,8 @@
 package messgen
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type ProtocolId int16
 
