@@ -138,7 +138,7 @@ def test_protocol_info(codec):
     assert protocol_by_id.proto_name() == protocol_by_name.proto_name()
     assert protocol_by_id.proto_id() == protocol_by_name.proto_id()
     assert protocol_by_id.proto_hash() == protocol_by_name.proto_hash()
-    assert protocol_by_id.proto_hash() == 11460364063552977134
+    assert protocol_by_id.proto_hash() == 5639281651251954308
 
 
 def test_decimal_decoding():
@@ -285,6 +285,24 @@ def test_enum_type_definition(codec):
     for value, name in expected_values:
         assert any(item.name == name for item in type_def.values)
         assert any(item.value == value for item in type_def.values)
+
+
+def test_bitset_type_definition(codec):
+    type_def = codec.type_definition("messgen/test/simple_bitset")
+    assert type_def.type == "messgen/test/simple_bitset"
+    assert type_def.type_class == TypeClass.bitset
+    assert type_def.base_type == "uint8"
+
+    assert len(type_def.bits) > 0
+
+    expected_bits = [
+        (0, "one"),
+        (1, "two"),
+        (2, "error"),
+    ]
+    for offs, name in expected_bits:
+        assert any(item.name == name for item in type_def.bits)
+        assert any(item.offset == offs for item in type_def.bits)
 
 
 def test_enum_converter_serialization(codec):

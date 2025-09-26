@@ -5,7 +5,7 @@
 #include <messgen/test/name_clash_struct.h>
 #include <messgen/test/struct_with_enum.h>
 #include <messgen/test/var_size_struct.h>
-#include <messgen/test/test_bitset.h>
+#include <messgen/test/simple_bitset.h>
 #include <nested/another_proto.h>
 #include <test_proto.h>
 
@@ -55,35 +55,35 @@ TEST_F(CppTest20, ProtoConcept) {
 
 TEST_F(CppTest20, BitsetOperations) {
     using namespace messgen;
-    test::test_bitset test_bits;
-    test_bits |= test::test_bitset::one;
-    test_bits |= test::test_bitset::two;
-    test_bits |= test::test_bitset::error;
-    test::test_bitset::underlying_type test_bits_val = test_bits;
+    test::simple_bitset test_bits;
+    test_bits |= test::simple_bitset::one;
+    test_bits |= test::simple_bitset::two;
+    test_bits |= test::simple_bitset::error;
+    test::simple_bitset::underlying_type test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 7);
 
     // Toggle 'error' bit
-    test_bits ^= test::test_bitset::error;
+    test_bits ^= test::simple_bitset::error;
     test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 3);
 
     // Keep only 'two' bit set
-    test_bits &= test::test_bitset::two;
+    test_bits &= test::simple_bitset::two;
     test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 2);
 
     // Set 'one' bit
-    test_bits = test_bits | test::test_bitset::one;
+    test_bits = test_bits | test::simple_bitset::one;
     test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 3);
 
     // Set 'error' bit
-    test_bits = test_bits ^ test::test_bitset::error;
+    test_bits = test_bits ^ test::simple_bitset::error;
     test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 7);
 
     // Keep only 'error' bit set
-    test_bits = test_bits & test::test_bitset::error;
+    test_bits = test_bits & test::simple_bitset::error;
     test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 4);
     ASSERT_STREQ(test_bits.to_string().c_str(), "00000100");

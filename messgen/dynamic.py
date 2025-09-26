@@ -16,6 +16,7 @@ from pathlib import (
 from .model import (
     ArrayType,
     EnumType,
+    BitsetType,
     hash_message,
     hash_type,
     MapType,
@@ -271,9 +272,10 @@ class EnumConverter(TypeConverter):
         self.struct_fmt = "<" + self.struct_fmt
         self.size = struct.calcsize(self.struct_fmt)
         self.mapping = {}
+        self.rev_mapping = {}
         for item in self._type_def.values:
             self.mapping[item.value] = item.name
-        self.rev_mapping = {v: k for k, v in self.mapping.items()}
+            self.rev_mapping[item.name] = item.value
 
     def _serialize(self, data):
         if (v := self.rev_mapping.get(data)) is not None:
@@ -292,6 +294,50 @@ class EnumConverter(TypeConverter):
         assert isinstance(self._type_def, EnumType)
         return self._type_def.values[0].name
 
+class BitsetConverter(TypeConverter):
+    def __init__(self, types: dict[str, MessgenType], type_name: str):
+        super().__init__(types, type_name)
+        assert self._type_class == TypeClass.bitset
+        assert isinstance(self._type_def, BitsetType)
+        self.base_type = self._type_def.base_type
+        self.struct_fmt = STRUCT_TYPES_MAP.get(self.base_type, None)
+        if self.struct_fmt is None:
+            raise RuntimeError('Unsupported base type "%s" in %s' % (self.base_type, type_name))
+        self.struct_fmt = "<" + self.struct_fmt
+        self.size = struct.calcsize(self.struct_fmt)
+        self.mapping = [""] * self.size * 8
+        for offs in range(len(self.mapping)):
+            # Set default names for unknown bits
+            self.mapping[offs] = str(offs)
+        self.rev_mapping = {}
+        for item in self._type_def.bits:
+            self.mapping[item.offset] = item.name
+            self.rev_mapping[item.name] = item.offset
+
+    def _serialize(self, bits):
+        v = 0
+        if isinstance(bits, int):
+            # Bitset as number
+            v = bits
+        else:
+            # Bitset as collection of bit names
+            for b in bits:
+                if (offs := self.rev_mapping.get(b)) is not None:
+                    v |= (1 << offs)
+                else:
+                    raise MessgenError(f"Unsupported bit={b} for bitset={self._type_name}")
+        return struct.pack(self.struct_fmt, v)
+
+    def _deserialize(self, data):
+        (v,) = struct.unpack(self.struct_fmt, data[: self.size])
+        bits = list()
+        for offs in range(len(self.mapping)):
+            if v & (1 << offs):
+                bits.append(self.mapping[offs])
+        return bits, self.size
+
+    def default_value(self):
+        return set()
 
 class StructConverter(TypeConverter):
     def __init__(self, types: dict[str, MessgenType], type_name: str):
@@ -484,6 +530,8 @@ def create_type_converter(types: dict[str, MessgenType], type_name: str) -> Type
         return DecimalConverter(types, type_name)
     elif type_class == TypeClass.enum:
         return EnumConverter(types, type_name)
+    elif type_class == TypeClass.bitset:
+        return BitsetConverter(types, type_name)
     elif type_class == TypeClass.struct:
         return StructConverter(types, type_name)
     elif type_class == TypeClass.array:
