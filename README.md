@@ -22,6 +22,7 @@ Features:
 - Maps
 - Nested messages
 - Messages metadata
+- Types and protocol hashes for compatibility checking
 - Supported output formats: C++, JSON, TypeScript
 - Supported output formats TODO: Go, Markdown (documentation)
 
@@ -138,7 +139,8 @@ In generated files identifiers will be converted to style that is specific for e
 The lowest level of hierarchy is **type**. It can be:
 
 - Scalar: e.g. `int32`, `float32`, `uint8`, `bool`
-- Enum: wrapper around int, described in yaml file
+- Enum: enumeration type, described in yaml file
+- Bitset: named bits set type, described in yaml file
 - Array: fixed size `element_type[<size>]`, e.g. `int32[4]`, `my_struct[3]`
 - Vector: dynamic size array `element_type[]`, e.g. `int32[]`, `my_struct[]`
 - Map: ordered map `value_type{key_type}`, e.g. `string{int32}`, `my_struct{int32}{string}`
@@ -149,30 +151,31 @@ The lowest level of hierarchy is **type**. It can be:
 
 #### Enum
 
-Enum may contain constants enumeration or bitfield.
-Each enum defined in separate file.
+Enum contains constants enumeration.
 
-For the bitfield the format should be: `(1 << n)`, where `n` is the position of the bit.
-
-Example enum definition file (`command.yaml`):
+Example enum definition file (`simple_enum.yaml`):
 ```yaml
 type_class: enum
-comment: "Example of command enum"
+comment: "Example of simple enum"
 base_type: uint8
 values:
-  - { name: "start", value: 0, comment: "Start node operation" }
-  - { name: "stop", value: 1, comment: "Stop node operation" }
-  - { name: "reset", value: 2, comment: "Reset node state" }
+  - { name: "one_value", value: 0, comment: "One example value" }
+  - { name: "another_value", value: 1, comment: "Another example value" }
 ```
 
-Example `flags.yaml` file with bitfield:
+#### Bitset
+
+Bitset is set of named bits.
+
+Example bitset definition file (`simple_bitset.yaml`):
 ```yaml
-type_class: enum
-comment: "Example of flags bitfield"
+type_class: bitset
+comment: "Example of simple bitset"
 base_type: uint8
-values:
-  - { name: "online", value: "(1 << 0)", comment: "Node is online" }
-  - { name: "sensor_error", value: "(1 << 1)", comment: "Internal node error" }
+bits:
+  - { name: "one", offset: 0, comment: "One example bit" }
+  - { name: "two", offset: 1, comment: "Another example bit" }
+  - { name: "error", offset: 2, comment: "Error flag" }
 ```
 
 #### Struct
