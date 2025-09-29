@@ -24,8 +24,7 @@ from .model import (
     MessgenType,
     StructType,
     TypeClass,
-    VectorType,
-    BitsetType
+    VectorType
 )
 from .yaml_parser import (
     parse_protocols,
@@ -340,28 +339,6 @@ class BitsetConverter(TypeConverter):
 
     def default_value(self):
         return set()
-
-class BitsetConverter(TypeConverter):
-    def __init__(self, types: dict[str, MessgenType], type_name: str):
-        super().__init__(types, type_name)
-        assert self._type_class == TypeClass.bitset
-        self.base_type = self._type_def.base_type
-        self.struct_fmt = STRUCT_TYPES_MAP.get(self.base_type, None)
-        if self.struct_fmt is None:
-            raise RuntimeError(f'Unsupported base type "{self.base_type}" in {type_name}')
-        self.struct_fmt = "<" + self.struct_fmt
-        self.size = struct.calcsize(self.struct_fmt)
-        self.def_value = 0
-
-    def _serialize(self, data: int) -> bytes:
-        return struct.pack(self.struct_fmt, data)
-
-    def _deserialize(self, data: bytes) -> tuple[int, int]:
-        (v,) = struct.unpack(self.struct_fmt, data[: self.size])
-        return v, self.size
-
-    def default_value(self) -> int:
-        return self.def_value
 
 class StructConverter(TypeConverter):
     def __init__(self, types: dict[str, MessgenType], type_name: str):
