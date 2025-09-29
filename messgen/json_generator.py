@@ -4,9 +4,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .protocol_version import version_hash
-
 from .validation import validate_protocol
-
 from .model import (
     MessgenType,
     Protocol,
@@ -31,16 +29,20 @@ class JsonGenerator:
     def generate_types(self, out_dir: Path, types: dict[str, MessgenType]) -> None:
         combined: list = []
 
-        for type_def in types.values():
+        for type_name in sorted(types.keys()):
+            type_def = types[type_name]
             if type_def.type_class in [TypeClass.struct, TypeClass.enum]:
                 combined.append(asdict(type_def))
+            elif type_def.type_class is TypeClass.bitset:
+                combined.append(self._emit_bitset(type_def))
 
         self._write_file(out_dir, "types", combined)
 
     def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
         combined: list = []
 
-        for proto_def in protocols.values():
+        for proto_name in sorted(protocols.keys()):
+            proto_def = protocols[proto_name]
             proto_dict = asdict(proto_def)
             proto_dict["version"] = version_hash(proto_dict)
             combined.append(proto_dict)
@@ -53,3 +55,20 @@ class JsonGenerator:
 
         with open(file_name, "w", encoding="utf-8") as f: json.dump(data, f, indent=2)
 
+    @staticmethod
+    def _emit_bitset(type_def: MessgenType) -> dict:
+        return {
+            "type": type_def.type,
+            "type_class": "bitset",
+            "base_type": type_def.base_type,
+            "comment": getattr(type_def, "comment", None),
+            "values": [
+                {
+                    "name": b.name.upper(),
+                    "value": f"1 << {b.offset}",
+                    "comment": getattr(b, "comment", None),
+                }
+                for b in getattr(type_def, "bits", []) or []
+            ],
+            "size": type_def.size,
+        }
