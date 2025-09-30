@@ -1,4 +1,4 @@
-import { Protocols } from '../protocol/Protocols';
+import { Protocols } from '../protocol';
 import { TypeClass } from '../types';
 import {
   ScalarConverter,
@@ -8,9 +8,9 @@ import {
   MapConverter,
   EnumConverter,
   DecimalConverter,
+  BitsetConverter,
 } from './base';
 import type { Converter } from './Converter';
-import {BitsetConverter} from "./base/BitsetConverter";
 
 export class ConverterFactory {
   constructor(private protocols: Protocols = new Protocols()) {

@@ -1,4 +1,4 @@
-import type {IName, NumberType, Field, BitsetBit} from '../types';
+import type { IName, NumberType, Field, BitsetBit } from '../types';
 
 export interface RawStructType {
   type: string;

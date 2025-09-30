@@ -105,7 +105,7 @@ class TypeScriptGenerator:
         for name in sorted(types.keys()):
             t = types[name]
             if t.type_class is TypeClass.bitset:
-                blocks.append(self._emit_bitset(name, cast(StructType, t)))
+                blocks.append(self._emit_bitset(name, cast(BitsetType, t)))
         blocks.append(self._emit_type_name_enum(types))
         content = '\n'.join(blocks)
         self._write(out_dir / self.TYPES_FILE, content)
