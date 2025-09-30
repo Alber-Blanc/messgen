@@ -65,10 +65,10 @@ class JsonGenerator:
             "type_class": "bitset",
             "base_type": type_def.base_type,
             "comment": getattr(type_def, "comment", None),
-            "values": [
+            "bits": [
                 {
                     "name": b.name.upper(),
-                    "value": f"1 << {b.offset}",
+                    "offset": b.offset,
                     "comment": getattr(b, "comment", None),
                 }
                 for b in getattr(type_def, "bits", []) or []

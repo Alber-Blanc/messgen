@@ -56,6 +56,12 @@ export interface EnumValue {
   comment?: string;
 }
 
+export type BitsetBit = {
+  name: string;
+  offset: number;
+  comment?: string;
+};
+
 export type ScalarTypeDefinition = {
   type: BasicType;
   typeClass: TypeClass.SCALAR;
@@ -104,7 +110,7 @@ export type EnumTypeDefinition = {
 export type BitsetTypeDefinition = {
   type: IType;
   typeClass: TypeClass.BITSET;
-  values: EnumValue[];
+  bits: BitsetBit[];
   typeName: IName;
 };
 

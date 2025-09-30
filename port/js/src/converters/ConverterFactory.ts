@@ -10,6 +10,7 @@ import {
   DecimalConverter,
 } from './base';
 import type { Converter } from './Converter';
+import {BitsetConverter} from "./base/BitsetConverter";
 
 export class ConverterFactory {
   constructor(private protocols: Protocols = new Protocols()) {
@@ -27,7 +28,7 @@ export class ConverterFactory {
       case TypeClass.ENUM:
         return new EnumConverter(typeDef, getType);
       case TypeClass.BITSET:
-        return new EnumConverter(typeDef, getType);
+        return new BitsetConverter(typeDef, getType);
       case TypeClass.STRUCT:
         return new StructConverter(typeDef, getType);
       case TypeClass.ARRAY:

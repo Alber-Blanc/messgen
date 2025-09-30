@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { EnumConverter } from '../src/converters/base/EnumConverter';
-import type { EnumTypeDefinition, EnumValue, BasicType } from '../src/types';
-import { Buffer } from '../src/Buffer';
+import type { EnumTypeDefinition, EnumValue, BasicType } from '../src';
+import { Buffer, TypeClass, EnumConverter } from '../src';
 import { initGetType } from './utils';
 
 describe('EnumConverter', () => {
@@ -56,6 +55,6 @@ describe('EnumConverter', () => {
   }
 
   function createSchema(values: EnumValue[] = [], type: BasicType = 'int8'): EnumTypeDefinition {
-    return { typeClass: 'enum', values, typeName: 'testStruct', type };
+    return { typeClass: TypeClass.ENUM, values, typeName: 'testStruct', type };
   }
 });

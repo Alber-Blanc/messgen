@@ -1,5 +1,5 @@
 import { Converter } from '../Converter';
-import type { IValue, EnumTypeDefinition, BitsetTypeDefinition } from '../../types';
+import type { IValue, EnumTypeDefinition } from '../../types';
 import type { Buffer } from '../../Buffer';
 import type { GetType } from './../ConverterFactory';
 
@@ -8,7 +8,7 @@ export class EnumConverter extends Converter {
   private enumsByName: Record<string, number>;
   private enumsByValue: string[];
 
-  constructor(typeDef: EnumTypeDefinition | BitsetTypeDefinition, getType: GetType) {
+  constructor(typeDef: EnumTypeDefinition, getType: GetType) {
     super(typeDef.typeName);
 
     this.converter = getType(typeDef.type);
