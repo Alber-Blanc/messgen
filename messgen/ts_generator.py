@@ -162,8 +162,7 @@ class TypeScriptGenerator:
         enum_name = camel(name)
 
         helpers = textwrap.dedent(f"""
-            export type {enum_name}Key = keyof typeof {enum_name};
-            export type {enum_name}Set = Set<{enum_name}Key>;
+            export type {enum_name}Set = Set<{enum_name}>;
         """).strip()
 
         return f"export enum {enum_name} {{\n{enum_body}\n}}\n\n{helpers}"

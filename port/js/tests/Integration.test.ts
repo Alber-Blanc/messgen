@@ -220,7 +220,7 @@ describe('integration', () => {
       str_vec: ['string1', 'string2', 'string3'],
       map_str_by_int: new Map(Array.from({ length: 3 }, (_, i) => [i, `string${i}`])),
       map_vec_by_str: new Map(Array.from({ length: 3 }, (_, i) => [`key${i}`, new Int32Array(3).fill(0x1234)])),
-      bits0: new Set(['ONE', 'ERROR']),
+      bits0: new Set([MessgenTestSimpleBitset.ONE, MessgenTestSimpleBitset.ERROR]),
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct.bin');
 

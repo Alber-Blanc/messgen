@@ -144,8 +144,7 @@ export enum MessgenTestSimpleBitset {
   ERROR = 'ERROR',
 }
 
-export type MessgenTestSimpleBitsetKey = keyof typeof MessgenTestSimpleBitset;
-export type MessgenTestSimpleBitsetSet = Set<MessgenTestSimpleBitsetKey>;
+export type MessgenTestSimpleBitsetSet = Set<MessgenTestSimpleBitset>;
 export enum TypeName {
   CROSS_PROTO = 'cross_proto',
   MESSGEN_TEST_COMPLEX_STRUCT = 'messgen/test/complex_struct',
