@@ -156,8 +156,8 @@ class TypeScriptGenerator:
     def _emit_bitset(self, name: str, bitset: BitsetType) -> str:
         enum_lines: list[str] = []
         for b in sorted(bitset.bits, key=lambda b: b.offset):
-            val = f"{enum_key(b.name)}"
-            enum_lines.append(f"{enum_key(b.name)} = '{val}',")
+            val = f"{b.offset}"
+            enum_lines.append(f"{enum_key(b.name)} = {val},")
         enum_body = indent('\n'.join(enum_lines))
         enum_name = camel(name)
 

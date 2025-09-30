@@ -5,38 +5,27 @@ import type { GetType } from './../ConverterFactory';
 
 export class BitsetConverter extends Converter {
   private converter: Converter;
-  private readonly bitsByName: Map<string, number>;
-  private readonly namesByOffset: Map<number, string>;
+  private readonly offsets: number[];
 
   constructor(typeDef: BitsetTypeDefinition, getType: GetType) {
     super(typeDef.typeName);
     this.converter = getType(typeDef.type);
-    this.bitsByName = new Map();
-    this.namesByOffset = new Map();
 
-    for (const bit of typeDef.bits) {
-      if (bit.offset < 0) {
-        throw new Error(`Invalid bit offset=${bit.offset} for bit="${bit.name}"`);
+    this.offsets = typeDef.bits.map((b) => {
+      if (b.offset < 0) {
+        throw new Error(`Invalid bit offset=${b.offset} for bit="${b.name}"`);
       }
-      if (this.bitsByName.has(bit.name)) {
-        throw new Error(`Duplicate bit name="${bit.name}" in bitset=${this.name}`);
-      }
-      if (this.namesByOffset.has(bit.offset)) {
-        throw new Error(`Duplicate bit offset=${bit.offset} in bitset=${this.name}`);
-      }
-
-      this.bitsByName.set(bit.name, bit.offset);
-      this.namesByOffset.set(bit.offset, bit.name);
-    }
+      return b.offset;
+    });
   }
 
-  deserialize(buffer: Buffer): Set<string> {
+  deserialize(buffer: Buffer): Set<number> {
     const raw = this.converter.deserialize(buffer) as number;
-    const result = new Set<string>();
+    const result = new Set<number>();
 
-    for (const [offset, name] of this.namesByOffset) {
+    for (const offset of this.offsets) {
       if (raw & (1 << offset)) {
-        result.add(name);
+        result.add(offset);
       }
     }
 
@@ -52,8 +41,8 @@ export class BitsetConverter extends Converter {
     return this.converter.size(typeof value === 'number' ? value : 0);
   }
 
-  default(): Set<string> {
-    return new Set<string>();
+  default(): Set<number> {
+    return new Set();
   }
 
   private toRaw(value: IValue): number {
@@ -61,28 +50,23 @@ export class BitsetConverter extends Converter {
       return value;
     }
 
-    const names = this.normalize(value);
+    const entries = this.normalize(value);
     let raw = 0;
 
-    for (const name of names) {
-      raw |= 1 << this.getOffset(name);
+    for (const v of entries) {
+      if (!this.offsets.includes(v)) {
+        throw new Error(`Unsupported bit offset=${v} for bitset=${this.name}`);
+      }
+      raw |= 1 << v;
     }
 
     return raw;
   }
 
-  private normalize(value: IValue): Iterable<string> {
+  private normalize(value: IValue): Iterable<number> {
     if (value instanceof Set || Array.isArray(value)) {
-      return value;
+      return value as Iterable<number>;
     }
     throw new Error(`Invalid bitset value type: ${typeof value}`);
-  }
-
-  private getOffset(name: string): number {
-    const offset = this.bitsByName.get(name);
-    if (offset === undefined) {
-      throw new Error(`Unknown bit name="${name}" for bitset=${this.name}`);
-    }
-    return offset;
   }
 }

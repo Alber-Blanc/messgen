@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BasicType, BitsetBit, BitsetTypeDefinition } from '../src';
-import { Buffer, TypeClass, BitsetConverter } from '../src';
+import { BitsetConverter, Buffer, TypeClass } from '../src';
 import { initGetType } from './utils';
 
 describe('BitsetConverter', () => {
@@ -27,7 +27,7 @@ describe('BitsetConverter', () => {
       ]);
       const buffer = new Buffer(new ArrayBuffer(1));
 
-      converter.serialize(new Set(['ONE', 'ERROR']), buffer);
+      converter.serialize(new Set([0, 2]), buffer);
       buffer.offset = 0;
       const rawValue = buffer.dataView.getUint8(0);
 
@@ -41,7 +41,7 @@ describe('BitsetConverter', () => {
       ]);
       const buffer = new Buffer(new ArrayBuffer(1));
 
-      converter.serialize(new Set(['ONE']), buffer);
+      converter.serialize(new Set([0]), buffer);
       buffer.offset = 0;
       const rawValue = buffer.dataView.getUint8(0);
 
@@ -69,7 +69,7 @@ describe('BitsetConverter', () => {
       ]);
       const buffer = new Buffer(new ArrayBuffer(1));
 
-      converter.serialize(['TWO'], buffer);
+      converter.serialize([1], buffer);
       buffer.offset = 0;
       const rawValue = buffer.dataView.getUint8(0);
 
@@ -80,14 +80,14 @@ describe('BitsetConverter', () => {
       const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
       const buffer = new Buffer(new ArrayBuffer(1));
 
-      expect(() => converter.serialize(new Set(['UNKNOWN']), buffer)).toThrowError();
+      expect(() => converter.serialize(new Set([1]), buffer)).toThrowError();
     });
 
     it('should throw on unsupported type', () => {
       const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
       const buffer = new Buffer(new ArrayBuffer(1));
 
-      expect(() => converter.serialize('INVALID', buffer)).toThrowError();
+      expect(() => converter.serialize(undefined, buffer)).toThrowError();
     });
   });
 
@@ -102,7 +102,7 @@ describe('BitsetConverter', () => {
 
       const result = converter.deserialize(buffer);
 
-      expect(result).toEqual(new Set(['ONE', 'TWO']));
+      expect(result).toEqual(new Set([0, 1]));
     });
 
     it('should ignore unset flags', () => {
@@ -115,7 +115,7 @@ describe('BitsetConverter', () => {
 
       const result = converter.deserialize(buffer);
 
-      expect(result).toEqual(new Set(['ONE']));
+      expect(result).toEqual(new Set([0]));
     });
 
     it('should return empty set when no flags are set', () => {
@@ -135,7 +135,7 @@ describe('BitsetConverter', () => {
 
       const result = converter.deserialize(buffer);
 
-      expect(result).toEqual(new Set(['HIGH']));
+      expect(result).toEqual(new Set([15]));
     });
   });
 
