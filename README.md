@@ -114,7 +114,7 @@ Before selecting messgen keep in mind:
 Type and protocol descriptions are stored as `.yaml` files following the structure demonstrated below.
 
 ```
-procol_dir/
+protocol_dir/
 ├── some_proto_namespace
 │   ├── protocol_one.yaml
 │   └── protocol_two.yaml
