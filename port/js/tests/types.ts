@@ -139,9 +139,9 @@ export enum MessgenTestSimpleEnum {
   ANOTHER_VALUE = 1,
 }
 export enum MessgenTestSimpleBitset {
-  ONE = 1 << 0,
-  TWO = 1 << 1,
-  ERROR = 1 << 2,
+  ONE = 'ONE',
+  TWO = 'TWO',
+  ERROR = 'ERROR',
 }
 
 export type MessgenTestSimpleBitsetKey = keyof typeof MessgenTestSimpleBitset;

@@ -2,9 +2,10 @@
 /* eslint-disable @typescript-eslint/no-loss-of-precision */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { execSync } from 'child_process';
-import { Codec } from '../src/Codec';
+import { Codec } from '../src';
 import { uploadBinary, uploadProtocols, uploadTypes } from './utils';
-import type { MessgenTestComplexStruct, MessgenTestSimpleBitsetKey } from './types';
+import type { MessgenTestComplexStruct } from './types';
+import { MessgenTestSimpleBitset } from './types';
 
 describe('integration', () => {
   let codec: Codec;
@@ -12,7 +13,7 @@ describe('integration', () => {
 
   beforeAll(() => {
     execSync(' npm run generate-bit');
-    execSync('npm run gen:ts');
+    execSync('npm run gen:json');
     const types = uploadTypes('./types.json');
     const protocols = uploadProtocols('./protocols.json');
     codec = new Codec(types, protocols);
@@ -160,7 +161,7 @@ describe('integration', () => {
       v_vec2: Array(2).fill(Array(4).fill(new Int16Array(3).fill(0x1234))), // replace 2 with desired outer list length
       str: 'Example String',
       str_vec: ['string1', 'string2', 'string3'],
-      bits0: new Set<MessgenTestSimpleBitsetKey>(['ONE', 'ERROR']),
+      bits0: new Set([MessgenTestSimpleBitset.ONE, MessgenTestSimpleBitset.ERROR]),
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct_nostl.bin');
 
