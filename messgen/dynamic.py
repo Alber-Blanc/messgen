@@ -426,7 +426,9 @@ class StringConverter(TypeConverter):
         self.struct_fmt = "<%is"
 
     def _serialize(self, data):
-        return self.size_type._serialize(len(data)) + struct.pack(self.struct_fmt % len(data), data.encode("utf-8"))
+        encoded_data = data.encode("utf-8")
+        size = len(encoded_data)
+        return self.size_type._serialize(size) + struct.pack(self.struct_fmt % size, encoded_data)
 
     def _deserialize(self, data):
         n, n_size = self.size_type._deserialize(data)

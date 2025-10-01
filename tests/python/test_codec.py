@@ -386,3 +386,17 @@ def test_codec_empty():
 
     assert empty_codec.types() == []
     assert empty_codec.protocols() == []
+
+def test_var_size_string_serialization(codec):
+    type_def = codec.type_converter("messgen/test/var_size_struct")
+    expected_msg = {
+        "f0": 0x0,
+        "f1_vec": [],
+        "str": "连接查询服务失败",
+    }
+
+    expected_bytes = type_def.serialize(expected_msg)
+    assert expected_bytes
+
+    actual_msg = type_def.deserialize(expected_bytes)
+    assert actual_msg == expected_msg
