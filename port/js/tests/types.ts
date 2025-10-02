@@ -14,7 +14,7 @@ export interface MessgenTestComplexStruct {
   /** Some integer field */
   f2: bigint;
   /** Some bitset field */
-  bits0: number;
+  bits0: MessgenTestSimpleBitset;
   s_arr: MessgenTestSimpleStruct[];
   /** Another integer field */
   f1_arr: BigInt64Array;
@@ -40,7 +40,7 @@ export interface MessgenTestComplexStructNostl {
   /** Some integer field */
   f2: bigint;
   /** Some bitset field */
-  bits0: number;
+  bits0: MessgenTestSimpleBitset;
   s_arr: MessgenTestSimpleStruct[];
   /** Another integer field */
   f1_arr: BigInt64Array;

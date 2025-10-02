@@ -137,10 +137,7 @@ class TypeScriptGenerator:
                 body.append(f"/** {f.comment} */")
 
             f_type = types[f.type]
-            if f_type.type_class is TypeClass.bitset:
-                ts_type = "number"
-            else:
-                ts_type = TypeScriptTypes.resolve(f.type)
+            ts_type = TypeScriptTypes.resolve(f.type)
 
             body.append(f"{f.name}: {ts_type};")
         block = indent('\n'.join(body))
@@ -156,7 +153,6 @@ class TypeScriptGenerator:
     def _emit_bitset(self, name: str, bitset: BitsetType) -> str:
         enum_lines: list[str] = []
         for b in sorted(bitset.bits, key=lambda b: b.offset):
-            # Генерируем битовую маску вместо просто offset
             val = f"(1 << {b.offset})"
             enum_lines.append(f"{enum_key(b.name)} = {val},")
         enum_body = indent('\n'.join(enum_lines))

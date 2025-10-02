@@ -6,7 +6,7 @@ import { MessgenTestSimpleBitset } from './types';
 
 describe('BitsetConverter', () => {
   describe('#base', () => {
-    it('should return default value of 0', () => {
+    it('should return default value', () => {
       const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
 
       const result = converter.default();
