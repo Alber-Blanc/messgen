@@ -24,9 +24,8 @@ def comment_block(*parts: str) -> str:
     return f"/** {text} */\n" if text else ''
 
 
-def normolize(name: str) -> str:
-    struct_name = name.split(SEPARATOR)[-1]
-    return ''.join(word.capitalize() for word in re.split(f"[_]", struct_name) if word)
+def camel(name: str) -> str:
+    return ''.join(word.capitalize() for word in re.split(f"[{SEPARATOR}_]", name) if word)
 
 
 def enum_key(name: str) -> str:
@@ -62,10 +61,10 @@ class TypeScriptTypes:
             typed = cls.ARRAYS.get(base)
             if typed and count:
                 return typed + '[]' * (count - 1)
-            core = cls.PRIMITIVES.get(base, normolize(base))
+            core = cls.PRIMITIVES.get(base, camel(base))
             return core + '[]' * count
 
-        return cls.PRIMITIVES.get(t, normolize(t))
+        return cls.PRIMITIVES.get(t, camel(t))
 
 
 class TypeScriptGenerator:
@@ -117,13 +116,13 @@ class TypeScriptGenerator:
 
         for pname in sorted(protocols.keys()):
             proto = protocols[pname]
-            name = normolize(proto.name)
+            name = camel(proto.name)
             parts.append(self._emit_message_enum(proto, name))
             parts.append(self._emit_map_interface(used, proto))
 
         union = textwrap.dedent(f"""
-            export type Message = {' | '.join(normolize(p.name) for p in protocols.values())};
-            export type ProtocolMap = {' & '.join(normolize(p.name) + 'ProtocolMap' for p in protocols.values())};
+            export type Message = {' | '.join(camel(p.name) for p in protocols.values())};
+            export type ProtocolMap = {' & '.join(camel(p.name) + 'ProtocolMap' for p in protocols.values())};
         """).strip()
 
         imports = self._build_imports(used)
@@ -142,14 +141,14 @@ class TypeScriptGenerator:
 
             body.append(f"{f.name}: {ts_type};")
         block = indent('\n'.join(body))
-        return f"{header}export interface {normolize(name)} {{\n{block}\n}}"
+        return f"{header}export interface {camel(name)} {{\n{block}\n}}"
 
     def _emit_enum(self, name: str, enum: EnumType) -> str:
         lines: list[str] = []
         for v in sorted(enum.values, key=lambda v: v.value):
             lines.append(f"{enum_key(v.name)} = {v.value},")
         body = indent('\n'.join(lines))
-        return f"export enum {normolize(name)} {{\n{body}\n}}"
+        return f"export enum {camel(name)} {{\n{body}\n}}"
 
     def _emit_bitset(self, name: str, bitset: BitsetType) -> str:
         enum_lines: list[str] = []
@@ -157,7 +156,7 @@ class TypeScriptGenerator:
             val = f"(1 << {b.offset})"
             enum_lines.append(f"{enum_key(b.name)} = {val},")
         enum_body = indent('\n'.join(enum_lines))
-        enum_name = normolize(name)
+        enum_name = camel(name)
     
         return f"export enum {enum_name} {{\n{enum_body}\n}}"
 
@@ -177,13 +176,13 @@ class TypeScriptGenerator:
         return f"export enum {name} {{\n{body}\n}}"
 
     def _emit_map_interface(self, used: Set[str], proto: Protocol) -> str:
-        name = normolize(proto.name)
+        name = camel(proto.name)
         lines: list[str] = [f"export interface {name}ProtocolMap {{"]
         lines.append(indent(f"[Protocol.{proto.name.upper()}]: {{", level=1))
 
         for mid in sorted(proto.messages.keys()):
             m = proto.messages[mid]
-            tname = normolize(m.type)
+            tname = camel(m.type)
             used.add(tname)
             lines.append(indent(f"[{name}.{m.name.upper()}]: {tname};", level=2))
         lines.append(indent("};", level=1, width=2))
