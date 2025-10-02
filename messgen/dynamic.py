@@ -80,7 +80,8 @@ class TypeConverter(ABC):
     def serialize(self, data: dict | Decimal) -> bytes:
         return self._serialize(data)
 
-    def deserialize(self, data: bytes) -> dict:
+    def deserialize(self, data: bytes | memoryview) -> dict:
+        data = memoryview(data)
         try:
             msg, sz = self._deserialize(data)
         except Exception as e:
@@ -126,7 +127,7 @@ class ScalarConverter(TypeConverter):
         assert self.struct_fmt
         return struct.pack(self.struct_fmt, data)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         assert self.struct_fmt
         return struct.unpack(self.struct_fmt, data[: self.size])[0], self.size
 
@@ -208,7 +209,7 @@ class DecimalConverter(TypeConverter):
 
         return bits.to_bytes(self.size, byteorder="little")
 
-    def _deserialize(self, data: bytes) -> tuple[Decimal, int]:
+    def _deserialize(self, data: memoryview) -> tuple[Decimal, int]:
         # Convert bytes to 64-bit integer
         bits = int.from_bytes(data[: self.size], byteorder="little")
         if bits == 0:
@@ -281,7 +282,7 @@ class EnumConverter(TypeConverter):
             return struct.pack(self.struct_fmt, v)
         raise MessgenError(f"Unsupported value={data} for enum={self._type_name}")
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         assert self.struct_fmt
         (v,) = struct.unpack(self.struct_fmt, data[: self.size])
         if (mapped := self.mapping.get(v)) is not None:
@@ -309,7 +310,7 @@ class StructConverter(TypeConverter):
             out.append(field_type._serialize(v))
         return b"".join(out)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         out = {}
         offset = 0
         for field_name, field_type in self.fields:
@@ -337,7 +338,7 @@ class ArrayConverter(TypeConverter):
             out.append(self.element_type._serialize(item))
         return b"".join(out)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         out = []
         offset = 0
         for i in range(self.array_size):
@@ -369,7 +370,7 @@ class VectorConverter(TypeConverter):
             out.append(self.element_type._serialize(item))
         return b"".join(out)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         out = []
         offset = 0
         n, n_size = self.size_type._deserialize(data[offset:])
@@ -401,7 +402,7 @@ class MapConverter(TypeConverter):
             out.append(self.value_type._serialize(v))
         return b"".join(out)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         out = {}
         offset = 0
         n, n_size = self.size_type._deserialize(data[offset:])
@@ -430,7 +431,7 @@ class StringConverter(TypeConverter):
         size = len(encoded_data)
         return self.size_type._serialize(size) + struct.pack(self.struct_fmt % size, encoded_data)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         n, n_size = self.size_type._deserialize(data)
         offset = n_size
         value = struct.unpack(self.struct_fmt % n, data[offset : offset + n])[0]
@@ -451,7 +452,7 @@ class BytesConverter(TypeConverter):
     def _serialize(self, data):
         return self.size_type._serialize(len(data)) + struct.pack(self.struct_fmt % len(data), data)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         n, n_size = self.size_type._deserialize(data)
         offset = n_size
         value = struct.unpack(self.struct_fmt % n, data[offset : offset + n])[0]
