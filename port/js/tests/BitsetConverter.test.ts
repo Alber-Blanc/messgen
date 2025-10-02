@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { BasicType, BitsetBit, BitsetTypeDefinition } from '../src';
 import { BitsetConverter, Buffer, TypeClass } from '../src';
 import { initGetType } from './utils';
-import { MessgenTestSimpleBitset } from './types';
+import { SimpleBitset } from './types';
 
 describe('BitsetConverter', () => {
   describe('#base', () => {
@@ -31,7 +31,7 @@ describe('BitsetConverter', () => {
         { name: 'ERROR', offset: 2 },
       ]);
       const buffer = new Buffer(new ArrayBuffer(1));
-      const flags = MessgenTestSimpleBitset.ONE | MessgenTestSimpleBitset.ERROR; // 0b101
+      const flags = SimpleBitset.ONE | SimpleBitset.ERROR; // 0b101
 
       converter.serialize(flags, buffer);
       buffer.offset = 0;
@@ -48,7 +48,7 @@ describe('BitsetConverter', () => {
       const buffer = new Buffer(new ArrayBuffer(1));
 
       // Set only flag at offset 0
-      converter.serialize(MessgenTestSimpleBitset.ONE, buffer);
+      converter.serialize(SimpleBitset.ONE, buffer);
       buffer.offset = 0;
 
       expect(buffer.dataView.getUint8(0)).toBe(0b001);
