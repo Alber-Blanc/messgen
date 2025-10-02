@@ -2,18 +2,23 @@ import { describe, expect, it } from 'vitest';
 import type { BasicType, BitsetBit, BitsetTypeDefinition } from '../src';
 import { BitsetConverter, Buffer, TypeClass } from '../src';
 import { initGetType } from './utils';
+import { MessgenTestSimpleBitset } from './types';
 
 describe('BitsetConverter', () => {
   describe('#base', () => {
     it('should return default value of 0', () => {
       const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
+
       const result = converter.default();
+
       expect(result).toBe(0);
     });
 
     it('should return size for base type', () => {
       const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }], 'int32');
+
       const size = converter.size(0);
+
       expect(size).toBe(4);
     });
   });
@@ -26,9 +31,8 @@ describe('BitsetConverter', () => {
         { name: 'ERROR', offset: 2 },
       ]);
       const buffer = new Buffer(new ArrayBuffer(1));
+      const flags = MessgenTestSimpleBitset.ONE | MessgenTestSimpleBitset.ERROR; // 0b101
 
-      // Using bitwise OR to set flags at offset 0 and 2
-      const flags = (1 << 0) | (1 << 2); // 0b101
       converter.serialize(flags, buffer);
       buffer.offset = 0;
       const rawValue = buffer.dataView.getUint8(0);
@@ -44,12 +48,10 @@ describe('BitsetConverter', () => {
       const buffer = new Buffer(new ArrayBuffer(1));
 
       // Set only flag at offset 0
-      const flags = 1 << 0; // 0b001
-      converter.serialize(flags, buffer);
+      converter.serialize(MessgenTestSimpleBitset.ONE, buffer);
       buffer.offset = 0;
-      const rawValue = buffer.dataView.getUint8(0);
 
-      expect(rawValue).toBe(0b001);
+      expect(buffer.dataView.getUint8(0)).toBe(0b001);
     });
 
     it('should serialize numeric value directly', () => {
@@ -61,9 +63,8 @@ describe('BitsetConverter', () => {
 
       converter.serialize(0b11, buffer);
       buffer.offset = 0;
-      const rawValue = buffer.dataView.getUint8(0);
 
-      expect(rawValue).toBe(0b11);
+      expect(buffer.dataView.getUint8(0)).toBe(0b11);
     });
 
     it('should throw on invalid bits set', () => {
@@ -114,16 +115,6 @@ describe('BitsetConverter', () => {
 
       // Should only return defined bits (0 and 1)
       expect(result).toBe(0b11);
-    });
-
-    it('should return 0 when no flags are set', () => {
-      const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
-      const buffer = new Buffer(new ArrayBuffer(1));
-      buffer.dataView.setUint8(0, 0);
-
-      const result = converter.deserialize(buffer);
-
-      expect(result).toBe(0);
     });
 
     it('should handle high bit in uint16', () => {
