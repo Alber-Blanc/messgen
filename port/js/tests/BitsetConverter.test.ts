@@ -5,10 +5,10 @@ import { initGetType } from './utils';
 
 describe('BitsetConverter', () => {
   describe('#base', () => {
-    it('should return default set', () => {
+    it('should return default value of 0', () => {
       const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
       const result = converter.default();
-      expect(result).toEqual(new Set());
+      expect(result).toBe(0);
     });
 
     it('should return size for base type', () => {
@@ -27,7 +27,9 @@ describe('BitsetConverter', () => {
       ]);
       const buffer = new Buffer(new ArrayBuffer(1));
 
-      converter.serialize(new Set([0, 2]), buffer);
+      // Using bitwise OR to set flags at offset 0 and 2
+      const flags = (1 << 0) | (1 << 2); // 0b101
+      converter.serialize(flags, buffer);
       buffer.offset = 0;
       const rawValue = buffer.dataView.getUint8(0);
 
@@ -41,7 +43,9 @@ describe('BitsetConverter', () => {
       ]);
       const buffer = new Buffer(new ArrayBuffer(1));
 
-      converter.serialize(new Set([0]), buffer);
+      // Set only flag at offset 0
+      const flags = 1 << 0; // 0b001
+      converter.serialize(flags, buffer);
       buffer.offset = 0;
       const rawValue = buffer.dataView.getUint8(0);
 
@@ -62,32 +66,24 @@ describe('BitsetConverter', () => {
       expect(rawValue).toBe(0b11);
     });
 
-    it('should serialize array of flags', () => {
-      const converter = initBitsetConverter([
-        { name: 'ONE', offset: 0 },
-        { name: 'TWO', offset: 1 },
-      ]);
+    it('should throw on invalid bits set', () => {
+      const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
       const buffer = new Buffer(new ArrayBuffer(1));
 
-      converter.serialize([1], buffer);
+      // Trying to set bit at offset 1 which is not defined
+      const invalidFlags = (1 << 1);
+      expect(() => converter.serialize(invalidFlags, buffer)).toThrowError(/Invalid bits set/);
+    });
+
+    it('should accept 0 as valid value', () => {
+      const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
+      const buffer = new Buffer(new ArrayBuffer(1));
+
+      converter.serialize(0, buffer);
       buffer.offset = 0;
       const rawValue = buffer.dataView.getUint8(0);
 
-      expect(rawValue).toBe(0b010);
-    });
-
-    it('should throw on unsupported flag', () => {
-      const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
-      const buffer = new Buffer(new ArrayBuffer(1));
-
-      expect(() => converter.serialize(new Set([1]), buffer)).toThrowError();
-    });
-
-    it('should throw on unsupported type', () => {
-      const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
-      const buffer = new Buffer(new ArrayBuffer(1));
-
-      expect(() => converter.serialize(undefined, buffer)).toThrowError();
+      expect(rawValue).toBe(0);
     });
   });
 
@@ -102,40 +98,72 @@ describe('BitsetConverter', () => {
 
       const result = converter.deserialize(buffer);
 
-      expect(result).toEqual(new Set([0, 1]));
+      expect(result).toBe(0b11);
     });
 
-    it('should ignore unset flags', () => {
+    it('should ignore undefined bits', () => {
       const converter = initBitsetConverter([
         { name: 'ONE', offset: 0 },
         { name: 'TWO', offset: 1 },
       ]);
       const buffer = new Buffer(new ArrayBuffer(1));
-      buffer.dataView.setUint8(0, 0b01);
+      // Set bits 0, 1, and 2, but only 0 and 1 are defined
+      buffer.dataView.setUint8(0, 0b111);
 
       const result = converter.deserialize(buffer);
 
-      expect(result).toEqual(new Set([0]));
+      // Should only return defined bits (0 and 1)
+      expect(result).toBe(0b11);
     });
 
-    it('should return empty set when no flags are set', () => {
+    it('should return 0 when no flags are set', () => {
       const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
       const buffer = new Buffer(new ArrayBuffer(1));
-      buffer.dataView.setUint8(0, 0b00);
+      buffer.dataView.setUint8(0, 0);
 
       const result = converter.deserialize(buffer);
 
-      expect(result).toEqual(new Set());
+      expect(result).toBe(0);
     });
 
     it('should handle high bit in uint16', () => {
       const converter = initBitsetConverter([{ name: 'HIGH', offset: 15 }], 'uint16');
       const buffer = new Buffer(new ArrayBuffer(2));
-      buffer.dataView.setUint16(0, 0b1000000000000000, true);
+      buffer.dataView.setUint16(0, 1 << 15, true);
 
       const result = converter.deserialize(buffer);
 
-      expect(result).toEqual(new Set([15]));
+      expect(result).toBe(1 << 15);
+    });
+
+    it('should handle multiple flags in uint32', () => {
+      const converter = initBitsetConverter([
+        { name: 'BIT_0', offset: 0 },
+        { name: 'BIT_10', offset: 10 },
+        { name: 'BIT_20', offset: 20 },
+        { name: 'BIT_31', offset: 31 },
+      ], 'uint32');
+      const buffer = new Buffer(new ArrayBuffer(4));
+      const flags = (1 << 0) | (1 << 10) | (1 << 20) | (1 << 31);
+      buffer.dataView.setUint32(0, flags >>> 0, true);
+
+      const result = converter.deserialize(buffer);
+
+      expect(result).toBe(flags);
+    });
+  });
+
+  describe('#edge cases', () => {
+    it('should throw on negative offset', () => {
+      expect(() => {
+        initBitsetConverter([{ name: 'NEGATIVE', offset: -1 }]);
+      }).toThrowError(/Invalid bit offset=-1/);
+    });
+
+    it('should throw on offset > 31', () => {
+      expect(() => {
+        initBitsetConverter([{ name: 'TOO_HIGH', offset: 32 }]);
+      }).toThrowError(/Invalid bit offset=32/);
     });
   });
 

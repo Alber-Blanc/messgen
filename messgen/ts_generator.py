@@ -138,7 +138,7 @@ class TypeScriptGenerator:
 
             f_type = types[f.type]
             if f_type.type_class is TypeClass.bitset:
-                ts_type = camel(f.type) + "Set"
+                ts_type = "number"
             else:
                 ts_type = TypeScriptTypes.resolve(f.type)
 
@@ -156,16 +156,13 @@ class TypeScriptGenerator:
     def _emit_bitset(self, name: str, bitset: BitsetType) -> str:
         enum_lines: list[str] = []
         for b in sorted(bitset.bits, key=lambda b: b.offset):
-            val = f"{b.offset}"
+            # Генерируем битовую маску вместо просто offset
+            val = f"(1 << {b.offset})"
             enum_lines.append(f"{enum_key(b.name)} = {val},")
         enum_body = indent('\n'.join(enum_lines))
         enum_name = camel(name)
-
-        helpers = textwrap.dedent(f"""
-            export type {enum_name}Set = Set<{enum_name}>;
-        """).strip()
-
-        return f"export enum {enum_name} {{\n{enum_body}\n}}\n\n{helpers}"
+    
+        return f"export enum {enum_name} {{\n{enum_body}\n}}"
 
     def _emit_type_name_enum(self, types: Dict[str, MessgenType]) -> str:
         entries = [f"{enum_key(n)} = '{n}'," for n, t in sorted(types.items()) if t.type_class is TypeClass.struct]

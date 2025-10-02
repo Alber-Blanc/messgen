@@ -5,68 +5,46 @@ import type { GetType } from './../ConverterFactory';
 
 export class BitsetConverter extends Converter {
   private converter: Converter;
-  private readonly offsets: number[];
+  private readonly mask: number;
 
   constructor(typeDef: BitsetTypeDefinition, getType: GetType) {
     super(typeDef.typeName);
     this.converter = getType(typeDef.type);
 
-    this.offsets = typeDef.bits.map((b) => {
-      if (b.offset < 0) {
-        throw new Error(`Invalid bit offset=${b.offset} for bit="${b.name}"`);
+    this.mask = typeDef.bits.reduce((mask, bit) => {
+      if (bit.offset < 0 || bit.offset > 31) {
+        throw new Error(`Invalid bit offset=${bit.offset} for bit="${bit.name}"`);
       }
-      return b.offset;
-    });
+      return mask | (1 << bit.offset);
+    }, 0);
   }
 
-  deserialize(buffer: Buffer): Set<number> {
+  deserialize(buffer: Buffer): number {
     const raw = this.converter.deserialize(buffer) as number;
-    const result = new Set<number>();
-
-    for (const offset of this.offsets) {
-      if (raw & (1 << offset)) {
-        result.add(offset);
-      }
-    }
-
-    return result;
+    return raw & this.mask;
   }
 
   serialize(value: IValue, buffer: Buffer): void {
-    const raw = this.toRaw(value);
-    this.converter.serialize(raw, buffer);
+    const flags = this.toNumber(value);
+    if ((flags & ~this.mask) !== 0) {
+      throw new Error(`Invalid bits set in value: ${(flags & ~this.mask).toString(2)}`);
+    }
+    this.converter.serialize(flags, buffer);
   }
 
   size(value: IValue): number {
-    return this.converter.size(typeof value === 'number' ? value : 0);
+    const flags = this.toNumber(value);
+    return this.converter.size(flags);
   }
 
-  default(): Set<number> {
-    return new Set();
+  default(): number {
+    return 0;
   }
 
-  private toRaw(value: IValue): number {
+  private toNumber(value: IValue): number {
     if (typeof value === 'number') {
       return value;
     }
-
-    const entries = this.normalize(value);
-    let raw = 0;
-
-    for (const v of entries) {
-      if (!this.offsets.includes(v)) {
-        throw new Error(`Unsupported bit offset=${v} for bitset=${this.name}`);
-      }
-      raw |= 1 << v;
-    }
-
-    return raw;
-  }
-
-  private normalize(value: IValue): Iterable<number> {
-    if (value instanceof Set || Array.isArray(value)) {
-      return value as Iterable<number>;
-    }
-    throw new Error(`Invalid bitset value type: ${typeof value}`);
+    throw new Error(`Bitset value must be a number, got: ${typeof value}`);
   }
 }

@@ -14,7 +14,7 @@ export interface MessgenTestComplexStruct {
   /** Some integer field */
   f2: bigint;
   /** Some bitset field */
-  bits0: MessgenTestSimpleBitsetSet;
+  bits0: number;
   s_arr: MessgenTestSimpleStruct[];
   /** Another integer field */
   f1_arr: BigInt64Array;
@@ -40,7 +40,7 @@ export interface MessgenTestComplexStructNostl {
   /** Some integer field */
   f2: bigint;
   /** Some bitset field */
-  bits0: MessgenTestSimpleBitsetSet;
+  bits0: number;
   s_arr: MessgenTestSimpleStruct[];
   /** Another integer field */
   f1_arr: BigInt64Array;
@@ -139,12 +139,10 @@ export enum MessgenTestSimpleEnum {
   ANOTHER_VALUE = 1,
 }
 export enum MessgenTestSimpleBitset {
-  ONE = 0,
-  TWO = 1,
-  ERROR = 2,
+  ONE = (1 << 0),
+  TWO = (1 << 1),
+  ERROR = (1 << 2),
 }
-
-export type MessgenTestSimpleBitsetSet = Set<MessgenTestSimpleBitset>;
 export enum TypeName {
   CROSS_PROTO = 'cross_proto',
   MESSGEN_TEST_COMPLEX_STRUCT = 'messgen/test/complex_struct',

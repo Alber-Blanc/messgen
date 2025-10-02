@@ -161,7 +161,7 @@ describe('integration', () => {
       v_vec2: Array(2).fill(Array(4).fill(new Int16Array(3).fill(0x1234))), // replace 2 with desired outer list length
       str: 'Example String',
       str_vec: ['string1', 'string2', 'string3'],
-      bits0: new Set([MessgenTestSimpleBitset.ONE, MessgenTestSimpleBitset.ERROR]),
+      bits0: MessgenTestSimpleBitset.ONE | MessgenTestSimpleBitset.ERROR,
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct_nostl.bin');
 
@@ -220,7 +220,7 @@ describe('integration', () => {
       str_vec: ['string1', 'string2', 'string3'],
       map_str_by_int: new Map(Array.from({ length: 3 }, (_, i) => [i, `string${i}`])),
       map_vec_by_str: new Map(Array.from({ length: 3 }, (_, i) => [`key${i}`, new Int32Array(3).fill(0x1234)])),
-      bits0: new Set([MessgenTestSimpleBitset.ONE, MessgenTestSimpleBitset.ERROR]),
+      bits0: MessgenTestSimpleBitset.ONE | MessgenTestSimpleBitset.ERROR,
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct.bin');
 
