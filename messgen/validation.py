@@ -6,6 +6,7 @@ from .model import (
     MessgenType,
     Protocol,
     StructType,
+    BitsetType,
 )
 
 _CPP_KEYWORDS = {
@@ -165,12 +166,12 @@ def is_valid_name(name: str):
     return True
 
 
-def validate_type_dict(item_name: str, item: dict[str, StructType | EnumType]) -> None:
+def validate_type_dict(item_name: str, item: dict[str, StructType | EnumType | BitsetType]) -> None:
     if not is_valid_name(item_name):
         raise RuntimeError("Invalid message name %s" % item_name)
 
     if "type_class" not in item:
         raise RuntimeError("type_class missing in '%s': %s" % (item_name, item))
 
-    if (type_class := item.get("type_class")) not in ["struct", "enum", "external"]:
+    if (type_class := item.get("type_class")) not in ["struct", "enum", "bitset", "external"]:
         raise RuntimeError("type_class '%s' in '%s' is not supported %s" % (type_class, item_name, item))

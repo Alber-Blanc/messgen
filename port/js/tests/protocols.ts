@@ -12,6 +12,14 @@ export enum Protocol {
   TEST_PROTO = 1,
   ANOTHER_PROTO = 2,
 }
+export enum AnotherProto {
+  CROSS_PROTO_MSG = 0,
+}
+export interface AnotherProtoMap {
+  [Protocol.ANOTHER_PROTO]: {
+    [AnotherProto.CROSS_PROTO_MSG]: CrossProto;
+  };
+}
 export enum TestProto {
   SIMPLE_STRUCT_MSG = 0,
   COMPLEX_STRUCT_MSG = 1,
@@ -32,14 +40,6 @@ export interface TestProtoMap {
     [TestProto.COMPLEX_STRUCT_WITH_EMPTY_MSG]: MessgenTestComplexStructWithEmpty;
     [TestProto.COMPLEX_STRUCT_NOSTL_MSG]: MessgenTestComplexStructNostl;
     [TestProto.FLAT_STRUCT_MSG]: MessgenTestFlatStruct;
-  };
-}
-export enum AnotherProto {
-  CROSS_PROTO_MSG = 0,
-}
-export interface AnotherProtoMap {
-  [Protocol.ANOTHER_PROTO]: {
-    [AnotherProto.CROSS_PROTO_MSG]: CrossProto;
   };
 }
 export type Message = TestProto | AnotherProto;

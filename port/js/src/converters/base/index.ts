@@ -5,3 +5,4 @@ export { MapConverter } from './MapConverter';
 export { EnumConverter } from './EnumConverter';
 export { StructConverter } from './StructConverter';
 export { DecimalConverter } from './DecimalConverter';
+export { BitsetConverter } from './BitsetConverter';

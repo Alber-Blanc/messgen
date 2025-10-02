@@ -1,13 +1,14 @@
 // eslint-disable-next-line eslint-comments/disable-enable-pair
 /* eslint-disable @typescript-eslint/no-loss-of-precision */
-import { describe, it, expect, beforeAll } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { execSync } from 'child_process';
-import { Codec } from '../src/Codec';
-import { uploadBinary, uploadTypes, uploadProtocols } from './utils';
+import { Codec } from '../src';
+import { uploadBinary, uploadProtocols, uploadTypes } from './utils';
+import type { MessgenTestComplexStruct } from './types';
+import { MessgenTestSimpleBitset } from './types';
 
-type MockCodec = Record<number, Record<number, unknown>>;
 describe('integration', () => {
-  let codec: Codec<MockCodec>;
+  let codec: Codec;
   const bigint = BigInt('0x1234567890abcdef');
 
   beforeAll(() => {
@@ -18,7 +19,7 @@ describe('integration', () => {
     codec = new Codec(types, protocols);
   });
 
-  it('shpuld parse simple_struct (flat structure)', () => {
+  it('should parse simple_struct (flat structure)', () => {
     const rawData = {
       f0: bigint,
       f1: bigint,
@@ -116,7 +117,7 @@ describe('integration', () => {
     )));
   });
 
-  it('shut be parse complex_struct_nostl', () => {
+  it('should be parse complex_struct_nostl', () => {
     const simpleStruct = {
       f0: bigint,
       f1: bigint,
@@ -131,7 +132,7 @@ describe('integration', () => {
       f9: true,
     };
 
-    const rawData = {
+    const rawData: Partial<MessgenTestComplexStruct> = {
       f0: BigInt('0x1234567890abcdef'),
       f1: 0x12345678,
       f2: BigInt('0x1234567890abcdef'),
@@ -160,6 +161,7 @@ describe('integration', () => {
       v_vec2: Array(2).fill(Array(4).fill(new Int16Array(3).fill(0x1234))), // replace 2 with desired outer list length
       str: 'Example String',
       str_vec: ['string1', 'string2', 'string3'],
+      bits0: MessgenTestSimpleBitset.ONE | MessgenTestSimpleBitset.ERROR,
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct_nostl.bin');
 
@@ -218,6 +220,7 @@ describe('integration', () => {
       str_vec: ['string1', 'string2', 'string3'],
       map_str_by_int: new Map(Array.from({ length: 3 }, (_, i) => [i, `string${i}`])),
       map_vec_by_str: new Map(Array.from({ length: 3 }, (_, i) => [`key${i}`, new Int32Array(3).fill(0x1234)])),
+      bits0: MessgenTestSimpleBitset.ONE | MessgenTestSimpleBitset.ERROR,
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct.bin');
 

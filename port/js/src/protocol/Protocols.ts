@@ -38,6 +38,13 @@ export class Protocols {
           typeName: type.type,
           values: type.values,
         });
+      } else if (type.type_class === RawTypeClass.BITSET) {
+        this.types.set(type.type, {
+          typeClass: TypeClass.BITSET,
+          type: type.base_type,
+          typeName: type.type,
+          bits: type.bits,
+        });
       }
     });
   }

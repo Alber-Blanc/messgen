@@ -5,12 +5,13 @@
 #include <messgen/test/name_clash_struct.h>
 #include <messgen/test/struct_with_enum.h>
 #include <messgen/test/var_size_struct.h>
+#include <messgen/test/simple_bitset.h>
 #include <nested/another_proto.h>
 #include <test_proto.h>
 
 #include <gtest/gtest.h>
 
-class CppTest : public ::testing::Test {
+class CppTest17 : public ::testing::Test {
 protected:
     std::vector<uint8_t> _buf;
 
@@ -49,7 +50,7 @@ protected:
     }
 };
 
-TEST_F(CppTest, SimpleStruct) {
+TEST_F(CppTest17, SimpleStruct) {
     test_proto::simple_struct_msg msg{{
         .f0 = 1,
         .f1 = 2,
@@ -64,7 +65,7 @@ TEST_F(CppTest, SimpleStruct) {
     test_serialization(msg.data);
 }
 
-TEST_F(CppTest, StructWithEnum) {
+TEST_F(CppTest17, StructWithEnum) {
     messgen::test::struct_with_enum msg{};
     msg.f0 = 1;
     msg.f1 = 2;
@@ -73,7 +74,7 @@ TEST_F(CppTest, StructWithEnum) {
     test_serialization(msg);
 }
 
-TEST_F(CppTest, VarSizeStruct) {
+TEST_F(CppTest17, VarSizeStruct) {
     messgen::test::var_size_struct msg{};
     std::vector<int64_t> v;
     v.resize(2);
@@ -86,7 +87,7 @@ TEST_F(CppTest, VarSizeStruct) {
     test_serialization(msg);
 }
 
-TEST_F(CppTest, ComplexStruct) {
+TEST_F(CppTest17, ComplexStruct) {
     messgen::test::complex_struct msg{};
 
     msg.f0 = 255;
@@ -113,11 +114,12 @@ TEST_F(CppTest, ComplexStruct) {
     msg.map_vec_by_str["cat"].push_back(3);
     msg.map_vec_by_str["dog"].push_back(30);
     msg.map_vec_by_str["dog"].push_back(40);
+    msg.bits0 |= messgen::test::simple_bitset::error;
 
     test_serialization(msg);
 }
 
-TEST_F(CppTest, FlatStruct) {
+TEST_F(CppTest17, FlatStruct) {
     messgen::test::flat_struct msg{};
 
     msg.f0 = 1;
@@ -133,7 +135,7 @@ TEST_F(CppTest, FlatStruct) {
     test_serialization(msg);
 }
 
-TEST_F(CppTest, FlatStructZeroCopy) {
+TEST_F(CppTest17, FlatStructZeroCopy) {
     messgen::test::flat_struct msg{};
 
     msg.f0 = 1;
@@ -149,7 +151,7 @@ TEST_F(CppTest, FlatStructZeroCopy) {
     test_zerocopy(msg);
 }
 
-TEST_F(CppTest, TwoMsg) {
+TEST_F(CppTest17, TwoMsg) {
     messgen::test::simple_struct msg1{};
     msg1.f0 = 1;
     msg1.f1 = 2;
@@ -189,7 +191,7 @@ TEST_F(CppTest, TwoMsg) {
     EXPECT_EQ(msg2, msg2c);
 }
 
-TEST_F(CppTest, ComplexStructWithEmpty) {
+TEST_F(CppTest17, ComplexStructWithEmpty) {
     messgen::test::complex_struct_with_empty e{};
     test_serialization(e);
 }
@@ -199,35 +201,36 @@ constexpr void for_each(std::tuple<T...> &&obj, Func &&func) {
     std::apply([&]<class... M>(M &&...members) { (func(members), ...); }, obj);
 }
 
-TEST_F(CppTest, MessageReflectionFieldNames) {
+TEST_F(CppTest17, MessageReflectionFieldNames) {
     using namespace messgen;
 
     auto message = test::complex_struct{};
 
     auto names = std::vector<std::string_view>{};
     for_each(members_of(reflect_object(message)), [&](auto &&param) { names.push_back(name_of(param)); });
-    EXPECT_EQ(names.size(), 17);
+    EXPECT_EQ(names.size(), 18);
 
     auto expected_names = std::vector<std::string_view>{
-        "f0",     "f1",     "f2",     "s_arr", "f1_arr", "v_arr",   "f2_vec",         "e_vec",          "s_vec",
-        "v_vec0", "v_vec1", "v_vec2", "str",   "bs",     "str_vec", "map_str_by_int", "map_vec_by_str",
+            "f0",    "f1",     "f2",     "bits0",  "s_arr", "f1_arr", "v_arr",   "f2_vec",         "e_vec",
+            "s_vec", "v_vec0", "v_vec1", "v_vec2", "str",   "bs",     "str_vec", "map_str_by_int", "map_vec_by_str",
     };
     EXPECT_EQ(expected_names, names);
 }
 
-TEST_F(CppTest, MessageReflectionFieldTypes) {
+TEST_F(CppTest17, MessageReflectionFieldTypes) {
     using namespace messgen;
 
     auto message = test::complex_struct{};
 
     auto types = std::vector<std::string_view>{};
     for_each(members_of(reflect_object(message)), [&](auto &&param) { types.push_back(name_of(type_of(param))); });
-    EXPECT_EQ(types.size(), 17);
+    EXPECT_EQ(types.size(), 18);
 
     auto expected_types = std::vector<std::string_view>{
         "uint64_t",
         "uint32_t",
         "uint64_t",
+        "messgen::test::simple_bitset",
         "array<messgen::test::simple_struct, 2>",
         "array<int64_t, 4>",
         "array<messgen::test::var_size_struct, 2>",
@@ -246,14 +249,14 @@ TEST_F(CppTest, MessageReflectionFieldTypes) {
     EXPECT_EQ(expected_types, types);
 }
 
-TEST_F(CppTest, MessageReflection) {
+TEST_F(CppTest17, MessageReflection) {
     using namespace messgen;
 
     auto message = test_proto::complex_struct_msg{};
     EXPECT_EQ("test_proto::complex_struct_msg", name_of(reflect_object(message)));
 }
 
-TEST_F(CppTest, EnumReflection) {
+TEST_F(CppTest17, EnumReflection) {
     using namespace messgen;
     using namespace std::literals;
 
@@ -275,7 +278,7 @@ TEST_F(CppTest, EnumReflection) {
     EXPECT_EQ(value_of(std::get<1>(enums)), messgen::test::simple_enum{1});
 }
 
-TEST_F(CppTest, DispatchMessage) {
+TEST_F(CppTest17, DispatchMessage) {
     using namespace messgen;
 
     auto expected = test::simple_struct{
@@ -303,51 +306,11 @@ TEST_F(CppTest, DispatchMessage) {
     EXPECT_TRUE(invoked);
 }
 
-TEST_F(CppTest, TypeConcept) {
+TEST_F(CppTest17, ProtoHash) {
     using namespace messgen;
 
-    struct not_a_message {};
-
-    EXPECT_TRUE(type<test::simple_struct>);
-    EXPECT_FALSE(type<test_proto::simple_struct_msg>);
-    EXPECT_FALSE(type<not_a_message>);
-    EXPECT_FALSE(type<int>);
-}
-
-TEST_F(CppTest, FlatTypeConcept) {
-    using namespace messgen;
-
-    EXPECT_TRUE(flat_type<test::flat_struct>);
-    EXPECT_FALSE(flat_type<test::complex_struct>);
-    EXPECT_FALSE(flat_type<int>);
-}
-
-TEST_F(CppTest, MessageConcept) {
-    using namespace messgen;
-
-    struct not_a_message {};
-
-    EXPECT_FALSE(message<test::simple_struct>);
-    EXPECT_FALSE(message<int>);
-    EXPECT_TRUE(message<test_proto::simple_struct_msg>);
-}
-
-TEST_F(CppTest, ProtoConcept) {
-    using namespace messgen;
-
-    struct not_a_message {};
-
-    EXPECT_FALSE(message<test::simple_struct>);
-    EXPECT_FALSE(protocol<test_proto::simple_struct_msg>);
-    EXPECT_FALSE(protocol<int>);
-    EXPECT_TRUE(protocol<test_proto>);
-}
-
-TEST_F(CppTest, ProtoHash) {
-    using namespace messgen;
-
-    auto hash_test_proto = hash_of(reflect_type<test_proto>);
-    auto hash_another_proto = hash_of<nested::another_proto>();
+    constexpr auto hash_test_proto = hash_of(reflect_type<test_proto>);
+    constexpr auto hash_another_proto = hash_of<nested::another_proto>();
     EXPECT_NE(hash_another_proto, hash_test_proto);
 
     auto expected_hash = test_proto::simple_struct_msg::HASH ^             //
@@ -359,5 +322,62 @@ TEST_F(CppTest, ProtoHash) {
                          test_proto::complex_struct_nostl_msg::HASH ^      //
                          test_proto::flat_struct_msg::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
-    EXPECT_EQ(11460364063552977134ULL, hash_test_proto);
+    EXPECT_EQ(5639281651251954308, hash_test_proto);
+}
+
+TEST_F(CppTest17, TypeTraits) {
+    using namespace messgen;
+
+    static_assert(is_flat_type_v<messgen::test::flat_struct>);
+    static_assert(!is_flat_type_v<messgen::test::complex_struct>);
+
+    static_assert(is_type_v<messgen::test::flat_struct>);
+    static_assert(is_type_v<messgen::test::complex_struct>);
+    static_assert(!is_type_v<test_proto::simple_struct_msg>);
+    static_assert(!is_type_v<test_proto>);
+
+    static_assert(is_message_v<test_proto::simple_struct_msg>);
+    static_assert(!is_message_v<messgen::test::flat_struct>);
+    static_assert(!is_message_v<test_proto>);
+
+    static_assert(is_protocol_v<test_proto>);
+    static_assert(!is_protocol_v<messgen::test::flat_struct>);
+    static_assert(!is_protocol_v<test_proto::simple_struct_msg>);
+}
+
+TEST_F(CppTest17, BitsetOperations) {
+    using namespace messgen;
+
+    test::simple_bitset test_bits;
+    test_bits |= test::simple_bitset::one;
+    test_bits |= test::simple_bitset::two;
+    test_bits |= test::simple_bitset::error;
+    test::simple_bitset::underlying_type test_bits_val = test_bits;
+    EXPECT_EQ(test_bits_val, 7);
+
+    // Toggle 'error' bit
+    test_bits ^= test::simple_bitset::error;
+    test_bits_val = test_bits;
+    EXPECT_EQ(test_bits_val, 3);
+
+    // Keep only 'two' bit set
+    test_bits &= test::simple_bitset::two;
+    test_bits_val = test_bits;
+    EXPECT_EQ(test_bits_val, 2);
+
+    // Set 'one' bit
+    test_bits = test_bits | test::simple_bitset::one;
+    test_bits_val = test_bits;
+    EXPECT_EQ(test_bits_val, 3);
+
+    // Set 'error' bit
+    test_bits = test_bits ^ test::simple_bitset::error;
+    test_bits_val = test_bits;
+    EXPECT_EQ(test_bits_val, 7);
+
+    // Keep only 'error' bit set
+    test_bits = test_bits & test::simple_bitset::error;
+    test_bits_val = test_bits;
+    EXPECT_EQ(test_bits_val, 4);
+    ASSERT_STREQ(test_bits.to_string().c_str(), "00000100");
 }

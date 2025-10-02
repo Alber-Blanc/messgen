@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Set, cast
 
 from .common import SEPARATOR
-from .model import MessgenType, EnumType, StructType, Protocol, TypeClass
+from .model import MessgenType, EnumType, StructType, Protocol, TypeClass, BitsetType
 from .validation import validate_protocol
 
 
@@ -75,7 +75,8 @@ class TypeScriptGenerator:
         self.options = options
 
     def generate(self, output_dir: Path, types: Dict[str, MessgenType], protocols: Dict[str, Protocol]) -> None:
-        for proto in protocols.values():
+        for pname in sorted(protocols.keys()):
+            proto = protocols[pname]
             validate_protocol(proto, types)
         output_dir.mkdir(parents=True, exist_ok=True)
         self.generate_types(output_dir, types)
@@ -92,14 +93,19 @@ class TypeScriptGenerator:
         if needs_decimal:
             blocks.append("import type { Decimal } from 'messgen';")
 
-        for name, t in types.items():
+        for name in sorted(types.keys()):
+            t = types[name]
             if t.type_class is TypeClass.struct:
-                blocks.append(self._emit_struct(name, cast(StructType, t)))
+                blocks.append(self._emit_struct(name, cast(StructType, t), types))
 
-        for name, t in types.items():
+        for name in sorted(types.keys()):
+            t = types[name]
             if t.type_class is TypeClass.enum:
                 blocks.append(self._emit_enum(name, cast(EnumType, t)))
-
+        for name in sorted(types.keys()):
+            t = types[name]
+            if t.type_class is TypeClass.bitset:
+                blocks.append(self._emit_bitset(name, cast(BitsetType, t)))
         blocks.append(self._emit_type_name_enum(types))
         content = '\n'.join(blocks)
         self._write(out_dir / self.TYPES_FILE, content)
@@ -108,7 +114,8 @@ class TypeScriptGenerator:
         used: Set[str] = set()
         parts: list[str] = [self._emit_protocol_enum(protocols)]
 
-        for proto in protocols.values():
+        for pname in sorted(protocols.keys()):
+            proto = protocols[pname]
             name = camel(proto.name)
             parts.append(self._emit_message_enum(proto, name))
             parts.append(self._emit_map_interface(used, proto))
@@ -122,25 +129,39 @@ class TypeScriptGenerator:
         content = '\n'.join([imports, *parts, union])
         self._write(out_dir / self.PROTOCOLS_FILE, content)
 
-    def _emit_struct(self, name: str, struct: StructType) -> str:
+    def _emit_struct(self, name: str, struct: StructType, types: Dict[str, MessgenType]) -> str:
         header = comment_block(struct.comment or '', f"Size: {struct.size}" if struct.size is not None else '')
         body: list[str] = []
         for f in struct.fields or []:
             if f.comment:
                 body.append(f"/** {f.comment} */")
-            body.append(f"{f.name}: {TypeScriptTypes.resolve(f.type)};")
+
+            f_type = types[f.type]
+            ts_type = TypeScriptTypes.resolve(f.type)
+
+            body.append(f"{f.name}: {ts_type};")
         block = indent('\n'.join(body))
         return f"{header}export interface {camel(name)} {{\n{block}\n}}"
 
     def _emit_enum(self, name: str, enum: EnumType) -> str:
         lines: list[str] = []
-        for v in enum.values or []:
+        for v in sorted(enum.values, key=lambda v: v.value):
             lines.append(f"{enum_key(v.name)} = {v.value},")
         body = indent('\n'.join(lines))
         return f"export enum {camel(name)} {{\n{body}\n}}"
 
+    def _emit_bitset(self, name: str, bitset: BitsetType) -> str:
+        enum_lines: list[str] = []
+        for b in sorted(bitset.bits, key=lambda b: b.offset):
+            val = f"(1 << {b.offset})"
+            enum_lines.append(f"{enum_key(b.name)} = {val},")
+        enum_body = indent('\n'.join(enum_lines))
+        enum_name = camel(name)
+    
+        return f"export enum {enum_name} {{\n{enum_body}\n}}"
+
     def _emit_type_name_enum(self, types: Dict[str, MessgenType]) -> str:
-        entries = [f"{enum_key(n)} = '{n}'," for n, t in types.items() if t.type_class is TypeClass.struct]
+        entries = [f"{enum_key(n)} = '{n}'," for n, t in sorted(types.items()) if t.type_class is TypeClass.struct]
         body = indent('\n'.join(entries))
         return f"export enum TypeName {{\n{body}\n}}"
 
@@ -159,7 +180,8 @@ class TypeScriptGenerator:
         lines: list[str] = [f"export interface {name}ProtocolMap {{"]
         lines.append(indent(f"[Protocol.{proto.name.upper()}]: {{", level=1))
 
-        for m in proto.messages.values():
+        for mid in sorted(proto.messages.keys()):
+            m = proto.messages[mid]
             tname = camel(m.type)
             used.add(tname)
             lines.append(indent(f"[{name}.{m.name.upper()}]: {tname};", level=2))
