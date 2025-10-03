@@ -80,6 +80,15 @@ export interface NameClashStruct {
   /** Clashing name struct */
   name_clash_struct: bigint;
 }
+export enum SimpleBitset {
+  ONE = (1 << 0),
+  TWO = (1 << 1),
+  ERROR = (1 << 2),
+}
+export enum SimpleEnum {
+  ONE_VALUE = 0,
+  ANOTHER_VALUE = 1,
+}
 /** Simple struct example Size: 42 */
 export interface SimpleStruct {
   /** Some integer field */
@@ -111,13 +120,4 @@ export interface VarSizeStruct {
   /** Variable size field */
   f1_vec: BigInt64Array;
   str: string;
-}
-export enum SimpleEnum {
-  ONE_VALUE = 0,
-  ANOTHER_VALUE = 1,
-}
-export enum SimpleBitset {
-  ONE = (1 << 0),
-  TWO = (1 << 1),
-  ERROR = (1 << 2),
 }
