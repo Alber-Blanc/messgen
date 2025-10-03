@@ -1,12 +1,12 @@
 import type { CrossProto } from './types';
-import type { MessgenTestComplexStruct } from './types';
-import type { MessgenTestComplexStructNostl } from './types';
-import type { MessgenTestComplexStructWithEmpty } from './types';
-import type { MessgenTestEmptyStruct } from './types';
-import type { MessgenTestFlatStruct } from './types';
-import type { MessgenTestSimpleStruct } from './types';
-import type { MessgenTestStructWithEnum } from './types';
-import type { MessgenTestVarSizeStruct } from './types';
+import type { TestComplexStruct } from './types';
+import type { TestComplexStructNostl } from './types';
+import type { TestComplexStructWithEmpty } from './types';
+import type { TestEmptyStruct } from './types';
+import type { TestFlatStruct } from './types';
+import type { TestSimpleStruct } from './types';
+import type { TestStructWithEnum } from './types';
+import type { TestVarSizeStruct } from './types';
 
 export enum Protocol {
   TEST_PROTO = 1,
@@ -15,7 +15,7 @@ export enum Protocol {
 export enum AnotherProto {
   CROSS_PROTO_MSG = 0,
 }
-export interface AnotherProtoMap {
+export interface AnotherProtoProtocolMap {
   [Protocol.ANOTHER_PROTO]: {
     [AnotherProto.CROSS_PROTO_MSG]: CrossProto;
   };
@@ -30,17 +30,17 @@ export enum TestProto {
   COMPLEX_STRUCT_NOSTL_MSG = 6,
   FLAT_STRUCT_MSG = 7,
 }
-export interface TestProtoMap {
+export interface TestProtoProtocolMap {
   [Protocol.TEST_PROTO]: {
-    [TestProto.SIMPLE_STRUCT_MSG]: MessgenTestSimpleStruct;
-    [TestProto.COMPLEX_STRUCT_MSG]: MessgenTestComplexStruct;
-    [TestProto.VAR_SIZE_STRUCT_MSG]: MessgenTestVarSizeStruct;
-    [TestProto.STRUCT_WITH_ENUM_MSG]: MessgenTestStructWithEnum;
-    [TestProto.EMPTY_STRUCT_MSG]: MessgenTestEmptyStruct;
-    [TestProto.COMPLEX_STRUCT_WITH_EMPTY_MSG]: MessgenTestComplexStructWithEmpty;
-    [TestProto.COMPLEX_STRUCT_NOSTL_MSG]: MessgenTestComplexStructNostl;
-    [TestProto.FLAT_STRUCT_MSG]: MessgenTestFlatStruct;
+    [TestProto.SIMPLE_STRUCT_MSG]: TestSimpleStruct;
+    [TestProto.COMPLEX_STRUCT_MSG]: TestComplexStruct;
+    [TestProto.VAR_SIZE_STRUCT_MSG]: TestVarSizeStruct;
+    [TestProto.STRUCT_WITH_ENUM_MSG]: TestStructWithEnum;
+    [TestProto.EMPTY_STRUCT_MSG]: TestEmptyStruct;
+    [TestProto.COMPLEX_STRUCT_WITH_EMPTY_MSG]: TestComplexStructWithEmpty;
+    [TestProto.COMPLEX_STRUCT_NOSTL_MSG]: TestComplexStructNostl;
+    [TestProto.FLAT_STRUCT_MSG]: TestFlatStruct;
   };
 }
 export type Message = TestProto | AnotherProto;
-export type ProtocolMap = TestProtoMap & AnotherProtoMap;
+export type ProtocolMap = TestProtoProtocolMap & AnotherProtoProtocolMap;
