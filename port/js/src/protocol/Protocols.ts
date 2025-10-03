@@ -1,6 +1,6 @@
-import { TypeClass } from '../types';
-import type { BasicType, DecimalType, IName, IType, TypeDefinition } from '../types';
-import { type RawType, RawTypeClass } from './Protocols.types';
+import type {BasicType, DecimalType, IName, IType, TypeDefinition} from '../types';
+import {TypeClass} from '../types';
+import {type RawType, RawTypeClass} from './Protocols.types';
 
 export class Protocols {
   private static DECIMAL = 'dec64';
@@ -51,10 +51,10 @@ export class Protocols {
 
   getType(typeName: IType): TypeDefinition {
     if (Protocols.SCALAR_TYPES_INFO.has(typeName)) {
-      return { type: typeName as BasicType, typeClass: TypeClass.SCALAR };
+      return {type: typeName as BasicType, typeClass: TypeClass.SCALAR};
     }
     if (typeName === Protocols.DECIMAL) {
-      return { type: typeName as DecimalType, typeClass: TypeClass.DECIMAL };
+      return {type: typeName as DecimalType, typeClass: TypeClass.DECIMAL};
     }
     if (typeName.endsWith(']')) {
       return this.parseArrayType(typeName);

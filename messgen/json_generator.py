@@ -12,6 +12,7 @@ from .model import (
     TypeClass,
 )
 
+
 class JsonGenerator:
     _FILE_EXT = ".json"
 

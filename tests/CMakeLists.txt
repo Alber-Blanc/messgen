@@ -1,8 +1,6 @@
 include(GoogleTest)
 find_package(GTest REQUIRED)
 
-enable_testing()
-
 set(MESSGEN_TYPE_DIR "${CMAKE_CURRENT_LIST_DIR}/data/types")
 set(MESSGEN_PROTO_DIR "${CMAKE_CURRENT_LIST_DIR}/data/protocols")
 
