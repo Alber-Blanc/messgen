@@ -16,6 +16,7 @@ from pathlib import (
 from .model import (
     ArrayType,
     EnumType,
+    BitsetType,
     hash_message,
     hash_type,
     MapType,
@@ -23,8 +24,7 @@ from .model import (
     MessgenType,
     StructType,
     TypeClass,
-    VectorType,
-    BitsetType
+    VectorType
 )
 from .yaml_parser import (
     parse_protocols,
@@ -81,7 +81,8 @@ class TypeConverter(ABC):
     def serialize(self, data: dict | Decimal) -> bytes:
         return self._serialize(data)
 
-    def deserialize(self, data: bytes) -> dict:
+    def deserialize(self, data: bytes | memoryview) -> dict:
+        data = memoryview(data)
         try:
             msg, sz = self._deserialize(data)
         except Exception as e:
@@ -128,7 +129,7 @@ class ScalarConverter(TypeConverter):
         assert self.struct_fmt
         return struct.pack(self.struct_fmt, data)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         assert self.struct_fmt
         return struct.unpack(self.struct_fmt, data[: self.size])[0], self.size
 
@@ -210,7 +211,7 @@ class DecimalConverter(TypeConverter):
 
         return bits.to_bytes(self.size, byteorder="little")
 
-    def _deserialize(self, data: bytes) -> tuple[Decimal, int]:
+    def _deserialize(self, data: memoryview) -> tuple[Decimal, int]:
         # Convert bytes to 64-bit integer
         bits = int.from_bytes(data[: self.size], byteorder="little")
         if bits == 0:
@@ -273,9 +274,10 @@ class EnumConverter(TypeConverter):
         self.struct_fmt = "<" + self.struct_fmt
         self.size = struct.calcsize(self.struct_fmt)
         self.mapping = {}
+        self.rev_mapping = {}
         for item in self._type_def.values:
             self.mapping[item.value] = item.name
-        self.rev_mapping = {v: k for k, v in self.mapping.items()}
+            self.rev_mapping[item.name] = item.value
 
     def _serialize(self, data):
         if (v := self.rev_mapping.get(data)) is not None:
@@ -283,7 +285,7 @@ class EnumConverter(TypeConverter):
             return struct.pack(self.struct_fmt, v)
         raise MessgenError(f"Unsupported value={data} for enum={self._type_name}")
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         assert self.struct_fmt
         (v,) = struct.unpack(self.struct_fmt, data[: self.size])
         if (mapped := self.mapping.get(v)) is not None:
@@ -294,28 +296,50 @@ class EnumConverter(TypeConverter):
         assert isinstance(self._type_def, EnumType)
         return self._type_def.values[0].name
 
-
 class BitsetConverter(TypeConverter):
     def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
         assert self._type_class == TypeClass.bitset
+        assert isinstance(self._type_def, BitsetType)
         self.base_type = self._type_def.base_type
         self.struct_fmt = STRUCT_TYPES_MAP.get(self.base_type, None)
         if self.struct_fmt is None:
-            raise RuntimeError(f'Unsupported base type "{self.base_type}" in {type_name}')
+            raise RuntimeError('Unsupported base type "%s" in %s' % (self.base_type, type_name))
         self.struct_fmt = "<" + self.struct_fmt
         self.size = struct.calcsize(self.struct_fmt)
-        self.def_value = 0
+        self.mapping = [""] * self.size * 8
+        for offs in range(len(self.mapping)):
+            # Set default names for unknown bits
+            self.mapping[offs] = str(offs)
+        self.rev_mapping = {}
+        for item in self._type_def.bits:
+            self.mapping[item.offset] = item.name
+            self.rev_mapping[item.name] = item.offset
 
-    def _serialize(self, data: int) -> bytes:
-        return struct.pack(self.struct_fmt, data)
+    def _serialize(self, bits):
+        v = 0
+        if isinstance(bits, int):
+            # Bitset as number
+            v = bits
+        else:
+            # Bitset as collection of bit names
+            for b in bits:
+                if (offs := self.rev_mapping.get(b)) is not None:
+                    v |= (1 << offs)
+                else:
+                    raise MessgenError(f"Unsupported bit={b} for bitset={self._type_name}")
+        return struct.pack(self.struct_fmt, v)
 
-    def _deserialize(self, data: bytes) -> tuple[int, int]:
+    def _deserialize(self, data):
         (v,) = struct.unpack(self.struct_fmt, data[: self.size])
-        return v, self.size
+        bits = list()
+        for offs in range(len(self.mapping)):
+            if v & (1 << offs):
+                bits.append(self.mapping[offs])
+        return bits, self.size
 
-    def default_value(self) -> int:
-        return self.def_value
+    def default_value(self):
+        return set()
 
 class StructConverter(TypeConverter):
     def __init__(self, types: dict[str, MessgenType], type_name: str):
@@ -333,7 +357,7 @@ class StructConverter(TypeConverter):
             out.append(field_type._serialize(v))
         return b"".join(out)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         out = {}
         offset = 0
         for field_name, field_type in self.fields:
@@ -361,7 +385,7 @@ class ArrayConverter(TypeConverter):
             out.append(self.element_type._serialize(item))
         return b"".join(out)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         out = []
         offset = 0
         for i in range(self.array_size):
@@ -393,7 +417,7 @@ class VectorConverter(TypeConverter):
             out.append(self.element_type._serialize(item))
         return b"".join(out)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         out = []
         offset = 0
         n, n_size = self.size_type._deserialize(data[offset:])
@@ -425,7 +449,7 @@ class MapConverter(TypeConverter):
             out.append(self.value_type._serialize(v))
         return b"".join(out)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         out = {}
         offset = 0
         n, n_size = self.size_type._deserialize(data[offset:])
@@ -450,9 +474,11 @@ class StringConverter(TypeConverter):
         self.struct_fmt = "<%is"
 
     def _serialize(self, data):
-        return self.size_type._serialize(len(data)) + struct.pack(self.struct_fmt % len(data), data.encode("utf-8"))
+        encoded_data = data.encode("utf-8")
+        size = len(encoded_data)
+        return self.size_type._serialize(size) + struct.pack(self.struct_fmt % size, encoded_data)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         n, n_size = self.size_type._deserialize(data)
         offset = n_size
         value = struct.unpack(self.struct_fmt % n, data[offset: offset + n])[0]
@@ -473,7 +499,7 @@ class BytesConverter(TypeConverter):
     def _serialize(self, data):
         return self.size_type._serialize(len(data)) + struct.pack(self.struct_fmt % len(data), data)
 
-    def _deserialize(self, data):
+    def _deserialize(self, data: memoryview):
         n, n_size = self.size_type._deserialize(data)
         offset = n_size
         value = struct.unpack(self.struct_fmt % n, data[offset: offset + n])[0]

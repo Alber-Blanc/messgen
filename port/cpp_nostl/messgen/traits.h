@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Allocator.h"
-#include <messgen/traits.h>
+#include <messgen/traits_common.h>
 
 #include <cstdint>
 #include <type_traits>

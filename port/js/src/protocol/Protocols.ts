@@ -43,7 +43,7 @@ export class Protocols {
           typeClass: TypeClass.BITSET,
           type: type.base_type,
           typeName: type.type,
-          values: type.values,
+          bits: type.bits,
         });
       }
     });

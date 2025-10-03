@@ -138,7 +138,7 @@ def test_protocol_info(codec):
     assert protocol_by_id.proto_name() == protocol_by_name.proto_name()
     assert protocol_by_id.proto_id() == protocol_by_name.proto_id()
     assert protocol_by_id.proto_hash() == protocol_by_name.proto_hash()
-    assert protocol_by_id.proto_hash() == 4336069957896564965
+    assert protocol_by_id.proto_hash() == 5639281651251954308
 
 
 def test_decimal_decoding():
@@ -287,6 +287,24 @@ def test_enum_type_definition(codec):
         assert any(item.value == value for item in type_def.values)
 
 
+def test_bitset_type_definition(codec):
+    type_def = codec.type_definition("messgen/test/simple_bitset")
+    assert type_def.type == "messgen/test/simple_bitset"
+    assert type_def.type_class == TypeClass.bitset
+    assert type_def.base_type == "uint8"
+
+    assert len(type_def.bits) > 0
+
+    expected_bits = [
+        (0, "one"),
+        (1, "two"),
+        (2, "error"),
+    ]
+    for offs, name in expected_bits:
+        assert any(item.name == name for item in type_def.bits)
+        assert any(item.offset == offs for item in type_def.bits)
+
+
 def test_enum_converter_serialization(codec):
     type_converter = codec.type_converter("messgen/test/simple_enum")
 
@@ -386,3 +404,17 @@ def test_codec_empty():
 
     assert empty_codec.types() == []
     assert empty_codec.protocols() == []
+
+def test_var_size_string_serialization(codec):
+    type_def = codec.type_converter("messgen/test/var_size_struct")
+    expected_msg = {
+        "f0": 0x0,
+        "f1_vec": [],
+        "str": "连接查询服务失败",
+    }
+
+    expected_bytes = type_def.serialize(expected_msg)
+    assert expected_bytes
+
+    actual_msg = type_def.deserialize(expected_bytes)
+    assert actual_msg == expected_msg

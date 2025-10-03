@@ -1,7 +1,7 @@
 #pragma once
 
 #if __cplusplus >= 202002L
-#include "concepts.h"
+#include "concepts_common.h"
 #endif
 
 #include <messgen/reflection.h>

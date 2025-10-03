@@ -6,6 +6,7 @@ from pathlib import Path
 from .protocol_version import version_hash
 from .validation import validate_protocol
 from .model import (
+    BitsetType,
     MessgenType,
     Protocol,
     TypeClass,
@@ -58,15 +59,17 @@ class JsonGenerator:
 
     @staticmethod
     def _emit_bitset(type_def: MessgenType) -> dict:
+        if not isinstance(type_def, BitsetType):
+                raise TypeError(f"Expected BitsetType, got {type(type_def)}")
         return {
             "type": type_def.type,
             "type_class": "bitset",
             "base_type": type_def.base_type,
             "comment": getattr(type_def, "comment", None),
-            "values": [
+            "bits": [
                 {
                     "name": b.name.upper(),
-                    "value": f"1 << {b.offset}",
+                    "offset": b.offset,
                     "comment": getattr(b, "comment", None),
                 }
                 for b in getattr(type_def, "bits", []) or []
