@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Field, StructTypeDefinition } from '../src/types';
+import { TypeClass, type Field, type StructTypeDefinition } from '../src/types';
 import { StructConverter } from '../src/converters/base/StructConverter';
 import { Buffer } from '../src/Buffer';
 import { initGetType } from './utils';
@@ -147,6 +147,6 @@ describe('StructConverter', () => {
   }
 
   function createSchema(fields: Field[] = []): StructTypeDefinition {
-    return { typeClass: 'struct', fields, typeName: 'testStruct' };
+    return { typeClass: TypeClass.STRUCT, fields, typeName: 'testStruct' };
   }
 });
