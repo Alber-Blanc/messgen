@@ -5,7 +5,7 @@
 #include <messgen/test/name_clash_struct.h>
 #include <messgen/test/struct_with_enum.h>
 #include <messgen/test/var_size_struct.h>
-#include <messgen/test/test_bitset.h>
+#include <messgen/test/simple_bitset.h>
 #include <nested/another_proto.h>
 #include <test_proto.h>
 
@@ -114,7 +114,7 @@ TEST_F(CppTest17, ComplexStruct) {
     msg.map_vec_by_str["cat"].push_back(3);
     msg.map_vec_by_str["dog"].push_back(30);
     msg.map_vec_by_str["dog"].push_back(40);
-    msg.bits0 |= messgen::test::test_bitset::error;
+    msg.bits0 |= messgen::test::simple_bitset::error;
 
     test_serialization(msg);
 }
@@ -230,7 +230,7 @@ TEST_F(CppTest17, MessageReflectionFieldTypes) {
         "uint64_t",
         "uint32_t",
         "uint64_t",
-        "messgen::test::test_bitset",
+        "messgen::test::simple_bitset",
         "array<messgen::test::simple_struct, 2>",
         "array<int64_t, 4>",
         "array<messgen::test::var_size_struct, 2>",
@@ -322,7 +322,7 @@ TEST_F(CppTest17, ProtoHash) {
                          test_proto::complex_struct_nostl_msg::HASH ^      //
                          test_proto::flat_struct_msg::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
-    EXPECT_EQ(4336069957896564965, hash_test_proto);
+    EXPECT_EQ(5639281651251954308, hash_test_proto);
 }
 
 TEST_F(CppTest17, TypeTraits) {
@@ -348,35 +348,35 @@ TEST_F(CppTest17, TypeTraits) {
 TEST_F(CppTest17, BitsetOperations) {
     using namespace messgen;
 
-    test::test_bitset test_bits;
-    test_bits |= test::test_bitset::one;
-    test_bits |= test::test_bitset::two;
-    test_bits |= test::test_bitset::error;
-    test::test_bitset::underlying_type test_bits_val = test_bits;
+    test::simple_bitset test_bits;
+    test_bits |= test::simple_bitset::one;
+    test_bits |= test::simple_bitset::two;
+    test_bits |= test::simple_bitset::error;
+    test::simple_bitset::underlying_type test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 7);
 
     // Toggle 'error' bit
-    test_bits ^= test::test_bitset::error;
+    test_bits ^= test::simple_bitset::error;
     test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 3);
 
     // Keep only 'two' bit set
-    test_bits &= test::test_bitset::two;
+    test_bits &= test::simple_bitset::two;
     test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 2);
 
     // Set 'one' bit
-    test_bits = test_bits | test::test_bitset::one;
+    test_bits = test_bits | test::simple_bitset::one;
     test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 3);
 
     // Set 'error' bit
-    test_bits = test_bits ^ test::test_bitset::error;
+    test_bits = test_bits ^ test::simple_bitset::error;
     test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 7);
 
     // Keep only 'error' bit set
-    test_bits = test_bits & test::test_bitset::error;
+    test_bits = test_bits & test::simple_bitset::error;
     test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 4);
     ASSERT_STREQ(test_bits.to_string().c_str(), "00000100");

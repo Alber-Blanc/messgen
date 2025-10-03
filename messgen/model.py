@@ -14,10 +14,10 @@ class TypeClass(str, Enum):
     array = "array"
     map = "map"
     enum = "enum"
+    bitset = "bitset"
     struct = "struct"
     decimal = "decimal"
     external = "external"
-    bitset = "bitset"
 
 
 @dataclass

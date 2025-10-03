@@ -1,4 +1,4 @@
-import type { IName, NumberType, Field } from '../types';
+import type { IName, NumberType, Field, BitsetBit } from '../types';
 
 export interface RawStructType {
   type: string;
@@ -17,7 +17,7 @@ export interface RawBitsetType {
   type: string;
   type_class: 'bitset';
   base_type: NumberType;
-  values: EnumValue[];
+  bits: BitsetBit[];
 }
 
 export type RawType = RawStructType | RawEnumType | RawBitsetType;
