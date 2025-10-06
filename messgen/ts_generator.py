@@ -1,3 +1,4 @@
+import posixpath
 import re
 import textwrap
 from pathlib import Path
@@ -33,12 +34,24 @@ def enum_key(name: str) -> str:
 
 
 def _proto_dir_from_type_path(tname: str) -> str:
-    parts = tname.split('/')
-    return parts[-2] if len(parts) >= 2 else 'common'
+    return tname.rpartition('/')[0] or tname
 
 
-def _folder_pascal(folder: str) -> str:
-    return folder[:1].upper() + folder[1:]
+def _pascal_from_path(path: str) -> str:
+    parts = re.split(r'[/_]', path)
+    return ''.join(p[:1].upper() + p[1:] for p in parts if p)
+
+def _type_folder_of(t: str) -> str:
+    return t.rpartition('/')[0] or t
+
+def _rel_path(from_dir: str, to_dir: str) -> str:
+    rel = posixpath.relpath(to_dir, start=from_dir)
+    if rel == '.':
+        return './'
+    return rel
+
+def _alias_from_key(key: str) -> str:
+    return ''.join(part[:1].upper() + part[1:] for part in key.split('/') if part)
 
 
 class TypeScriptTypes:
@@ -120,10 +133,11 @@ def _collect_external_deps_for_folder(
         for f in st.fields or []:
             for dep in TypeScriptTypes.dependencies(f.type):
                 dep_folder = _proto_dir_from_type_path(dep)
-                if dep_folder != folder:
-                    external[dep_folder].add(normalize(dep))
+                if dep_folder == folder:
+                    continue
+                import_path = posixpath.relpath(dep_folder, start=folder)
+                external[import_path].add(normalize(dep))
     return external
-
 
 class TypeScriptGenerator:
     TYPES_FILE = 'types.ts'
@@ -132,9 +146,7 @@ class TypeScriptGenerator:
     def __init__(self, options=None):
         self.options = options
 
-    def generate(
-        self, output_dir: Path, types: Dict[str, MessgenType], protocols: Dict[str, Protocol]
-    ) -> None:
+    def generate(self, output_dir: Path, types: Dict[str, MessgenType], protocols: Dict[str, Protocol]) -> None:
         for pname in sorted(protocols.keys()):
             validate_protocol(protocols[pname], types)
 
@@ -166,8 +178,7 @@ class TypeScriptGenerator:
 
             for other_folder in sorted(external_deps.keys()):
                 spec = ', '.join(sorted(external_deps[other_folder]))
-                rel = f"../{other_folder}/types"
-                blocks.append(f"import type {{ {spec} }} from '{rel}';")
+                blocks.append(f"import type {{ {spec} }} from '{other_folder}';")
 
             if needs_decimal:
                 blocks.append("import type { Decimal } from 'messgen';")
@@ -181,85 +192,73 @@ class TypeScriptGenerator:
                 elif t.type_class is TypeClass.bitset:
                     blocks.append(self._emit_bitset(tname, cast(BitsetType, t)))
 
-            self._write(proto_dir / self.TYPES_FILE, '\n'.join(blocks))
+            self._write(proto_dir / 'index.ts', '\n'.join(blocks))
 
-        ns_lines = [
-            f"export * as {_folder_pascal(folder)} from './{folder}/types';"
-            for folder in sorted(by_proto.keys())
-        ]
         typename_block = self._emit_root_type_name_enum(types)
-        content = '\n'.join(ns_lines + (['', typename_block] if typename_block else []))
-        self._write(out_dir / self.TYPES_FILE, content)
+        self._write(out_dir / self.TYPES_FILE, typename_block)
 
     def generate_protocols(self, out_dir: Path, protocols: Dict[str, Protocol]) -> None:
         if not protocols:
-            self._write(out_dir / self.PROTOCOLS_FILE, 'export enum Protocol {}\n')
+            self._write(out_dir / self.PROTOCOLS_FILE, "export type ProtocolMap = {};\n")
             return
 
-        import_lines: List[str] = []
-        per_proto_blocks: List[str] = []
+        items = sorted(protocols.items(), key=lambda v: v[1].name)
 
-        proto_order = sorted(protocols.values(), key=lambda p: p.name)
-        proto_ns_list = [normalize(p.name) for p in proto_order]
+        for proto_key_path, proto in items:
+            proto_dir = proto_key_path
 
-        proto_folder_aliases: Dict[str, Dict[str, str]] = {}
-        for proto in proto_order:
-            ns = normalize(proto.name)
-            folders = {
-                _proto_dir_from_type_path(m.type)
-                for m in (proto.messages[mid] for mid in sorted(proto.messages))
-            }
-            alias_map: Dict[str, str] = {}
-            if len(folders) == 1:
-                folder = next(iter(folders))
-                alias = f"{ns}Types"
-                alias_map[folder] = alias
-                import_lines.append(f"import type * as {alias} from './{folder}/types';")
-            else:
-                for folder in sorted(folders):
-                    alias = f"{ns}{_folder_pascal(folder)}Types"
-                    alias_map[folder] = alias
-                    import_lines.append(f"import type * as {alias} from './{folder}/types';")
-            proto_folder_aliases[ns] = alias_map
+            messages = sorted(proto.messages.values(), key=lambda m: m.message_id)
+            type_folders = []
+            for m in messages:
+                type_folders.append(_type_folder_of(m.type))
+            unique_type_folders = sorted(set(type_folders))
 
-        for proto in proto_order:
-            ns = normalize(proto.name)
-            alias_map = proto_folder_aliases[ns]
+            folder_alias: Dict[str, str] = {}
+            for tf in unique_type_folders:
+                alias = _pascal_from_path(tf)
+                folder_alias[tf] = alias
 
-            enum_lines = [
-                f"{m.name.upper()} = {m.message_id},"
-                for m in sorted(proto.messages.values(), key=lambda x: x.message_id)
+            import_lines: List[str] = []
+            for tf in unique_type_folders:
+                rel = _rel_path(proto_dir, tf)
+                alias = folder_alias[tf]
+                import_lines.append(f"import type * as {alias} from '{rel}';")
+            import_block = '\n'.join(import_lines)
+
+            enum_entries = '\n'.join(f"{m.name.upper()} = {m.message_id}," for m in messages)
+            enum_block = f"export enum Message {{\n{indent(enum_entries)}\n}}"
+
+
+            lines = [
+                f"const PROTO_ID = {proto.proto_id};",
+                "",
+                "export interface Proto {",
+                indent("[PROTO_ID]: {", 1),
             ]
-            enum_joined = '\n'.join(enum_lines)
-            enum_block = f"export enum {ns} {{\n{indent(enum_joined)}\n}}\n"
-
-            map_lines = [f"export interface {ns}ProtocolMap {{", indent(f"[{proto.proto_id}]: {{", 1)]
-            for mid in sorted(proto.messages.keys()):
-                m = proto.messages[mid]
+            for m in messages:
+                tf = _type_folder_of(m.type)
+                alias = folder_alias[tf]
                 tname = normalize(m.type)
-                folder = _proto_dir_from_type_path(m.type)
-                map_lines.append(indent(f"[{ns}.{m.name.upper()}]: {alias_map[folder]}.{tname};", 2))
-            map_lines.append(indent('};', 1))
-            map_lines.append('}')
-            map_block = '\n'.join(map_lines)
+                lines.append(indent(f"[Message.{m.name.upper()}]: {alias}.{tname};", 2))
+            lines.append(indent("};", 1))
+            lines.append("}")
+            map_block = '\n'.join(lines)
 
-            per_proto_blocks.append(enum_block + map_block)
+            content = '\n\n'.join([import_block, enum_block, map_block]) + '\n'
 
-        protocol_enum_entries = [
-            f"{p.name.upper().split('/')[-1]} = {p.proto_id}," for p in proto_order
-        ]
-        protocol_enum_joined = '\n'.join(protocol_enum_entries)
-        protocol_enum_block = f"export enum Protocol {{\n{indent(protocol_enum_joined)}\n}}"
+            proto_file = out_dir / proto_dir / 'index.ts'
+            proto_file.parent.mkdir(parents=True, exist_ok=True)
+            self._write(proto_file, content)
 
-        unions_block = textwrap.dedent(
-            f'''
-            export type Message = {' | '.join(proto_ns_list)};
-            export type ProtocolMap = {' & '.join(f"{n}ProtocolMap" for n in proto_ns_list)};
-            '''
-        ).strip()
+        root_imports = [f"import type * as {_alias_from_key(key)} from './{key}';"
+                for key, _ in items]
+        import_block = '\n'.join(root_imports)
 
-        parts = ['\n'.join(import_lines), '\n\n'.join(per_proto_blocks), protocol_enum_block, unions_block]
-        self._write(out_dir / self.PROTOCOLS_FILE, '\n'.join(parts))
+        ns_list = [_alias_from_key(key) for key, _ in items]
+        union = ' & '.join(f"{ns}.Proto" for ns in ns_list) if ns_list else '{}'
+        root_content = f"{import_block}\n\nexport type ProtocolMap = {union};\n"
+
+        self._write(out_dir / self.PROTOCOLS_FILE, root_content)
 
     def _emit_struct(self, name: str, struct: StructType, types: Dict[str, MessgenType]) -> str:
         header = comment_block(
