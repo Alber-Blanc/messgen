@@ -31,7 +31,7 @@ def format_type(f):
     f_type = f["type"]
 
     if "/" in f["type"]:
-        din_type = f_type.split("/").pop()
+        din_type = f_type.split('/').pop()
         f_type = "[%s](#%s)" % (din_type, to_kebabcase(din_type))
 
     if f["is_array"]:

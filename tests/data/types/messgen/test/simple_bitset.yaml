@@ -1,0 +1,7 @@
+type_class: bitset
+comment: "Example of simple bitset"
+base_type: uint8
+bits:
+  - { name: "one", offset: 0, comment: "One example bit" }
+  - { name: "two", offset: 1, comment: "Another example bit" }
+  - { name: "error", offset: 2, comment: "Error flag" }
