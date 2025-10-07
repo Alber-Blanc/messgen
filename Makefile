@@ -31,11 +31,11 @@ test-golang: generate-golang
 	go test -v $(GOLANG_DIRECTORIES)
 
 check-golang: $(GOLANGCI_LINT)
-	$(GOLANGCI_LINT) run --config golangci.yml $(GOLANG_DIRECTORIES)
+	$(GOLANGCI_LINT) run --config golangci.yaml $(GOLANG_DIRECTORIES)
 
 $(GOLANGCI_LINT):
 	mkdir -p bin
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(BIN_DIR) $(GOLANGCI_LINT_VERSION)
 
 clean:
-	rm -rf ${BUILD_DIR}
+	rm -rf ${BUILD_DIR} $(BIN_DIR) build-golang-test/msgs
