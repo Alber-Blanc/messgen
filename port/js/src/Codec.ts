@@ -3,7 +3,7 @@ import { ConverterFactory } from './converters';
 import type { ProtocolMap, TypeMap, TypeByName } from './Codec.types';
 import { Buffer } from './Buffer';
 
-export class Codec {
+export class Codec<Types extends Record<string, unknown> = Record<string, unknown>> {
   private protocols = new Protocols();
   private protocolMap: ProtocolMap = new Map();
   private typesMap: TypeByName = new Map();
@@ -60,7 +60,7 @@ export class Codec {
     return converter.deserialize(new Buffer(arrayBuffer));
   }
 
-  public serializeType<T = unknown>(typeName: string, data: T): Buffer {
+  public serializeType<T extends string>(typeName: T, data: Types[T]): Buffer {
     const converter = this.typesMap.get(typeName);
     if (!converter) {
       throw new Error(`Converter not found for type: ${typeName}`);
@@ -72,7 +72,7 @@ export class Codec {
     return buffer;
   }
 
-  public deserializeType<T = unknown>(typeName: string, arrayBuffer: ArrayBufferLike): T {
+  public deserializeType<T extends string = string>(typeName: T, arrayBuffer: ArrayBufferLike): Types[T] {
     const converter = this.typesMap.get(typeName);
     if (!converter) {
       throw new Error(`Converter not found for type: ${typeName}`);
