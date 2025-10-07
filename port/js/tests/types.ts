@@ -16,7 +16,7 @@ export enum TypeName {
   ONE_MORE_MESSAGE = 'one_more_message',
 }
 
-export interface TypeMap {
+export type TypeMap = {
   [TypeName.CROSS_PROTO]: CrossProto.CrossProto;
   [TypeName.MESSGEN_TEST_COMPLEX_STRUCT]: MessgenTest.ComplexStruct;
   [TypeName.MESSGEN_TEST_COMPLEX_STRUCT_NOSTL]: MessgenTest.ComplexStructNostl;
@@ -28,4 +28,4 @@ export interface TypeMap {
   [TypeName.MESSGEN_TEST_STRUCT_WITH_ENUM]: MessgenTest.StructWithEnum;
   [TypeName.MESSGEN_TEST_VAR_SIZE_STRUCT]: MessgenTest.VarSizeStruct;
   [TypeName.ONE_MORE_MESSAGE]: OneMoreMessage.OneMoreMessage;
-}
+};

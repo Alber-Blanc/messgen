@@ -315,7 +315,7 @@ class TypeScriptGenerator:
 
     def _emit_root_type_map_from_list(self, struct_full_names: List[str], folder_alias: Dict[str, str]) -> str:
         if not struct_full_names:
-            return "export interface TypeMap {};\n"
+            return "export type TypeMap = {};\n"
 
         prop_lines: List[str] = []
         for full in struct_full_names:
@@ -326,7 +326,7 @@ class TypeScriptGenerator:
             prop_lines.append(f"[TypeName.{key}]: {ts_type};")
 
         body = '\n'.join(prop_lines)
-        return f"export interface TypeMap {{\n{indent(body)}\n}}"
+        return f"export type TypeMap = {{\n{indent(body)}\n}};\n"
 
     def _write(self, path: Path, content: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
