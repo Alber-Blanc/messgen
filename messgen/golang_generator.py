@@ -251,10 +251,9 @@ class ResolvedEnum(ResolvedType):
             yield f"\t{self.name()}_{toGoName(v.name)} {self.name()} = {v.value}"
         yield ")"
 
-        yield f"func GetAll{self.name()}() [{len(self.model().values)}]{self.name()} {{\n\t return [{len(self.model().values)}]{self.name()} {{"
+        yield f"var All{self.name()} =  [{len(self.model().values)}]{self.name()} {{"
         for v in self.model().values:
-            yield f"\t\t{self.name()}_{toGoName(v.name)},"
-        yield f"\t}}"
+            yield f"\t{self.name()}_{toGoName(v.name)},"
         yield f"}}"
 
         yield f"func (v {self.name()}) String() string {{"
