@@ -816,7 +816,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
         if idx > 0:
             yield f""
 
-        yield f"func (dispatcher *Dispatcher) Set{toGoName(msg.name)}Handler(process func(context.Context, *{toGoName(msg.name)}) error) error {{"
+        yield f"func (dispatcher *Dispatcher) SetHandler{toGoName(msg.name)}(process func(context.Context, *{toGoName(msg.name)}) error) error {{"
         yield f"\tmid := {toGoName(msg.name)}_Id"
         yield f"\tif dispatcher[int(mid)] != nil {{"
         yield f"\t\treturn fmt.Errorf(\"message id %s already has an assigned handler\", MessageName(mid))"

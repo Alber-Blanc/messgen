@@ -24,7 +24,7 @@ func TestProtocol(t *testing.T) {
 
 	dispatcher := test_proto.NewDispatcher()
 
-	err := dispatcher.SetSimpleStructMsgHandler(testFunc)
+	err := dispatcher.SetHandlerSimpleStructMsg(testFunc)
 	if err != nil {
 		t.Fatalf("Failed to setup dispatcher: %s", err)
 	}
