@@ -7,7 +7,14 @@ import (
 )
 
 func TestBitset(t *testing.T) {
-	bitset := test.SimpleBitset(0b101)
+	bitset := test.SimpleBitset(0)
+
+	bitset.Set(test.SimpleBitset_One)
+	bitset.Set(test.SimpleBitset_Error)
+
+	if bitset != test.SimpleBitset(0b101) {
+		t.Errorf("Expected bitset to be 0b101, got 0b%b", bitset)
+	}
 
 	if !bitset.Has(test.SimpleBitset_One) {
 		t.Errorf("Expected bitset to have 'One' bit set")
@@ -25,5 +32,15 @@ func TestBitset(t *testing.T) {
 
 	if bitset.String() != expectedString {
 		t.Errorf("Expected bitset string to be %s, got %s", expectedString, bitset.String())
+	}
+
+	bitset.Clear(test.SimpleBitset_One)
+	if bitset != test.SimpleBitset(0b100) {
+		t.Errorf("Expected bitset to be 0b100 after clearing 'One', got 0b%b", bitset)
+	}
+
+	bitset.Clear(test.SimpleBitset_Error)
+	if bitset != test.SimpleBitset(0b000) {
+		t.Errorf("Expected bitset to be 0b000 after clearing 'Error', got 0b%b", bitset)
 	}
 }
