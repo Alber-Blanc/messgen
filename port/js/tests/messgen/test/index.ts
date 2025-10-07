@@ -59,7 +59,6 @@ export interface ComplexStructWithEmpty {
 }
 /** Struct without data. May be used for heartbeat, command with no args, etc Size: 0 */
 export interface EmptyStruct {
-
 }
 /** Flat struct without paddings, for zero-copy Size: 40 */
 export interface FlatStruct {
@@ -121,3 +120,26 @@ export interface VarSizeStruct {
   f1_vec: BigInt64Array;
   str: string;
 }
+export enum Types {
+  COMPLEX_STRUCT = 'messgen/test/complex_struct',
+  COMPLEX_STRUCT_NOSTL = 'messgen/test/complex_struct_nostl',
+  COMPLEX_STRUCT_WITH_EMPTY = 'messgen/test/complex_struct_with_empty',
+  EMPTY_STRUCT = 'messgen/test/empty_struct',
+  FLAT_STRUCT = 'messgen/test/flat_struct',
+  NAME_CLASH_STRUCT = 'messgen/test/name_clash_struct',
+  SIMPLE_STRUCT = 'messgen/test/simple_struct',
+  STRUCT_WITH_ENUM = 'messgen/test/struct_with_enum',
+  VAR_SIZE_STRUCT = 'messgen/test/var_size_struct',
+}
+
+export type TypeMap = {
+  [Types.COMPLEX_STRUCT]: ComplexStruct;
+  [Types.COMPLEX_STRUCT_NOSTL]: ComplexStructNostl;
+  [Types.COMPLEX_STRUCT_WITH_EMPTY]: ComplexStructWithEmpty;
+  [Types.EMPTY_STRUCT]: EmptyStruct;
+  [Types.FLAT_STRUCT]: FlatStruct;
+  [Types.NAME_CLASH_STRUCT]: NameClashStruct;
+  [Types.SIMPLE_STRUCT]: SimpleStruct;
+  [Types.STRUCT_WITH_ENUM]: StructWithEnum;
+  [Types.VAR_SIZE_STRUCT]: VarSizeStruct;
+};

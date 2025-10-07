@@ -13,3 +13,10 @@ export interface OneMoreMessage {
   f7: number;
   f8: number;
 }
+export enum Types {
+  ONE_MORE_MESSAGE = 'one_more_message',
+}
+
+export type TypeMap = {
+  [Types.ONE_MORE_MESSAGE]: OneMoreMessage;
+};
