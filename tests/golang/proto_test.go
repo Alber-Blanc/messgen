@@ -11,7 +11,7 @@ import (
 )
 
 // TestPrototol is very basic tests that is only checks gnerated code compiles
-// and could be used
+// and could be used.
 func TestProtocol(t *testing.T) {
 	called := false
 	testFunc := func(ctx context.Context, msg *proto.TestProto_SimpleStructMsg) error {
@@ -19,6 +19,7 @@ func TestProtocol(t *testing.T) {
 		if !reflect.DeepEqual(*msg.Data().(*test.SimpleStruct), simple) {
 			return fmt.Errorf("Dispatched message has unexpected content")
 		}
+
 		return nil
 	}
 

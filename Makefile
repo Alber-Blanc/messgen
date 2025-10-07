@@ -25,6 +25,7 @@ check: test
 	python3 -m mypy .
 
 generate-golang:
+	rm -rf build-golang-test/msgs
 	python3 messgen-generate.py --types tests/data/types --protocol tests/data/protocols:test_proto --protocol tests/data/protocols:nested/another_proto --options mod_name=github.com/Alber-Blanc/messgen/build-golang-test --outdir build-golang-test/msgs --lang golang
 
 test-golang: generate-golang

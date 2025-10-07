@@ -28,6 +28,7 @@ func TestEncode(t *testing.T) {
 
 			if tc.skipEncode {
 				t.Skip("Skip test as Map keys order is not well defined")
+
 				return
 			}
 

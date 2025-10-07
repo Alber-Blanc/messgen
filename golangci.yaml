@@ -8,7 +8,9 @@ linters:
   disable:
     - wsl
     - gomodguard
+    - depguard
     - gomoddirectives
+    - testpackage
   exclusions:
     paths:
       - "build-golang-test/.*_gen.go"

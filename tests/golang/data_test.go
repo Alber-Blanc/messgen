@@ -4,8 +4,8 @@ import "github.com/Alber-Blanc/messgen/build-golang-test/msgs/messgen/test"
 
 type MessgenStruct interface {
 	SerializedSize() uint32
-	Serialize([]byte) (uint32, error)
-	Deserialize([]byte) (uint32, error)
+	Serialize(buffer []byte) (uint32, error)
+	Deserialize(buffer []byte) (uint32, error)
 }
 
 type TestCase struct {
@@ -138,7 +138,9 @@ var TEST_DATA = []TestCase{
 		Bs:          []byte("byte string"),
 		StrVec:      []string{"string1", "string2", "string3"},
 		MapStrByInt: map[int32]string{0: "string0", 1: "string1", 2: "string2"},
-		MapVecByStr: map[string][]int32{"key0": {0x1234, 0x1234, 0x1234}, "key1": {0x1234, 0x1234, 0x1234}, "key2": {0x1234, 0x1234, 0x1234}},
+		MapVecByStr: map[string][]int32{"" +
+			"key0": {0x1234, 0x1234, 0x1234}, "key1": {0x1234, 0x1234, 0x1234}, "key2": {0x1234, 0x1234, 0x1234},
+		},
 	}},
 
 	{"FlatStruct", "flat_struct.bin", false, &test.FlatStruct{
