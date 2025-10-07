@@ -697,6 +697,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield "\t\"errors\""
     yield "\t\"fmt\""
     yield "\t\"strconv\""
+    yield ""
     yield "\t\"github.com/Alber-Blanc/messgen/port/golang/messgen\""
 
     seen = set()
@@ -711,64 +712,65 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
         seen.add(fp)
     yield ")\n"
 
-    yield f"const {proto_name}_Id messgen.ProtocolId = {proto_def.proto_id}"
-    yield f"const {proto_name}_Name  = \"{proto_def.name}\""
-    yield f"const {proto_name}_Hash  = {0}"
+    yield f"const Id messgen.ProtocolId = {proto_def.proto_id}"
+    yield f"const Name  = \"{proto_def.name}\""
+    yield f"const Hash  = {0}"
 
     maxid = 0
     yield "const ("
     for id, msg in proto_def.messages.items():
-        yield f"\t{proto_name}_{toGoName(msg.name)}_Id = messgen.MessageId({id})"
+        yield f"\t{toGoName(msg.name)}_Id = messgen.MessageId({id})"
         maxid = max(maxid, id)
     yield "\n"
     for id, msg in proto_def.messages.items():
-        yield f"\t{proto_name}_{toGoName(msg.name)}_Hash = uint64({hash_message(msg)})"
+        yield f"\t{toGoName(msg.name)}_Hash = uint64({hash_message(msg)})"
     yield ")"
     yield ""
     for id, msg in proto_def.messages.items():
         tp = types[msg.type]
-        yield f"type {proto_name}_{toGoName(msg.name)} struct {{"
+        yield f"type {toGoName(msg.name)} struct {{"
         yield f"\tMessageData {tp.reference(pkg)}"
         yield f"}}"
         yield f""
-        yield f"func (m *{proto_name}_{toGoName(msg.name)}) Id() messgen.PayloadId {{"
-        yield f"\treturn messgen.PayloadId{{Protocol: {proto_name}_Id, Message: {proto_name}_{toGoName(msg.name)}_Id}}"
+        yield f"func (m *{toGoName(msg.name)}) Id() messgen.PayloadId {{"
+        yield f"\treturn messgen.PayloadId{{Protocol: Id, Message: {toGoName(msg.name)}_Id}}"
         yield f"}}"
         yield f""
-        yield f"func (m *{proto_name}_{toGoName(msg.name)}) Hash() uint64{{"
-        yield f"\treturn {proto_name}_{toGoName(msg.name)}_Hash"
+        yield f"func (m *{toGoName(msg.name)}) Hash() uint64{{"
+        yield f"\treturn {toGoName(msg.name)}_Hash"
         yield f"}}"
         yield f""
-        yield f"func (m *{proto_name}_{toGoName(msg.name)}) Data() messgen.Serializable {{"
+        yield f"func (m *{toGoName(msg.name)}) Data() messgen.Serializable {{"
         yield f"\treturn &m.MessageData"
         yield f"}}"
         yield f""
 
-    yield f"func {proto_name}MessageName(mid messgen.MessageId) string {{"
+    yield f"func MessageName(mid messgen.MessageId) string {{"
     yield f"\tswitch(mid) {{"
     for id, msg in proto_def.messages.items():
-        yield f"\t\tcase {proto_name}_{toGoName(msg.name)}_Id:"
+        yield f"\t\tcase {toGoName(msg.name)}_Id:"
         yield f"\t\t\treturn \"{toGoName(msg.name)}\""
     yield f"\t}}"
-    yield f"\treturn fmt.Sprintf(\"Unknown message for th protocol {proto_name}: %d\", mid)"
+    yield ""
+    yield f"\treturn fmt.Sprintf(\"Unknown message for the protocol {proto_name}: %d\", mid)"
     yield f"}}"
     yield f""
-    yield f"type {proto_name}Dispatcher [{maxid+1}]func(ctx context.Context, mid messgen.MessageId, body []byte) error";
+    yield f"type Dispatcher [{maxid+1}]func(ctx context.Context, mid messgen.MessageId, body []byte) error";
     yield f""
-    yield f"func New{proto_name}Dispatcher() *{proto_name}Dispatcher {{"
-    yield f"return &{proto_name}Dispatcher{{}}"
+    yield f"func NewDispatcher() *Dispatcher {{"
+    yield f"return &Dispatcher{{}}"
     yield f"}}"
     yield f""
-    yield f"func {proto_name}Setup[T any, P interface {{messgen.ProtocolMessage; *T}}](dispatcher *{proto_name}Dispatcher, mid messgen.MessageId, process func(context.Context, P) error) error {{"
+    yield f"func Setup[T any, P interface {{messgen.ProtocolMessage; *T}}](dispatcher *Dispatcher, mid messgen.MessageId, process func(context.Context, P) error) error {{"
     yield f"\tmsg := P(new(T))"
-    yield f"expectedId := messgen.PayloadId{{Protocol: {proto_name}_Id, Message: mid}}"
+    yield f"expectedId := messgen.PayloadId{{Protocol: Id, Message: mid}}"
     yield f""
     yield f"if msg.Id() != expectedId {{"
-    yield f"\treturn fmt.Errorf(\"message id doesn't match for the message {proto_name}_%s: %s != %s \", {proto_name}MessageName(mid), msg.Id(), expectedId)"
+    yield f"\treturn fmt.Errorf(\"message id doesn't match for the message {proto_name}_%s: %s != %s \", MessageName(mid), msg.Id(), expectedId)"
     yield f"}}"
     yield f""
     yield f"if dispatcher[int(mid)] != nil {{"
-    yield f"\treturn fmt.Errorf(\"message id %s already has an assigned handler\", {proto_name}MessageName(mid))"
+    yield f"\treturn fmt.Errorf(\"message id %s already has an assigned handler\", MessageName(mid))"
     yield f"}}"
     yield f""
     yield f"\tdispatcher[int(mid)] = func(ctx context.Context, mid messgen.MessageId, body []byte) error {{"
@@ -776,14 +778,14 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield f""
     yield f"\tsz, err := msg.Data().Deserialize(body)"
     yield f"\tif err != nil {{"
-    yield f"\t\treturn fmt.Errorf(\"failed to read message {proto_name}_%s: %s\", {proto_name}MessageName(mid), err)"
+    yield f"\t\treturn fmt.Errorf(\"failed to read message {proto_name}_%s: %s\", MessageName(mid), err)"
     yield f"\t}} else if int(sz) != len(body) {{"
-    yield f"\t\treturn fmt.Errorf(\"size isn't valid for the message {proto_name}_%s: %d != %d\", {proto_name}MessageName(mid), sz, len(body))"
+    yield f"\t\treturn fmt.Errorf(\"size isn't valid for the message {proto_name}_%s: %d != %d\", MessageName(mid), sz, len(body))"
     yield f"\t}}"
     yield f"\t"
     yield f"\terr = process(ctx, msg)"
     yield f"\tif err != nil {{"
-    yield f"\t\treturn fmt.Errorf(\"failed to handle message {proto_name}_%s: %s\", {proto_name}MessageName(mid),  err)"
+    yield f"\t\treturn fmt.Errorf(\"failed to handle message {proto_name}_%s: %s\", MessageName(mid),  err)"
     yield f"\t}}"
     yield f""
     yield f"\treturn nil"
@@ -792,7 +794,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield f"\treturn nil"
     yield f"}}"
     yield f""
-    yield f"func (dispatcher *{proto_name}Dispatcher) Dispatch(ctx context.Context, mid messgen.MessageId, body []byte) error {{"
+    yield f"func (dispatcher *Dispatcher) Dispatch(ctx context.Context, mid messgen.MessageId, body []byte) error {{"
     yield f"\tif len(dispatcher) <= int(mid) {{"
     yield f"\t\treturn errors.New(\"mismatching versions, dispatcher doesn't have a handler for message \" + strconv.Itoa(int(mid)))"
     yield f"\t}}\n"
@@ -900,15 +902,18 @@ class GolangGenerator:
 
 
     def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
-        # Golang requires root package for files, make it proto
-        pkg_name = "proto"
-        out_dir = out_dir / pkg_name
         for proto_full_name, proto_def in protocols.items():
             proto_name = proto_full_name.split("/")[-1]
-            file_name = out_dir / f"{proto_full_name}_gen.go"
+
+            # pkg_name = "proto"
+            file_name = out_dir / proto_full_name / "proto_gen.go"
+            # out_dir = out_dir / pkg_name
+
             file_name.parent.mkdir(parents=True, exist_ok=True)
+
             with open(file_name, 'w') as file:
-                for line in render_protocol("proto", toGoName(proto_name), proto_def, self._resolved):
+                for line in render_protocol(proto_name, toGoName(proto_name), proto_def, self._resolved):
                     print(line, file=file)
                 file.close()
+
             subprocess.call(["gofmt", "-s", "-w", file_name], text=True)
