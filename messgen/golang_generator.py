@@ -293,7 +293,7 @@ class ResolvedBitset(ResolvedType):
 
         if self._base.imported(self._package):
             yield f"import \"{self._base.package_full()}\"\n"
-        yield f"import \"strconv\""
+        yield f"import \"strings\""
 
         yield f"type {self.name()} {self._base.name()} \n"
 
@@ -306,16 +306,42 @@ class ResolvedBitset(ResolvedType):
         for v in self.model().bits:
             yield f"\t\t{self.name()}_{toGoName(v.name)},"
         yield f"}}"
-
-        yield f"func (v {self.name()}) String() string {{"
-        yield f"\tswitch v {{"
-        for v in self.model().bits:
-            yield f"\t// {v.comment}"
-            yield f"\tcase {self.name()}_{toGoName(v.name)}:"
-            yield f"\t\treturn \"{v.name}\""
-        yield f"\tdefault: return strconv.FormatUint(uint64(v), 10)"
+        yield f""
+        yield f"func (v {self.name()}) Has(bit {self.name()}) bool {{"
+        yield f"\treturn (v & bit) != 0"
         yield f"}}"
+        yield f""
+        yield f"func (v {self.name()}) String() string {{"
+        yield f"\tbuilder := strings.Builder{{}}"
+        yield f"\tbuilder.WriteString(\"{{\")"
+        yield f""
+        yield f"\tfirst := true"
+        yield f""
+        yield f"\tfor _, possibleValue := range All{self.name()} {{"
+        yield f"\t\tif !v.Has(possibleValue) {{"
+        yield f"\t\t\tcontinue"
+        yield f"\t\t}}"
+        yield f""
+        yield f"\t\tvar partStr string"
+        yield f"\t\tswitch possibleValue {{"
+        for v in self.model().bits:
+            yield f"\t\t// {v.comment}"
+            yield f"\t\tcase {self.name()}_{toGoName(v.name)}:"
+            yield f"\t\t\tpartStr = \"{v.name}\""
+        yield f"\t\t}}"
+        yield f""
+        yield f"\t\tif !first {{"
+        yield f"\t\t\tbuilder.WriteString(\" | \")"
+        yield f"\t\t}} else {{"
+        yield f"\t\t\tfirst = false"
+        yield f"\t\t}}"
+        yield f""
+        yield f"\t\tbuilder.WriteString(partStr)"
         yield f"\t}}"
+        yield f""
+        yield f"\tbuilder.WriteString(\"}}\")"
+        yield f"\treturn builder.String()"
+        yield f"}}"
 
 
 class ResolvedStruct(ResolvedType):
