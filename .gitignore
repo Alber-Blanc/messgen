@@ -12,6 +12,8 @@ build-golang-test/
 build
 Testing
 msg
+bin
+
 
 # Log files
 dump.txt
