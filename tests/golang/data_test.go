@@ -64,7 +64,7 @@ var TEST_DATA = []TestCase{
 
 	{"EmptyStruct", "empty_struct.bin", false, &test.EmptyStruct{}},
 
-	{"ComplexStructWithmpty", "complex_struct_with_empty.bin", true, &test.ComplexStructWithEmpty{
+	{"ComplexStructWithEmpty", "complex_struct_with_empty.bin", true, &test.ComplexStructWithEmpty{
 		E:            test.EmptyStruct{},
 		DynamicArray: []test.EmptyStruct{{}, {}, {}},
 		StaticArray:  [5]test.EmptyStruct{{}, {}, {}, {}, {}},
@@ -82,6 +82,7 @@ var TEST_DATA = []TestCase{
 		F0:    0x1234567890abcdef,
 		F1:    0x12345678,
 		F2:    0x1234567890abcdef,
+		Bits0: test.SimpleBitset_One | test.SimpleBitset_Error,
 		SArr:  [2]test.SimpleStruct{simple, simple},
 		F1Arr: [4]int64{0x1234567890abcdef, 0x1234567890abcdef, 0x1234567890abcdef, 0x1234567890abcdef},
 		VArr:  [2]test.VarSizeStruct{varSize, varSize},
@@ -111,6 +112,7 @@ var TEST_DATA = []TestCase{
 		F0:    0x1234567890abcdef,
 		F1:    0x12345678,
 		F2:    0x1234567890abcdef,
+		Bits0: test.SimpleBitset_One | test.SimpleBitset_Error,
 		SArr:  [2]test.SimpleStruct{simple, simple},
 		F1Arr: [4]int64{0x1234567890abcdef, 0x1234567890abcdef, 0x1234567890abcdef, 0x1234567890abcdef},
 		VArr:  [2]test.VarSizeStruct{varSize, varSize},

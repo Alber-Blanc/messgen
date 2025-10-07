@@ -34,7 +34,7 @@ func TestDecode(t *testing.T) {
 				panic(fmt.Sprintf("Failed to load test data %s: %s", dataPath, err))
 			}
 
-			// Desrialize data buffer
+			// Deserialize data buffer
 			ptr := reflect.New(typ)
 			actual := ptr.Interface().(MessgenStruct)
 			if sz, err := actual.Deserialize(data); err != nil {
