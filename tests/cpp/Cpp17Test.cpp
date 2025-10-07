@@ -6,6 +6,7 @@
 #include <messgen/test/struct_with_enum.h>
 #include <messgen/test/var_size_struct.h>
 #include <messgen/test/simple_bitset.h>
+#include <messgen/test/another_simple_bitset.h>
 #include <nested/another_proto.h>
 #include <test_proto.h>
 
@@ -375,9 +376,28 @@ TEST_F(CppTest17, BitsetOperations) {
     test_bits_val = test_bits;
     EXPECT_EQ(test_bits_val, 7);
 
-    // Keep only 'error' bit set
-    test_bits = test_bits & test::simple_bitset::error;
+    uint8_t flags = static_cast<uint8_t>(test_bits & test::simple_bitset::one |
+                                         test_bits & test::simple_bitset::two |
+                                         test_bits & test::simple_bitset::error);
+    EXPECT_EQ(flags, 7);
+
+    // Clear 'error' bit
+    test::simple_bitset mask;
+    mask |= test::simple_bitset::error;
+    test_bits &= ~mask;
+    EXPECT_EQ(test_bits, 3);
+
+    // Keep only 'two' bit set
+    test_bits = test_bits & test::simple_bitset::two;
     test_bits_val = test_bits;
-    EXPECT_EQ(test_bits_val, 4);
-    ASSERT_STREQ(test_bits.to_string().c_str(), "00000100");
+    EXPECT_EQ(test_bits_val, 2);
+    ASSERT_STREQ(test_bits.to_string().c_str(), "00000010");
+    ASSERT_EQ(test_bits, test::simple_bitset::two);
+
+    test::another_simple_bitset another_bitset = test_bits;
+    ASSERT_STREQ(another_bitset.to_string().c_str(), "00000010");
+
+    test::simple_bitset test_bits2;
+    test_bits2 |= test::simple_bitset::two;
+    EXPECT_TRUE(test_bits == test_bits2);
 }

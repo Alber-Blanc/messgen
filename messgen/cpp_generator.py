@@ -388,29 +388,24 @@ class CppGenerator:
         code = []
         code.extend(self._generate_comment_type(type_def))
         code.append(f"class {unqual_name}: public messgen::detail::bitmask_operators_mixin<{unqual_name}, {self._cpp_type(type_def.base_type)}> {{")
-        code.append(f"    enum class Values : {self._cpp_type(type_def.base_type)} {{")
+        code.append(f"    enum class Offsets : {self._cpp_type(type_def.base_type)} {{")
         for bit in type_def.bits:
             code.append("        %s = %s,%s" % (bit.name, bit.offset, _inline_comment(bit)))
         code.append("    };")
 
         code.append("")
         code.append("public:")
-        code.append("    using underlying_type = std::underlying_type_t<Values>;")
+        code.append("    using underlying_type = std::underlying_type_t<Offsets>;")
+        code.append("    using bitmask_operators_mixin::bitmask_operators_mixin;")
 
         code.append("")
+        code.append(f'    constexpr inline static const char* NAME = "{qual_name}";')
         if self._get_cpp_standard() >= 20:
-            code.append("    using enum Values;")
+            code.append("    using enum Offsets;")
         else:
             for bit in type_def.bits:
-                code.append("    static constexpr Values %s = Values::%s;" % (bit.name, bit.name))
+                code.append("    static constexpr Offsets %s = Offsets::%s;" % (bit.name, bit.name))
         code.append("};")
-
-        code.extend(
-            textwrap.dedent(f"""
-                [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
-                    return "{qual_name}";
-                }}""").splitlines()
-        )
 
         return code
 
