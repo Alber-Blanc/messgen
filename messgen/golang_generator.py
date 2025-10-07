@@ -302,13 +302,20 @@ class ResolvedBitset(ResolvedType):
             yield f"\t{self.name()}_{toGoName(v.name)} {self.name()} = 1 << {v.offset}"
         yield ")"
 
-        yield f"func GetAll{self.name()}() [{len(self.model().bits)}]{self.name()} {{\n\t return [{len(self.model().bits)}]{self.name()} {{"
+        yield f"var All{self.name()} = [{len(self.model().bits)}]{self.name()} {{"
         for v in self.model().bits:
             yield f"\t\t{self.name()}_{toGoName(v.name)},"
-        yield f"\t}}"
         yield f"}}"
 
-        yield f"func (v {self.name()}) String() string {{ return strconv.FormatUint(uint64(v), 10) }}"
+        yield f"func (v {self.name()}) String() string {{"
+        yield f"\tswitch v {{"
+        for v in self.model().bits:
+            yield f"\t// {v.comment}"
+            yield f"\tcase {self.name()}_{toGoName(v.name)}:"
+            yield f"\t\treturn \"{v.name}\""
+        yield f"\tdefault: return strconv.FormatUint(uint64(v), 10)"
+        yield f"}}"
+        yield f"\t}}"
 
 
 class ResolvedStruct(ResolvedType):
