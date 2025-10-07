@@ -68,39 +68,36 @@ struct bitmask_operators_mixin {
         return result;
     }
 
-    template<typename E>
-    friend bool operator==(const M& lhs, const E& rhs) {
-        if constexpr (std::is_same_v<M, E>) {
-            return lhs._bits == rhs._bits;
-        } else if constexpr (std::is_enum_v<E>) {
-            return lhs._bits == std::bitset<sizeof(U) * CHAR_BIT>(1 << static_cast<U>(rhs));
-        } else if constexpr (std::is_arithmetic_v<E>) {
-            return static_cast<typename M::underlying_type>(lhs) == static_cast<typename M::underlying_type>(rhs);
-        } else {
-            static_assert(std::is_same_v<M, E> || std::is_enum_v<E> || std::is_arithmetic_v<E>, "operator== only supports same type, enum, or arithmetic rhs");
-            return false;
-        }
+    friend bool operator==(const M& lhs, const M& rhs) {
+        return lhs._bits == rhs._bits;
     }
 
-    template<typename E>
-    friend bool operator!=(const M& lhs, const E& rhs) {
-        return !(lhs == rhs);
+    friend bool operator!=(const M& lhs, const M& rhs) {
+        return lhs != rhs;
     }
 
     auto to_string() const {
         return _bits.to_string();
     }
 
-    operator U() const {
+    void from_underlying_type(U val) {
+        _bits = std::bitset<sizeof(U) * CHAR_BIT>(val);
+    }
+
+    U to_underlying_type() const {
         return static_cast<U>(_bits.to_ullong());
+    }
+
+    void clear() {
+        _bits.reset();
     }
 
     constexpr bitmask_operators_mixin() = default;
 
     // Constructor from another compatible bitmask
     template <typename OtherM, typename = std::enable_if_t<std::is_same_v<U, typename OtherM::underlying_type>>>
-    constexpr bitmask_operators_mixin(const OtherM& other) {
-        _bits = std::bitset<sizeof(U) * CHAR_BIT>(static_cast<U>(other));
+    explicit constexpr bitmask_operators_mixin(const OtherM& other) {
+        _bits = std::bitset<sizeof(U) * CHAR_BIT>(other.to_underlying_type());
     }
 
 private:
