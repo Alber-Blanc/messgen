@@ -762,6 +762,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield f"func MessageName(mid messgen.MessageId) string {{"
     yield f"\tswitch(mid) {{"
     for id, msg in proto_def.messages.items():
+        yield f"\t\t// {msg.comment}"
         yield f"\t\tcase {toGoName(msg.name)}_Id:"
         yield f"\t\t\treturn \"{toGoName(msg.name)}\""
     yield f"\t}}"
