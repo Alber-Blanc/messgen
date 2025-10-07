@@ -3,6 +3,8 @@ BUILD_DIR ?= $(ROOT_DIR)/build
 BUILD_TYPE ?= Debug
 CXX_STANDARD ?= 20
 
+GOLANG_DIRECTORIES := ./build-golang-test/... ./port/golang/... ./tests/golang/...
+
 all: check
 
 configure:
@@ -17,6 +19,12 @@ test: build
 
 check: test
 	python3 -m mypy .
+
+generate-golang:
+	python3 messgen-generate.py --types tests/data/types --protocol tests/data/protocols:test_proto --protocol tests/data/protocols:nested/another_proto --options mod_name=github.com/Alber-Blanc/messgen/build-golang-test --outdir build-golang-test/msgs --lang golang
+
+test-golang: generate-golang
+	go test -v $(GOLANG_DIRECTORIES)
 
 clean:
 	rm -rf ${BUILD_DIR}
