@@ -3,7 +3,7 @@ import { ConverterFactory } from './converters';
 import type { ProtocolMap, TypeMap, TypeByName } from './Codec.types';
 import { Buffer } from './Buffer';
 
-export class Codec<Types extends Record<string, unknown> = Record<string, unknown>> {
+export class Codec<Types extends object = object> {
   private protocols = new Protocols();
   private protocolMap: ProtocolMap = new Map();
   private typesMap: TypeByName = new Map();
