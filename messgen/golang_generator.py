@@ -257,7 +257,15 @@ class ResolvedEnum(ResolvedType):
         yield f"\t}}"
         yield f"}}"
 
-        yield f"func (v {self.name()}) String() string {{ return strconv.FormatUint(uint64(v), 10) }}"
+        yield f"func (v {self.name()}) String() string {{"
+        yield f"\tswitch v {{"
+        for v in self.model().values:
+            yield f"\t// {v.comment}"
+            yield f"\tcase {self.name()}_{toGoName(v.name)}:"
+            yield f"\t\treturn \"{v.name}\""
+        yield f"\tdefault: return strconv.FormatUint(uint64(v), 10)"
+        yield f"}}"
+        yield f"\t}}"
 
 class ResolvedBitset(ResolvedType):
     def __init__(self, type_def: BitsetType, base: ResolvedType, package: str):
