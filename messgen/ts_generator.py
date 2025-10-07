@@ -37,22 +37,39 @@ def _proto_dir_from_type_path(tname: str) -> str:
     return tname.rpartition('/')[0] or tname
 
 
-def _pascal_from_path(path: str) -> str:
+def _alias_from_key(path: str) -> str:
     parts = re.split(r'[/_]', path)
     return ''.join(p[:1].upper() + p[1:] for p in parts if p)
 
 def _type_folder_of(t: str) -> str:
-    return t.rpartition('/')[0] or t
+    return t.rpartition(SEPARATOR)[0] or t
 
 
 def _rel_path(from_dir: str, to_dir: str) -> str:
     rel = posixpath.relpath(to_dir, start=from_dir)
-    return './' if rel == '.' else rel
+    return f'.{SEPARATOR}' if rel == '.' else rel
 
+def _collect_external_deps_for_folder(
+    folder: str,
+    local_type_names: Set[str],
+    types: Dict[str, MessgenType],
+) -> Dict[str, Set[str]]:
+    external: Dict[str, Set[str]] = defaultdict(set)
 
-def _alias_from_key(key: str) -> str:
-    return ''.join(part[:1].upper() + part[1:] for part in key.split('/') if part)
+    for tname in local_type_names:
+        t = types.get(tname)
+        if not t or t.type_class is not TypeClass.struct:
+            continue
 
+        st = cast(StructType, t)
+        for f in st.fields or []:
+            for dep in TypeScriptTypes.dependencies(f.type):
+                dep_folder = _proto_dir_from_type_path(dep)
+                if dep_folder == folder:
+                    continue
+                import_path = posixpath.relpath(dep_folder, start=folder)
+                external[import_path].add(normalize(dep))
+    return external
 
 class TypeScriptTypes:
     PRIMITIVES = {
@@ -117,33 +134,6 @@ class TypeScriptTypes:
             return cls.uses_dec64(base) or cls.uses_dec64(key)
         base = cls._strip_dims(t)
         return base == 'dec64'
-
-
-def _collect_external_deps_for_folder(
-    folder: str,
-    local_type_names: Set[str],
-    types: Dict[str, MessgenType],
-) -> Dict[str, Set[str]]:
-    """
-    Returns: { relative_import_path_from_folder : {TypeA, TypeB, ...} }
-    relative_import_path_from_folder like '../other/folder'
-    """
-    external: Dict[str, Set[str]] = defaultdict(set)
-
-    for tname in local_type_names:
-        t = types.get(tname)
-        if not t or t.type_class is not TypeClass.struct:
-            continue
-
-        st = cast(StructType, t)
-        for f in st.fields or []:
-            for dep in TypeScriptTypes.dependencies(f.type):
-                dep_folder = _proto_dir_from_type_path(dep)
-                if dep_folder == folder:
-                    continue
-                import_path = posixpath.relpath(dep_folder, start=folder)
-                external[import_path].add(normalize(dep))
-    return external
 
 
 class TypeScriptGenerator:
@@ -229,7 +219,7 @@ class TypeScriptGenerator:
         for full in struct_full:
             folder = _type_folder_of(full)
             if folder not in folder_alias:
-                folder_alias[folder] = _pascal_from_path(folder)
+                folder_alias[folder] = _alias_from_key(folder)
 
         import_lines = [
             f"import type * as {alias} from './{folder}';"
@@ -251,7 +241,7 @@ class TypeScriptGenerator:
         unique_folders = sorted({_type_folder_of(m.type) for m in messages})
 
         # alias per type folder (e.g., 'ab/type/session' -> 'AbTypeSession')
-        folder_alias: Dict[str, str] = {tf: _pascal_from_path(tf) for tf in unique_folders}
+        folder_alias: Dict[str, str] = {tf: _alias_from_key(tf) for tf in unique_folders}
 
         # type-only imports (relative from proto dir)
         import_lines: List[str] = []
@@ -261,13 +251,11 @@ class TypeScriptGenerator:
             import_lines.append(f"import type * as {alias} from '{rel}';")
         import_block = '\n'.join(import_lines)
 
-        # enum of message ids
         enum_entries = '\n'.join(f"{m.name.upper()} = {m.message_id}," for m in messages)
         enum_block = f"export enum Message {{\n{indent(enum_entries)}\n}}"
 
-        # protocol map: numeric proto_id, keys per message
         lines = [
-            f"const PROTO_ID = {proto.proto_id};",
+            f"export const PROTO_ID = {proto.proto_id};",
             "",
             "export interface Proto {",
             indent("[PROTO_ID]: {", 1),
@@ -278,12 +266,12 @@ class TypeScriptGenerator:
             lines.append(indent(f"[Message.{m.name.upper()}]: {ts_type};", 2))
         lines.append(indent("};", 1))
         lines.append("}")
+        lines.append("")
         map_block = '\n'.join(lines)
 
         return '\n\n'.join([import_block, enum_block, map_block])
 
     def _gen_protocols_root(self, items: List[Tuple[str, Protocol]]) -> str:
-        # imports with alias from full key path: 'ab/proto/deploy' -> 'AbProtoDeploy'
         root_imports = [
             f"import type * as {_alias_from_key(key)} from './{key}';"
             for key, _ in items
@@ -295,9 +283,6 @@ class TypeScriptGenerator:
 
         return f"{import_block}\n\nexport type ProtocolMap = {union};\n"
 
-    # ---------------------------
-    # Emitters
-    # ---------------------------
     def _emit_struct(self, name: str, struct: StructType, types: Dict[str, MessgenType]) -> str:
         header = comment_block(
             struct.comment or '',
@@ -326,7 +311,7 @@ class TypeScriptGenerator:
             return "export enum TypeName {};\n"
         entries = [f"{enum_key(full)} = '{full}'," for full in struct_full_names]
         body = '\n'.join(entries)
-        return f"export enum TypeName {{\n{indent(body)}\n}};"
+        return f"export enum TypeName {{\n{indent(body)}\n}}"
 
     def _emit_root_type_map_from_list(self, struct_full_names: List[str], folder_alias: Dict[str, str]) -> str:
         if not struct_full_names:

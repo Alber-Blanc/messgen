@@ -4,8 +4,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { execSync } from 'child_process';
 import { Codec } from '../src';
 import { uploadBinary, uploadProtocols, uploadTypes } from './utils';
-import { SimpleBitset } from './test/types';
-import type { ComplexStruct } from './test/types';
+import { SimpleBitset } from './messgen/test';
+import type { ComplexStruct } from './messgen/test';
 
 describe('integration', () => {
   let codec: Codec;
