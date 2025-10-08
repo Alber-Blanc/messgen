@@ -380,31 +380,32 @@ class CppGenerator:
     def _generate_type_bitset(self, type_name, type_def):
         self._add_include("messgen/messgen.h")
         self._add_include("string_view")
-        self._add_include("messgen/bitset_operators.h")
+        self._add_include("messgen/bitset.h")
 
         unqual_name = _unqual_name(type_name)
         qual_name = _qual_name(type_name)
 
         code = []
         code.extend(self._generate_comment_type(type_def))
-        code.append(f"class {unqual_name}: public messgen::detail::bitmask_operators_mixin<{unqual_name}, {self._cpp_type(type_def.base_type)}> {{")
-        code.append(f"    enum class Offsets : {self._cpp_type(type_def.base_type)} {{")
+        code.append(
+            f"class {unqual_name}: public messgen::detail::bitset_base<{unqual_name}, {self._cpp_type(type_def.base_type)}> {{")
+        code.append(f"    enum class Values : {self._cpp_type(type_def.base_type)} {{")
         for bit in type_def.bits:
-            code.append("        %s = %s,%s" % (bit.name, bit.offset, _inline_comment(bit)))
+            code.append("        %s = %s,%s" % (bit.name, 1 << bit.offset, _inline_comment(bit)))
         code.append("    };")
 
         code.append("")
         code.append("public:")
-        code.append("    using underlying_type = std::underlying_type_t<Offsets>;")
-        code.append("    using bitmask_operators_mixin::bitmask_operators_mixin;")
+        code.append("    using underlying_type = std::underlying_type_t<Values>;")
+        code.append("    using bitset_base::bitset_base;")
 
         code.append("")
         code.append(f'    constexpr inline static const char* NAME = "{qual_name}";')
         if self._get_cpp_standard() >= 20:
-            code.append("    using enum Offsets;")
+            code.append("    using enum Values;")
         else:
             for bit in type_def.bits:
-                code.append("    static constexpr Offsets %s = Offsets::%s;" % (bit.name, bit.name))
+                code.append("    static constexpr Values %s = Values::%s;" % (bit.name, bit.name))
         code.append("};")
 
         return code
