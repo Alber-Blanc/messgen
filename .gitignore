@@ -7,19 +7,8 @@
 .cache
 *.pyc
 *.pyd
+*.o
+*.elf
 cmake-build-*/
 build-golang-test/
 build
-Testing
-msg
-bin
-
-
-# Log files
-dump.txt
-
-*.o
-*.elf
-tests/cpp/messgen
-.done.*
-
