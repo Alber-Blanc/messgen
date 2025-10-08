@@ -1,0 +1,4 @@
+proto_id: 2
+messages:
+  0: {name: "cross_proto_msg", type: "cross_proto", comment: "Cross proto message"}
+

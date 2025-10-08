@@ -1,7 +1,5 @@
 import os
 
-from messgen import MessgenException
-
 import re
 from pathlib import Path
 from string import Template
@@ -14,6 +12,11 @@ autogenPreamble = [
 ]
 
 defaultStringer = Template('fmt.Sprintf("%v", $varName)')
+
+
+class MessgenException(Exception):
+    pass
+
 
 def to_camelcase(str):
     if not any(c in "_" for c in str):
@@ -172,7 +175,7 @@ def make_const_type(enumName, basetype, fields):
     for field in fields:
         value = "%s" % field["value"]
 
-        matches = re.fullmatch("\s*\(?(\d+)U\s*<<\s*(\d+)U\)?", value)
+        matches = re.fullmatch("\\s*\\(?(\\d+)U\\s*<<\\s*(\\d+)U\\)?", value)
         if matches is not None:
             value = matches.expand("\\1 << \\2")
 

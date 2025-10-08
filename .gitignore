@@ -1,11 +1,16 @@
 # IntelliJ project files
 .idea
+.vscode
 .run
 
 # Build files
+.cache
 *.pyc
 *.pyd
 cmake-build-*/
+build
+Testing
+msg
 
 # Log files
 dump.txt

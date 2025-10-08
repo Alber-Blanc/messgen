@@ -3,4 +3,6 @@
 /coverage
 
 /tests/another_proto/
-/tests/messgen/
+tests/protocols.json
+tests/types.json
+gen.sh

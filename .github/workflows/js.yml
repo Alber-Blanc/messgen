@@ -1,27 +1,59 @@
-name: JS CI
+name: CI & Publish
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, "v1" ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, "v1" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./port/js
+
     steps:
       - uses: actions/checkout@v3
 
       - uses: ./.github/actions/node
 
       - name: Install dependencies
-        working-directory: ./port/js
         run: npm ci --prefer-offline --no-audit
 
+      - name: Run lint
+        run: npm run check:lint
+
+      - name: Run type check
+        run: npm run check:types
+
       - name: Run tests
-        working-directory: ./port/js
-        run: npm test
+        run: npm run test
 
       - name: Build
-        working-directory: ./port/js
         run: npm run build
+
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./port/js
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: ./.github/actions/node
+
+      - uses: EndBug/version-check@v2
+        id: version
+        with:
+          diff-search: true
+          file-name: port/js/package.json
+
+      - name: Publish to npm
+        if: steps.version.outputs.changed == 'true'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

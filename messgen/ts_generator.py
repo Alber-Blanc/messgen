@@ -1,161 +1,379 @@
-import os
+import posixpath
+import re
+from pathlib import Path
+from typing import Dict, Set, List, DefaultDict, cast, Tuple, Iterable
+from collections import defaultdict
+from contextlib import contextmanager
 
-ts_types_map = {
-    "bytes": "uint8[]",
-    "char": "string",
-    "int8": "number",
-    "uint8": "number",
-    "int16": "number",
-    "uint16": "number",
-    "int32": "number",
-    "uint32": "number",
-    "int64": "bigint",
-    "uint64": "bigint",
-    "float32": "number",
-    "float64": "bigint",
-    "string": "string",
-}
+from .common import SEPARATOR
+from .model import MessgenType, EnumType, StructType, Protocol, TypeClass, BitsetType
 
-ts_types_array = {
-    "int8": "Int8Array",
-    "uint8": "Uint8Array",
-    "int16": "Int16Array",
-    "uint16": "Uint16Array",
-    "int32": "Int32Array",
-    "uint32": "Uint32Array",
-    "int64": "BigInt64Array",
-    "uint64": "BigUint64Array",
-    "float32": "Float32Array",
-    "float64": "Float64Array",
-}
+_ARRAY_RE = re.compile(r"(?P<base>[^\[{]+)(?P<dims>(?:\[[^\]]*\])*)$")
+_MAP_RE = re.compile(r"^(?P<base>[^\{]+)\{(?P<key>[^\}]+)\}$")
+
+def normalize(name: str) -> str:
+    last = name.split('/')[-1]
+    return ''.join(w.capitalize() for w in last.split('_') if w)
 
 
-def to_camelcase(str):
-    return ''.join(x for x in str.title().replace('_', '') if not x.isspace())
+def enum_key(name: str) -> str:
+    segments = re.split(f"[{SEPARATOR}_/]", name)
+    return '_'.join(seg.upper() for seg in segments if seg)
 
+def _proto_dir_from_type_path(tname: str) -> str:
+    return tname.rpartition('/')[0] or tname
 
-def format_type(f, use_typed_arrays=False):
-    t = ts_types_map.get(f["type"], f["type"])
-    f_type = t[0].lower() + t[1:]
+def _alias_from_key(path: str) -> str:
+    parts = re.split(r'[/_]', path)
+    return ''.join(p[:1].upper() + p[1:] for p in parts if p)
 
-    if ('/' in f["type"]):
-        din_type = to_camelcase(f_type.split('/').pop())
-        f_type = din_type + "Message"
+def _type_folder_of(t: str) -> str:
+    return t.rpartition(SEPARATOR)[0] or t
 
-    if (f["is_array"]):
-        tArray = ts_types_array.get(f["type"])
-        if (tArray is not None and use_typed_arrays):
-            f_type = tArray
+def _rel_path(from_dir: str, to_dir: str) -> str:
+    rel = posixpath.relpath(to_dir, start=from_dir)
+    return f'.{SEPARATOR}' if rel == '.' else rel
+
+def _local_typename_key(full: str) -> str:
+    return enum_key(full.split('/')[-1])
+
+class TSWriter:
+    def __init__(self, indent_size: int = 2) -> None:
+        self._buf: List[str] = []
+        self._ind = 0
+        self._w = ' ' * indent_size
+
+    def line(self, s: str = "") -> None:
+        if s:
+            self._buf.append(f"{self._w * self._ind}{s}")
         else:
-            f_type = f_type + "[]"
+            self._buf.append("")
 
-    return f_type
+    def lines(self, xs: Iterable[str]) -> None:
+        for x in xs:
+            self.line(x)
 
+    def blank(self) -> None:
+        if self._buf and self._buf[-1] != "":
+            self._buf.append("")
 
-class TsGenerator:
-    PROTO_TYPE_VAR_TYPE = "uint8"
+    def jsdoc(self, *parts: str) -> None:
+        text = ' '.join(p for p in parts if p).strip()
+        if text:
+            self.line(f"/** {text} */")
 
-    def __init__(self, modules_map, data_types_map, module_sep, variables):
-        self.MODULE_SEP = module_sep
-        self._modules_map = modules_map
-        self._data_types_map = data_types_map
-        self._variables = variables
+    @contextmanager
+    def block(self, header: str):
+        self.line(f"{header} {{")
+        self._ind += 1
+        try:
+            yield
+        finally:
+            self._ind -= 1
+            self.line("}")
 
-    def generate(self, out_dir):
-        imports = []
-        for module_name, module in self._modules_map.items():
-            module_out_dir = out_dir + os.path.sep + module_name.replace(self.MODULE_SEP, os.path.sep)
-            spl = module_name.split(self.MODULE_SEP)
-            class_path = '%s/%s' % (spl[0], to_camelcase(spl[1]))
-            prefix = '// === AUTO GENERATED CODE ===\n'
-            imports.append(prefix)
-            imports.append('import { MessageName, MessageData, ClearSystemInfo } from  "./%s"' % spl[1])
-            imports.append('import { Messages, Struct } from "messgen"; // TODO: add alias in project or crate npm module\n')
+    def emit(self) -> str:
+        return "\n".join(self._buf).rstrip() + "\n"
 
-            dts = []
-            methods = []
-            mes_names = []
+class TypeScriptTypes:
+    PRIMITIVES = {
+        'bool': 'boolean', 'char': 'string', 'string': 'string', 'bytes': 'Uint8Array',
+        'int8': 'number', 'uint8': 'number', 'int16': 'number', 'uint16': 'number',
+        'int32': 'number', 'uint32': 'number', 'float32': 'number', 'float64': 'number',
+        'int64': 'bigint', 'uint64': 'bigint', 'dec64': 'Decimal',
+    }
+    ARRAYS = {
+        'int8': 'Int8Array', 'uint8': 'Uint8Array', 'int16': 'Int16Array', 'uint16': 'Uint16Array',
+        'int32': 'Int32Array', 'uint32': 'Uint32Array', 'int64': 'BigInt64Array', 'uint64': 'BigUint64Array',
+        'float32': 'Float32Array', 'float64': 'Float64Array',
+    }
 
-            for msg in module["messages"]:
-                dts += self.generate_interface(msg)
-                mes_names.append(msg["name"])
-                methods.append(self.generate_send(msg["name"]))
-                methods.append(self.generate_on(msg["name"], msg["id"]))
-            dts = dts + self.generate_names(mes_names)
-            dts = dts + self.generate_datas(mes_names)
-            dts += ["export type ClearSystemInfo<T extends MessageData> = Omit<T, '__type__'> \n"]
-            self.__write_file( out_dir + os.path.sep + module_name + ".ts", [prefix] + dts)
-            self.__write_file(out_dir + os.path.sep + "%sHelper.ts" % class_path, imports + self.generate_class(methods, to_camelcase(spl[1])))
+    @classmethod
+    def resolve(cls, t: str) -> str:
+        m = _MAP_RE.match(t)
+        if m:
+            base = cls.resolve(m.group('base'))
+            key = cls.resolve(m.group('key'))
+            return f"Map<{key}, {base}>"
 
-    def generate_interface(self, msg):
-        msg_name = msg["name"]
+        m = _ARRAY_RE.match(t)
+        if m:
+            base, dims = m.group('base'), m.group('dims')
+            dims_count = dims.count('[')
+            typed = cls.ARRAYS.get(base)
+            if typed and dims_count:
+                return typed + '[]' * (dims_count - 1)
+            core = cls.PRIMITIVES.get(base, normalize(base))
+            return core + '[]' * dims_count
 
-        out = []
-        if msg.get("descr") is not  None:
-            out.append("/**\n * %s" % msg["descr"])
-            out.append(" */")
-        out.append('export interface %sMessage {' % to_camelcase(msg_name))
-        out.append('    __type__?: "%s"' % msg_name)
-        fields_p = []
-        for f in msg["fields"]:
-            f_name = f["name"]
-            f_type = format_type(f, self._variables.get('typed_arrays','false') == 'true')
-            if f.get("descr") is not None:
-                fields_p.append('    /** %s */' % str(f.get("descr")))
-            fields_p.append('    %s: %s' % (f_name, f_type))
-        out.append("\n".join(fields_p))
-        out.append("}")
-        return out
+        return cls.PRIMITIVES.get(t, normalize(t))
 
+    @classmethod
+    def _strip_dims(cls, t: str) -> str:
+        m = _ARRAY_RE.match(t)
+        return m.group('base') if m else t
 
-    def generate_import(self, module_name, msg_name):
-        return  'import { %sMessage } from "./%s/%s"\n' % (msg_name, module_name, msg_name)
+    @classmethod
+    def _split_map(cls, t: str):
+        m = _MAP_RE.match(t)
+        if not m:
+            return None
+        return m.group('base'), m.group('key')
 
-    def generate_send(self, name):
-        msg_name = to_camelcase(name)
-        return  '''
-    send_%s(data: ClearSystemInfo<MessageData<"%s">>, callback?: (data: ClearSystemInfo<MessageData<"%s">>) => void): any {
-        return this.send(this.messages.MSG_%s, data, callback);
-    }''' % (msg_name,name, name, name.upper())
+    @classmethod
+    def dependencies(cls, t: str) -> Set[str]:
+        m = cls._split_map(t)
+        if m:
+            base, key = m
+            return cls.dependencies(base) | cls.dependencies(key)
 
-    def generate_on(self, name, id):
-        msg_name = to_camelcase(name)
-        return  '''
-    on_%s(callback: (data: MessageData<"%s">) => any) {
-        this.onmessage[%s] = callback;
-    }''' % (msg_name, name,  id)
+        base = cls._strip_dims(t)
+        return set() if base in cls.PRIMITIVES else {base}
 
-    def generate_class(self, methods, name_file):
-        out = []
-        out.append('export default class %sHelper {' % (name_file))
-        out.append("    send(struct: Struct, data: ClearSystemInfo<MessageData>, callback?: (...args: any) => any) {}")
-        out.append("    protected onmessage: {(args?: any): void}[] = []")
-        out.append("    protected messages!: Messages<MessageName>")
-        out.append("\n".join(methods))
-        out.append("}")
-        return out
+    @classmethod
+    def uses_dec64(cls, t: str) -> bool:
+        m = cls._split_map(t)
+        if m:
+            base, key = m
+            return cls.uses_dec64(base) or cls.uses_dec64(key)
+        base = cls._strip_dims(t)
+        return base == 'dec64'
 
-    def generate_names(self, names):
-        out = []
-        out.append("export type MessageName =")
-        for name in iter(names):
-            out.append('| "%s"' % name)
-        out.append('\n')
-        return out
+class TypeScriptGenerator:
+    TYPES_FILE = 'types.ts'
+    PROTOCOLS_FILE = 'protocols.ts'
 
-    def generate_datas(self, names):
-        out = []
-        out.append("export type MessageData<TMessageName extends MessageName = MessageName>  =")
-        for name in iter(names):
-            out.append('    TMessageName extends "%s" ? ' % name)
-            out.append('    %sMessage :' % to_camelcase(name))
-        for name in iter(names):
-            out.append('        | %sMessage ' % to_camelcase(name))
-        out.append('\n')
-        return out
+    def __init__(self, options=None):
+        self.options = options
 
-    @staticmethod
-    def __write_file(fpath, code):
-        with open(fpath, "w") as f:
-            for line in code:
-                f.write("%s\n" % line)
+    def generate(self, output_dir: Path, types: Dict[str, MessgenType], protocols: Dict[str, Protocol]) -> None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        self.generate_types(output_dir, types)
+        self.generate_protocols(output_dir, protocols)
+
+    def generate_types(self, out_dir: Path, types: Dict[str, MessgenType]) -> None:
+        by_folder = self._collect_types_by_folder(types)
+
+        for folder, local_names in sorted(by_folder.items()):
+            content = self._emit_types(folder, local_names, types)
+            file_name = out_dir / folder / 'index.ts'
+            file_name.parent.mkdir(parents=True, exist_ok=True)
+            self._write(file_name, content)
+
+        root_content = self._emit_types_root(types)
+        self._write(out_dir / self.TYPES_FILE, root_content)
+
+    def generate_protocols(self, out_dir: Path, protocols: Dict[str, Protocol]) -> None:
+        if not protocols:
+            self._write(out_dir / self.PROTOCOLS_FILE, "export type ProtocolMap = {};\n")
+            return
+
+        items: List[Tuple[str, Protocol]] = sorted(protocols.items(), key=lambda v: v[1].name)
+
+        for proto_key_path, proto in items:
+            content = self._emit_protocols(proto_key_path, proto)
+            file_name = out_dir / proto_key_path / 'index.ts'
+            file_name.parent.mkdir(parents=True, exist_ok=True)
+            self._write(file_name, content)
+
+        root_content = self._emit_protocols_root(items)
+        self._write(out_dir / self.PROTOCOLS_FILE, root_content)
+
+    def _collect_types_by_folder(self, types: Dict[str, MessgenType]) -> DefaultDict[str, Set[str]]:
+        by_folder: DefaultDict[str, Set[str]] = defaultdict(set)
+        for full, t in types.items():
+            if t.type_class in {TypeClass.struct, TypeClass.enum, TypeClass.bitset}:
+                by_folder[_proto_dir_from_type_path(full)].add(full)
+        return by_folder
+
+    def _collect_external_deps_for_folder(
+        self, folder: str, local_type_names: Set[str], types: Dict[str, MessgenType]
+    ) -> Dict[str, Set[str]]:
+        external: Dict[str, Set[str]] = defaultdict(set)
+        for tname in local_type_names:
+            t = types.get(tname)
+            if not t or t.type_class is not TypeClass.struct:
+                continue
+            st = cast(StructType, t)
+            for f in st.fields or []:
+                for dep in TypeScriptTypes.dependencies(f.type):
+                    dep_folder = _proto_dir_from_type_path(dep)
+                    if dep_folder == folder:
+                        continue
+                    import_path = posixpath.relpath(dep_folder, start=folder)
+                    external[import_path].add(normalize(dep))
+        return external
+
+    def _emit_types(self, folder: str, local_names: Set[str], types: Dict[str, MessgenType]) -> str:
+        w = TSWriter()
+
+        imports = self._emit_types_module_imports(folder, local_names, types)
+        if imports:
+            w.lines(imports.splitlines())
+            w.blank()
+
+        local_types = self._emit_local_types(local_names, types)
+        if local_types:
+            w.lines(local_types.splitlines())
+
+        w.lines(self._emit_local_typename_enum(local_names, types).splitlines())
+        w.blank()
+
+        w.lines(self._emit_local_typemap(local_names, types).splitlines())
+
+        return w.emit()
+
+    def _emit_types_module_imports(self, folder: str, local_names: Set[str], types: Dict[str, MessgenType]) -> str:
+        external = self._collect_external_deps_for_folder(folder, local_names, types)
+        w = TSWriter()
+
+        for rel in sorted(external.keys()):
+            spec = ', '.join(sorted(external[rel]))
+            w.line(f"import type {{ {spec} }} from '{rel}';")
+
+        needs_decimal = any(
+            types[n].type_class is TypeClass.struct and any(
+                TypeScriptTypes.uses_dec64(f.type) for f in cast(StructType, types[n]).fields or []
+            )
+            for n in local_names
+        )
+        if needs_decimal:
+            if external:
+                w.blank()
+            w.line("import type { Decimal } from 'messgen';")
+
+        return w.emit().rstrip()
+
+    def _emit_local_types(self, local_names: Set[str], types: Dict[str, MessgenType]) -> str:
+        out: List[str] = []
+        for name in sorted(local_names):
+            t = types[name]
+            if t.type_class is TypeClass.struct:
+                out.append(self._emit_struct(name, cast(StructType, t), types))
+            elif t.type_class is TypeClass.enum:
+                out.append(self._emit_enum(name, cast(EnumType, t)))
+            elif t.type_class is TypeClass.bitset:
+                out.append(self._emit_bitset(name, cast(BitsetType, t)))
+        return ''.join(out)
+
+    def _emit_local_typename_enum(self, local_names: Set[str], types: Dict[str, MessgenType]) -> str:
+        struct_names = sorted(n for n in local_names if types[n].type_class is TypeClass.struct)
+        w = TSWriter()
+        if not struct_names:
+            w.line("export enum Types {}")
+            return w.emit()
+
+        with w.block("export enum Types"):
+            for n in struct_names:
+                w.line(f"{_local_typename_key(n)} = '{n}',")
+        return w.emit()
+
+    def _emit_local_typemap(self, local_names: Set[str], types: Dict[str, MessgenType]) -> str:
+        struct_names = sorted(n for n in local_names if types[n].type_class is TypeClass.struct)
+        
+        w = TSWriter()
+        w.line("export type TypeMap = {")
+        for n in struct_names:
+            w.line(f"  [Types.{_local_typename_key(n)}]: {normalize(n)};")
+        w.line("};")
+        return w.emit()
+
+    def _emit_types_root(self, types: Dict[str, MessgenType]) -> str:
+        struct_full: List[str] = sorted(full for full, t in types.items() if t.type_class is TypeClass.struct)
+        w = TSWriter()
+        if not struct_full:
+            w.line("export type TypeMap = {};")
+            w.line("export type Types = never;")
+            return w.emit()
+
+        folders = sorted({_type_folder_of(full) for full in struct_full})
+        folder_alias: Dict[str, str] = {folder: _alias_from_key(folder) for folder in folders}
+
+        for folder, alias in sorted(folder_alias.items()):
+            w.line(f"import type * as {alias} from './{folder}';")
+        w.blank()
+
+        aliases = [alias for _, alias in sorted(folder_alias.items())]
+        inter = " & ".join(f"{a}.TypeMap" for a in aliases) if aliases else "{}"
+
+        w.line(f"export type TypeMap = {inter};")
+        w.blank()
+
+        return w.emit()
+
+    def _emit_protocols(self, proto_key_path: str, proto: Protocol) -> str:
+        proto_dir = proto_key_path
+        messages = sorted(proto.messages.values(), key=lambda m: m.message_id)
+
+        unique_folders = sorted({_type_folder_of(m.type) for m in messages})
+        folder_alias: Dict[str, str] = {tf: _alias_from_key(tf) for tf in unique_folders}
+
+        w = TSWriter()
+        for tf in unique_folders:
+            rel = _rel_path(proto_dir, tf)
+            alias = folder_alias[tf]
+            w.line(f"import type * as {alias} from '{rel}';")
+
+        w.blank()
+        w.lines(self._emit_proto_message_enum(messages).splitlines())
+        w.blank()
+        w.lines(self._emit_proto_map(proto, messages, folder_alias).splitlines())
+        return w.emit()
+
+    def _emit_proto_message_enum(self, messages) -> str:
+        w = TSWriter()
+        with w.block("export enum Message"):
+            for m in messages:
+                w.line(f"{m.name.upper()} = {m.message_id},")
+        return w.emit()
+
+    def _emit_proto_map(self, proto: Protocol, messages, folder_alias: Dict[str, str]) -> str:
+        w = TSWriter()
+        w.line(f"export const PROTO_ID = {proto.proto_id};")
+        w.blank()
+        with w.block("export interface Proto"):
+            with w.block("[PROTO_ID]:"):
+                for m in messages:
+                    tf = _type_folder_of(m.type)
+                    ts_type = f"{folder_alias[tf]}.{normalize(m.type)}"
+                    w.line(f"[Message.{m.name.upper()}]: {ts_type};")
+        return w.emit()
+
+    def _emit_protocols_root(self, items: List[Tuple[str, Protocol]]) -> str:
+        w = TSWriter()
+        aliases: List[str] = []
+        for key, _ in items:
+            alias = _alias_from_key(key)
+            aliases.append(alias)
+            w.line(f"import type * as {alias} from './{key}';")
+        w.blank()
+        inter = " & ".join(f"{a}.Proto" for a in aliases) if aliases else "{}"
+        w.line(f"export type ProtocolMap = {inter};")
+        return w.emit()
+
+    def _emit_struct(self, name: str, struct: StructType, types: Dict[str, MessgenType]) -> str:
+        w = TSWriter()
+        w.jsdoc(struct.comment or '', f"Size: {struct.size}" if struct.size is not None else '')
+        with w.block(f"export interface {normalize(name)}"):
+            for f in struct.fields or []:
+                w.jsdoc(f.comment or '')
+                w.line(f"{f.name}: {TypeScriptTypes.resolve(f.type)};")
+        return w.emit()
+
+    def _emit_enum(self, name: str, enum: EnumType) -> str:
+        w = TSWriter()
+        with w.block(f"export enum {normalize(name)}"):
+            for v in sorted(enum.values, key=lambda v: v.value):
+                w.line(f"{enum_key(v.name)} = {v.value},")
+        return w.emit()
+
+    def _emit_bitset(self, name: str, bitset: BitsetType) -> str:
+        w = TSWriter()
+        with w.block(f"export enum {normalize(name)}"):
+            for b in sorted(bitset.bits, key=lambda b: b.offset):
+                w.line(f"{enum_key(b.name)} = (1 << {b.offset}),")
+        return w.emit()
+
+    def _write(self, path: Path, content: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding='utf-8')

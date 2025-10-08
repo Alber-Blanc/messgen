@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
 namespace messgen {
 
@@ -11,14 +12,14 @@ namespace messgen {
  */
 class Allocator {
 public:
-    Allocator() noexcept: _ptr(nullptr), _size(0) {}
+    Allocator() noexcept {}
 
-    Allocator(uint8_t *ptr, size_t size) noexcept: _ptr(ptr), _size(size) {}
+    Allocator(uint8_t *ptr, size_t size) noexcept : _ptr(ptr), _size(size) {}
 
     /**
      * @brief Allocates memory for num objects of type T
      * @tparam T    -   type of object
-     * @param num   -   number of objects
+     * @param n   -   number of objects
      * @return pointer to allocated memory or nullptr if not enough memory
      */
     template<class T>
@@ -39,7 +40,7 @@ public:
         return nullptr;
     }
 
-private:
+protected:
     /**
      * @brief Aligns pointer to align bytes
      * @param align   -   alignment
@@ -52,42 +53,15 @@ private:
         const auto intptr = reinterpret_cast<uintptr_t>(ptr);
         const auto aligned = (intptr - 1u + align) & -align;
         const auto diff = aligned - intptr;
-        if ((size + diff) > space)
+        if ((size + diff) > space) {
             return nullptr;
-        else {
-            space -= diff;
-            return ptr = reinterpret_cast<void *>(aligned);
         }
+        space -= diff;
+        return ptr = reinterpret_cast<void *>(aligned);
     }
 
-    void *_ptr;
-    size_t _size;
+    void *_ptr = nullptr;
+    size_t _size = 0;
 };
 
-/**
- * @brief Class which allows to statically allocate memory for messgen parsing
- * @tparam MEM_SIZE     -   memory size
- * @warning Each parse call on this class will clear memory, so if you want to do multiple parse calls
- *          store it into temporary MemoryAllocator& variable.
- */
-template<size_t MEM_SIZE>
-class StaticAllocator {
-public:
-    explicit StaticAllocator() noexcept:
-            _alloc(_memory, MEM_SIZE) {}
-
-    operator Allocator &() noexcept {
-        return get();
-    }
-
-    Allocator &get() noexcept {
-        _alloc = Allocator(_memory, MEM_SIZE);
-        return _alloc;
-    }
-
-private:
-    uint8_t _memory[MEM_SIZE]{};
-    Allocator _alloc;
-};
-
-}
+}// namespace messgen

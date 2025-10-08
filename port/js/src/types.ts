@@ -1,66 +1,125 @@
-import { Struct } from "./Struct";
+export type IName = string;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type IValue = any;
+export type ProtocolId = number;
+export type MessageId = number;
 
+export type NumberType =
+  | 'uint8'
+  | 'int8'
+  | 'uint16'
+  | 'int16'
+  | 'uint32'
+  | 'int32'
+  | 'uint64'
+  | 'int64'
+  | 'float32'
+  | 'float64'
+  | 'dec64';
 
-export type Field = {
+export type DecimalType = 'dec64';
+
+export type BasicType =
+  NumberType |
+  'string' |
+  'bool' |
+  'char' |
+  'bytes';
+
+type ArrayDynamicSize = '[]';
+type ArrayFixSize = `[${number}]`;
+type MapType = `{${BasicType}}`;
+
+type SubType = ArrayDynamicSize | ArrayFixSize | MapType | '';
+
+export type IType = `${IName | BasicType | DecimalType}${SubType}${SubType}${SubType}`;
+
+export enum TypeClass {
+  SCALAR = 'scalar',
+  DECIMAL = 'decimal',
+  TYPED_ARRAY = 'typed-array',
+  ARRAY = 'array',
+  MAP = 'map',
+  STRUCT = 'struct',
+  ENUM = 'enum',
+  BITSET = 'bitset',
+}
+
+export interface Field {
   name: IName
   type: IType
 }
 
-export type SchemaObj = {
-  id: IId
-  fields: Field[]
+export interface EnumValue {
+  name: IName;
+  value: number;
+  comment?: string;
 }
 
+export type BitsetBit = {
+  name: string;
+  offset: number;
+  comment?: string;
+};
 
-export type Messages<KEYS extends IName = IName> = {
-  __id__: Struct[]
-  __name__: KEYS[]
-  __messages__: Record<IName, Struct>
-  HEADER_STRUCT: Struct
-}
+export type ScalarTypeDefinition = {
+  type: BasicType;
+  typeClass: TypeClass.SCALAR;
+};
 
+export type DecimalTypeDefinition = {
+  type: DecimalType;
+  typeClass: TypeClass.DECIMAL;
+};
 
-export type Obj = Record<string, any>;
+export type TypedArrayTypeDefinition = {
+  type: IType;
+  typeClass: TypeClass.TYPED_ARRAY;
+  elementType: IType;
+  arraySize?: number;
+};
 
+export type ArrayTypeDefinition = {
+  type: IType;
+  typeClass: TypeClass.ARRAY;
+  elementType: IType;
+  arraySize?: number;
+  size?: number;
+};
 
-/*
-    ____,-------------------------------------,____
-    \   |            Nominal types            |   /
-    /___|-------------------------------------|___\
+export type MapTypeDefinition = {
+  type: IType;
+  typeClass: TypeClass.MAP;
+  keyType: IType;
+  valueType: IType;
+};
 
-*/
-declare const NominalType: unique symbol
-// String-typed unique nominal types generator:
-//
-// let a: NominalStrict<'DateTime'> = '2021-10-26T13:53:05.997Z';
-// let b: NominalStrict<'DayDate'> = '2021-10-26';
-// a = b; - compile-time error;
-export type NominalStrict<NAME extends string | number, Type = string> = Type & { [NominalType]: NAME }
-export type Nominal<NAME extends string | number, Type = string> = Type & { [NominalType]?: NAME }
+export type StructTypeDefinition = {
+  typeClass: TypeClass.STRUCT;
+  fields: Field[] | null;
+  typeName: IName;
+};
 
+export type EnumTypeDefinition = {
+  type: IType;
+  typeClass: TypeClass.ENUM;
+  values: EnumValue[];
+  typeName: IName;
+};
 
-export type IName = string
-export type IId = Nominal<'Id', number>
-export type IPrimitiveType =
-  "int8" |
-  "uint8" |
-  "int16" |
-  "uint16" |
-  "int32" |
-  "uint32" |
-  "int64" |
-  "uint64" |
-  "double" |
-  "string" |
-  "char"
+export type BitsetTypeDefinition = {
+  type: IType;
+  typeClass: TypeClass.BITSET;
+  bits: BitsetBit[];
+  typeName: IName;
+};
 
-type ArrayDynamicSize = '[]';
-type ArrayFixSize = `[${number}]`;
-type MapType = `{${IPrimitiveType}}`;
-
-type SubType = `${ArrayDynamicSize | ArrayFixSize | MapType}` | '';
-
-
-export type IType = `${IName | IPrimitiveType}${SubType}${SubType}${SubType}`
-
-
+export type TypeDefinition =
+  | ScalarTypeDefinition
+  | DecimalTypeDefinition
+  | TypedArrayTypeDefinition
+  | ArrayTypeDefinition
+  | MapTypeDefinition
+  | StructTypeDefinition
+  | EnumTypeDefinition
+  | BitsetTypeDefinition;
