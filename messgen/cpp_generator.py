@@ -384,12 +384,13 @@ class CppGenerator:
 
         unqual_name = _unqual_name(type_name)
         qual_name = _qual_name(type_name)
+        underlying_type = self._cpp_type(type_def.base_type)
 
         code = []
         code.extend(self._generate_comment_type(type_def))
         code.append(
-            f"class {unqual_name}: public messgen::detail::bitset_base<{unqual_name}, {self._cpp_type(type_def.base_type)}> {{")
-        code.append(f"    enum class Values : {self._cpp_type(type_def.base_type)} {{")
+            f"class {unqual_name} : public messgen::detail::bitset_base<{unqual_name}, {underlying_type}> {{")
+        code.append(f"    enum class Values : {underlying_type} {{")
         for bit in type_def.bits:
             code.append("        %s = %s,%s" % (bit.name, 1 << bit.offset, _inline_comment(bit)))
         code.append("    };")
@@ -398,6 +399,7 @@ class CppGenerator:
         code.append("public:")
         code.append("    using underlying_type = std::underlying_type_t<Values>;")
         code.append("    using bitset_base::bitset_base;")
+        code.append(f"    constexpr {unqual_name}(Values other) : {unqual_name}{{underlying_type(other)}} {{}}")
 
         code.append("")
         code.append(f'    constexpr inline static const char* NAME = "{qual_name}";')
@@ -406,6 +408,10 @@ class CppGenerator:
         else:
             for bit in type_def.bits:
                 code.append("    static constexpr Values %s = Values::%s;" % (bit.name, bit.name))
+        code.append("")
+        code.append(f"    friend {unqual_name} operator|(const Values &lhs, const Values &rhs) {{")
+        code.append(f"        return {unqual_name}(lhs) | {unqual_name}(rhs);")
+        code.append("    }")
         code.append("};")
 
         return code
