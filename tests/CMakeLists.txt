@@ -46,7 +46,6 @@ if (CMAKE_CXX_STANDARD GREATER_EQUAL 17)
     gtest_discover_tests(test_cpp17_nostl)
 
     add_executable(test_cpp_dynamic "cpp_dynamic/main.cpp")
-    target_include_directories(test_cpp_dynamic PUBLIC "${MESSGEN_ROOT_DIR}/port/cpp_dynamic")
     target_link_libraries(test_cpp_dynamic PUBLIC messgen_dynamic)
 else()
     message(WARNING "C++ standard is less than 17, skipping C++ tests")

@@ -79,7 +79,7 @@ include(FetchContent)
 FetchContent_Declare(
         yaml-cpp
         GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-        GIT_TAG yaml-cpp-0.7.0
+        GIT_TAG a83cd31
 )
 FetchContent_GetProperties(yaml-cpp)
 if(NOT yaml-cpp_POPULATED)
@@ -87,5 +87,10 @@ if(NOT yaml-cpp_POPULATED)
     FetchContent_Populate(yaml-cpp)
     add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR})
 endif()
-add_library("messgen_dynamic" "/home/ton/microavia/messgen/port/cpp_dynamic/messgen_dynamic/MessgenDynamic.cpp")
-target_link_libraries("messgen_dynamic" yaml-cpp::yaml-cpp)
+
+get_filename_component(MESSGEN_DIR ${CMAKE_CURRENT_LIST_DIR} DIRECTORY)
+get_filename_component(MESSGEN_DIR ${MESSGEN_DIR} DIRECTORY)
+
+add_library(messgen_dynamic "${MESSGEN_DIR}/port/cpp_dynamic/messgen_dynamic/MessgenDynamic.cpp")
+target_include_directories(messgen_dynamic PUBLIC "${MESSGEN_DIR}/port/cpp_dynamic")
+target_link_libraries(messgen_dynamic yaml-cpp::yaml-cpp)

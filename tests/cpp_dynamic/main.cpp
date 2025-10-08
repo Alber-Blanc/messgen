@@ -3,7 +3,7 @@
 #include <iostream>
 
 int main(int argc, char **argv) {
-    DynamicParser parser("tests/messages/messgen/test_proto");
+    DynamicParser parser("tests/data/types");
     auto &msg = parser.add_message("simple_struct");
     auto f4 = msg.add_scalar_field<int32_t>("f4");
     auto foo = msg.add_scalar_field<int32_t>("foo");
