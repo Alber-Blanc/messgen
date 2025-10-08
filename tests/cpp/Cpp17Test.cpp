@@ -399,4 +399,5 @@ TEST_F(CppTest17, BitsetOperations) {
 
     test_bits.clear();
     EXPECT_EQ(test_bits.to_underlying_type(), 0);
+    EXPECT_TRUE(test_bits != test_bits2);
 }

@@ -73,7 +73,7 @@ struct bitmask_operators_mixin {
     }
 
     friend bool operator!=(const M& lhs, const M& rhs) {
-        return lhs != rhs;
+        return lhs._bits != rhs._bits;
     }
 
     auto to_string() const {
