@@ -38,4 +38,19 @@ func TestProtocol(t *testing.T) {
 	} else if !called {
 		t.Fatal("Dispatcher callback hasn't been called")
 	}
+
+	err = dispatcher.Dispatch(context.Background(), 9999, data)
+	if err == nil {
+		t.Fatal("Dispatching unknown message id should fail")
+	}
+
+	err = dispatcher.Dispatch(context.Background(), -1, data)
+	if err == nil {
+		t.Fatal("Dispatching unknown message id should fail")
+	}
+
+	err = dispatcher.Dispatch(context.Background(), test_proto.ComplexStructWithEmptyMsg_Id, data)
+	if err == nil {
+		t.Fatal("Dispatching message with wrong id should fail")
+	}
 }
