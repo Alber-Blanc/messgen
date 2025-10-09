@@ -14,7 +14,9 @@ protected:
     void test_serialization(const T &msg) {
         size_t sz_check = msg.serialized_size();
 
-        _buf.reserve(sz_check);
+        // serialized size might be 0, to refer buf element we must have at least some memory
+        // allocated
+        _buf.resize(std::max(1ul, sz_check));
         size_t ser_size = msg.serialize(&_buf[0]);
         EXPECT_EQ(ser_size, sz_check);
 
