@@ -2,7 +2,7 @@ package tests
 
 import (
 	_type "github.com/Alber-Blanc/messgen/build-golang-test/msgs/mynamespace/type"
-	"github.com/Alber-Blanc/messgen/build-golang-test/msgs/mynamespace/type/subspace"
+	"github.com/Alber-Blanc/messgen/build-golang-test/msgs/mynamespace/types/subspace"
 )
 
 type MessgenStruct interface {

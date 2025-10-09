@@ -1,5 +1,6 @@
 from typing import Any
 
+from .common import SEPARATOR
 from .model import (
     EnumType,
     hash_type,
@@ -9,7 +10,35 @@ from .model import (
     BitsetType,
 )
 
-_CPP_KEYWORDS = {
+RESERVED_KEY_WORDS = {
+    # Go
+    "break",
+    "case",
+    "chan",
+    "const",
+    "continue",
+    "default",
+    "defer",
+    "else",
+    "fallthrough",
+    "for",
+    "func",
+    "go",
+    "goto",
+    "if",
+    "import",
+    "interface",
+    "map",
+    "package",
+    "range",
+    "return",
+    "select",
+    "struct",
+    "switch",
+    "type",
+    "var",
+
+    # C++
     "alignas",
     "alignof",
     "and_eq",
@@ -26,9 +55,6 @@ _CPP_KEYWORDS = {
     "case",
     "catch",
     "char",
-    "char16_t",
-    "char32_t",
-    "char8_t",
     "class",
     "co_await",
     "co_return",
@@ -109,9 +135,9 @@ _CPP_KEYWORDS = {
     "while",
     "xor_eq",
     "xor",
-}
-
-_CPP_INT_TYPES = {
+    "char16_t",
+    "char32_t",
+    "char8_t",
     "int8_t",
     "int16_t",
     "int32_t",
@@ -123,15 +149,22 @@ _CPP_INT_TYPES = {
 }
 
 
-def validate_protocol(protocol: Protocol, types: dict[str, MessgenType]):
+def validate_protocol(protocol: Protocol, types: dict[str, MessgenType] | None):
+    for p in protocol.name.split(SEPARATOR):
+        if not is_valid_name(p):
+            raise RuntimeError(f"Invalid protocol name part \"{p}\" in protocol \"{protocol.name}\"")
     seen_names = set()
     for msg_id, msg in protocol.messages.items():
+        if not is_valid_name(msg.name):
+            raise RuntimeError(f"Invalid protocol message name {msg.name} in protocol {protocol.name}")
         if msg.name in seen_names:
             raise RuntimeError(f"Message with name={msg.name} appears multiple times in protocol={protocol.name}")
-        if msg.type not in types:
-            raise RuntimeError(f"Type {msg.type} required by message={msg.name} protocol={protocol.name} not found")
+        if types is not None:
+            if msg.type not in types:
+                raise RuntimeError(f"Type {msg.type} required by message={msg.name} protocol={protocol.name} not found")
         if msg.message_id != msg_id:
-            raise RuntimeError(f"Message {msg.name} has different message_id={msg.message_id} than key={msg_id} in protocol={protocol.name}")
+            raise RuntimeError(
+                f"Message {msg.name} has different message_id={msg.message_id} than key={msg_id} in protocol={protocol.name}")
         seen_names.add(msg.name)
 
 
@@ -157,21 +190,19 @@ def is_valid_name(name: str):
     if not all(c.isalnum() or c == "_" for c in name[1:]):
         return False
 
-    if name in _CPP_KEYWORDS:
-        return False
-
-    if name in _CPP_INT_TYPES:
+    if name in RESERVED_KEY_WORDS:
         return False
 
     return True
 
 
-def validate_type_dict(item_name: str, item: dict[str, StructType | EnumType | BitsetType]) -> None:
-    if not is_valid_name(item_name):
-        raise RuntimeError("Invalid message name %s" % item_name)
+def validate_type_dict(type_name: str, item: dict[str, StructType | EnumType | BitsetType]) -> None:
+    for p in type_name.split(SEPARATOR):
+        if not is_valid_name(p):
+            raise RuntimeError(f"Invalid type name part \"{p}\" in type \"{type_name}\"")
 
     if "type_class" not in item:
-        raise RuntimeError("type_class missing in '%s': %s" % (item_name, item))
+        raise RuntimeError(f"type_class missing in \"{type_name}\": \"{item}\"")
 
     if (type_class := item.get("type_class")) not in ["struct", "enum", "bitset", "external"]:
-        raise RuntimeError("type_class '%s' in '%s' is not supported %s" % (type_class, item_name, item))
+        raise RuntimeError(f"type_class \"{type_class}\" in \"{type_name}\" is not supported")

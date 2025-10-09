@@ -22,20 +22,15 @@ def generate(args: argparse.Namespace):
             print(f"  {p[0]} = {p[1]}")
             opts[p[0]] = p[1]
 
-    parsed_protocols = yaml_parser.parse_protocols(args.protocol)
-    parsed_types = yaml_parser.parse_types(args.types)
+    types = yaml_parser.parse_types(args.types)
+    protocols = yaml_parser.parse_protocols(args.protocol, types)
 
     if (gen := generator.get_generator(args.lang, opts)) is not None:
-        if parsed_protocols and parsed_types:
-            for proto_def in parsed_protocols.values():
-                validate_protocol(proto_def, parsed_types)
+        if types is not None:
+            gen.generate_types(Path(args.outdir), types)
 
-        if parsed_types:
-            validate_types(parsed_types)
-            gen.generate_types(Path(args.outdir), parsed_types)
-
-        if parsed_protocols:
-            gen.generate_protocols(Path(args.outdir), parsed_protocols)
+        if protocols is not None:
+            gen.generate_protocols(Path(args.outdir), protocols)
 
     else:
         raise RuntimeError('Unsupported language "%s"' % args.lang)
