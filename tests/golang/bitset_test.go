@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	_type "github.com/Alber-Blanc/messgen/build-golang-test/msgs/mynamespace/type"
+	_type "github.com/Alber-Blanc/messgen/build-golang-test/msgs/mynamespace/types"
 )
 
 func TestBitset(t *testing.T) {

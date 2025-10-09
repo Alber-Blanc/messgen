@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/Alber-Blanc/messgen/build-golang-test/msgs/mynamespace/proto/test_proto"
-	_type "github.com/Alber-Blanc/messgen/build-golang-test/msgs/mynamespace/type"
+	_type "github.com/Alber-Blanc/messgen/build-golang-test/msgs/mynamespace/types"
 )
 
 // TestProtocol is very a basic test that only checks that the generated code compiles and could be used.
