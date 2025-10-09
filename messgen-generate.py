@@ -1,10 +1,8 @@
 import argparse
 import os
 
-from messgen.validation import validate_protocol, validate_types
 from messgen import generator, yaml_parser
 from pathlib import Path
-
 
 print(os.getcwd())
 print(os.path.dirname(os.path.realpath(__file__)))
@@ -41,7 +39,8 @@ def generate(args: argparse.Namespace):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--types", action="append", help="Type directory to load, may repeat")
-    parser.add_argument("--protocol", action="append", help="Protocol to load in format /path/of/basedir:namespace/of/proto, may repeat")
+    parser.add_argument("--protocol", action="append",
+                        help="Protocol to load in format /path/of/basedir:namespace/of/proto, may repeat")
     parser.add_argument("--lang", required=True, help="Output language")
     parser.add_argument("--outdir", required=True, help="Output directory")
     parser.add_argument("--options", default="", help="Generator options")

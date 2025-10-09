@@ -1,6 +1,7 @@
 #include <messgen/messgen.h>
 #include <mynamespace/proto/test_proto.h>
 #include <mynamespace/proto/subspace/another_proto.h>
+#include <mynamespace/types/another_simple_bitset.h>
 
 #include <gtest/gtest.h>
 
@@ -59,16 +60,16 @@ TEST_F(CppTest17, SimpleStruct) {
 }
 
 TEST_F(CppTest17, StructWithEnum) {
-    mynamespace::type::struct_with_enum s{};
+    mynamespace::types::struct_with_enum s{};
     s.f0 = 1;
     s.f1 = 2;
-    s.e0 = mynamespace::type::simple_enum::another_value;
+    s.e0 = mynamespace::types::simple_enum::another_value;
 
     test_serialization(s);
 }
 
 TEST_F(CppTest17, VarSizeStruct) {
-    mynamespace::type::var_size_struct s{};
+    mynamespace::types::var_size_struct s{};
     std::vector<int64_t> v;
     v.resize(2);
     v[0] = 3;
@@ -81,11 +82,11 @@ TEST_F(CppTest17, VarSizeStruct) {
 }
 
 TEST_F(CppTest17, ComplexStruct) {
-    mynamespace::type::subspace::complex_struct s{};
+    mynamespace::types::subspace::complex_struct s{};
 
     s.f0 = 255;
     s.f2_vec.push_back(45.787);
-    s.e_vec.push_back(mynamespace::type::simple_enum::another_value);
+    s.e_vec.push_back(mynamespace::types::simple_enum::another_value);
     s.s_arr[0].f3 = 3;
     s.s_arr[1].f3 = 5;
     s.v_vec0.resize(1);
@@ -107,13 +108,13 @@ TEST_F(CppTest17, ComplexStruct) {
     s.map_vec_by_str["cat"].push_back(3);
     s.map_vec_by_str["dog"].push_back(30);
     s.map_vec_by_str["dog"].push_back(40);
-    s.bits0 |= mynamespace::type::simple_bitset::error;
+    s.bits0 |= mynamespace::types::simple_bitset::error;
 
     test_serialization(s);
 }
 
 TEST_F(CppTest17, FlatStruct) {
-    mynamespace::type::flat_struct s{};
+    mynamespace::types::flat_struct s{};
 
     s.f0 = 1;
     s.f1 = 2;
@@ -129,7 +130,7 @@ TEST_F(CppTest17, FlatStruct) {
 }
 
 TEST_F(CppTest17, FlatStructZeroCopy) {
-    mynamespace::type::flat_struct s{};
+    mynamespace::types::flat_struct s{};
 
     s.f0 = 1;
     s.f1 = 2;
@@ -145,7 +146,7 @@ TEST_F(CppTest17, FlatStructZeroCopy) {
 }
 
 TEST_F(CppTest17, TwoMsg) {
-    mynamespace::type::simple_struct s1{};
+    mynamespace::types::simple_struct s1{};
     s1.f0 = 1;
     s1.f1 = 2;
     s1.f2 = 3;
@@ -155,7 +156,7 @@ TEST_F(CppTest17, TwoMsg) {
     s1.f6 = 7;
     s1.f8 = 9;
 
-    mynamespace::type::flat_struct s2{};
+    mynamespace::types::flat_struct s2{};
     s2.f0 = 1;
     s2.f1 = 2;
     s2.f2 = 3;
@@ -174,8 +175,8 @@ TEST_F(CppTest17, TwoMsg) {
 
     EXPECT_EQ(ser_size, sz_check);
 
-    mynamespace::type::simple_struct s1c{};
-    mynamespace::type::flat_struct s2c{};
+    mynamespace::types::simple_struct s1c{};
+    mynamespace::types::flat_struct s2c{};
     size_t deser_size = s1c.deserialize(_buf.data());
     deser_size += s2c.deserialize(_buf.data() + deser_size);
     EXPECT_EQ(deser_size, sz_check);
@@ -185,7 +186,7 @@ TEST_F(CppTest17, TwoMsg) {
 }
 
 TEST_F(CppTest17, ComplexStructWithEmpty) {
-    mynamespace::type::subspace::complex_struct_with_empty s{};
+    mynamespace::types::subspace::complex_struct_with_empty s{};
     test_serialization(s);
 }
 
@@ -197,7 +198,7 @@ constexpr void for_each(std::tuple<T...> &&obj, Func &&func) {
 TEST_F(CppTest17, MessageReflectionFieldNames) {
     using namespace messgen;
 
-    auto s = mynamespace::type::subspace::complex_struct{};
+    auto s = mynamespace::types::subspace::complex_struct{};
 
     auto names = std::vector<std::string_view>{};
     for_each(members_of(reflect_object(s)), [&](auto &&param) { names.push_back(name_of(param)); });
@@ -213,7 +214,7 @@ TEST_F(CppTest17, MessageReflectionFieldNames) {
 TEST_F(CppTest17, MessageReflectionFieldTypes) {
     using namespace messgen;
 
-    auto s = mynamespace::type::subspace::complex_struct{};
+    auto s = mynamespace::types::subspace::complex_struct{};
 
     auto types = std::vector<std::string_view>{};
     for_each(members_of(reflect_object(s)), [&](auto &&param) { types.push_back(name_of(type_of(param))); });
@@ -223,15 +224,15 @@ TEST_F(CppTest17, MessageReflectionFieldTypes) {
         "uint64_t",
         "uint32_t",
         "uint64_t",
-        "mynamespace::type::simple_bitset",
-        "array<mynamespace::type::simple_struct, 2>",
+        "mynamespace::types::simple_bitset",
+        "array<mynamespace::types::simple_struct, 2>",
         "array<int64_t, 4>",
-        "array<mynamespace::type::var_size_struct, 2>",
+        "array<mynamespace::types::var_size_struct, 2>",
         "vector<double>",
-        "vector<mynamespace::type::simple_enum>",
-        "vector<mynamespace::type::simple_struct>",
-        "vector<vector<mynamespace::type::var_size_struct>>",
-        "array<vector<mynamespace::type::var_size_struct>, 4>",
+        "vector<mynamespace::types::simple_enum>",
+        "vector<mynamespace::types::simple_struct>",
+        "vector<vector<mynamespace::types::var_size_struct>>",
+        "array<vector<mynamespace::types::var_size_struct>, 4>",
         "vector<array<vector<int16_t>, 4>>",
         "string",
         "vector<uint8_t>",
@@ -253,28 +254,28 @@ TEST_F(CppTest17, EnumReflection) {
     using namespace messgen;
     using namespace std::literals;
 
-    auto enum_name = messgen::name_of(messgen::reflect_type<mynamespace::type::simple_enum>);
-    EXPECT_STREQ(enum_name.data(), "mynamespace::type::simple_enum");
+    auto enum_name = messgen::name_of(messgen::reflect_type<mynamespace::types::simple_enum>);
+    EXPECT_STREQ(enum_name.data(), "mynamespace::types::simple_enum");
 
-    constexpr auto enums = enumerators_of(reflect_type<mynamespace::type::simple_enum>);
+    constexpr auto enums = enumerators_of(reflect_type<mynamespace::types::simple_enum>);
 
     EXPECT_STREQ(std::get<0>(enums).name, "one_value");
-    EXPECT_EQ(std::get<0>(enums).value, mynamespace::type::simple_enum{0});
+    EXPECT_EQ(std::get<0>(enums).value, mynamespace::types::simple_enum{0});
 
     EXPECT_EQ(name_of(std::get<0>(enums)), "one_value"sv);
-    EXPECT_EQ(value_of(std::get<0>(enums)), mynamespace::type::simple_enum{0});
+    EXPECT_EQ(value_of(std::get<0>(enums)), mynamespace::types::simple_enum{0});
 
     EXPECT_STREQ(std::get<1>(enums).name, "another_value");
-    EXPECT_EQ(std::get<1>(enums).value, mynamespace::type::simple_enum{1});
+    EXPECT_EQ(std::get<1>(enums).value, mynamespace::types::simple_enum{1});
 
     EXPECT_EQ(name_of(std::get<1>(enums)), "another_value"sv);
-    EXPECT_EQ(value_of(std::get<1>(enums)), mynamespace::type::simple_enum{1});
+    EXPECT_EQ(value_of(std::get<1>(enums)), mynamespace::types::simple_enum{1});
 }
 
 TEST_F(CppTest17, DispatchMessage) {
     using namespace messgen;
 
-    auto expected = mynamespace::type::simple_struct{
+    auto expected = mynamespace::types::simple_struct{
         .f0 = 1,
         .f1 = 2,
     };
@@ -321,20 +322,20 @@ TEST_F(CppTest17, ProtoHash) {
 TEST_F(CppTest17, TypeTraits) {
     using namespace messgen;
 
-    static_assert(is_flat_type_v<mynamespace::type::flat_struct>);
-    static_assert(!is_flat_type_v<mynamespace::type::subspace::complex_struct>);
+    static_assert(is_flat_type_v<mynamespace::types::flat_struct>);
+    static_assert(!is_flat_type_v<mynamespace::types::subspace::complex_struct>);
 
-    static_assert(is_type_v<mynamespace::type::flat_struct>);
-    static_assert(is_type_v<mynamespace::type::subspace::complex_struct>);
+    static_assert(is_type_v<mynamespace::types::flat_struct>);
+    static_assert(is_type_v<mynamespace::types::subspace::complex_struct>);
     static_assert(!is_type_v<mynamespace::proto::test_proto::simple_struct_msg>);
     static_assert(!is_type_v<mynamespace::proto::test_proto>);
 
     static_assert(is_message_v<mynamespace::proto::test_proto::simple_struct_msg>);
-    static_assert(!is_message_v<mynamespace::type::flat_struct>);
+    static_assert(!is_message_v<mynamespace::types::flat_struct>);
     static_assert(!is_message_v<mynamespace::proto::test_proto>);
 
     static_assert(is_protocol_v<mynamespace::proto::test_proto>);
-    static_assert(!is_protocol_v<mynamespace::type::flat_struct>);
+    static_assert(!is_protocol_v<mynamespace::types::flat_struct>);
     static_assert(!is_protocol_v<mynamespace::proto::test_proto::simple_struct_msg>);
 }
 
@@ -342,65 +343,65 @@ TEST_F(CppTest17, BitsetOperations) {
     using namespace messgen;
 
     // Default constructor
-    test::simple_bitset test_bits;
+    mynamespace::types::simple_bitset test_bits;
     EXPECT_EQ(test_bits.to_underlying(), 0);
 
     // Single bit assignment
-    test_bits = test::simple_bitset::one;
+    test_bits = mynamespace::types::simple_bitset::one;
     EXPECT_EQ(test_bits.to_underlying(), 1);
 
     // Multiple bits assignment
-    test_bits = test::simple_bitset::one | test::simple_bitset::two | test::simple_bitset::error;
+    test_bits = mynamespace::types::simple_bitset::one | mynamespace::types::simple_bitset::two | mynamespace::types::simple_bitset::error;
     EXPECT_EQ(test_bits.to_underlying(), 7);
 
     // Toggle single bit
-    test_bits ^= mynamespace::type::simple_bitset::error;
+    test_bits ^= mynamespace::types::simple_bitset::error;
     EXPECT_EQ(test_bits.to_underlying(), 3);
 
     // Toggle multiple bits
-    test_bits ^= test::simple_bitset::one | test::simple_bitset::error;
+    test_bits ^= mynamespace::types::simple_bitset::one | mynamespace::types::simple_bitset::error;
     EXPECT_EQ(test_bits.to_underlying(), 6);
 
     // Mask multiple bits
-    test_bits = test::simple_bitset::one | test::simple_bitset::two | test::simple_bitset::error;
-    test_bits &= test::simple_bitset::one | test::simple_bitset::two;
+    test_bits = mynamespace::types::simple_bitset::one | mynamespace::types::simple_bitset::two | mynamespace::types::simple_bitset::error;
+    test_bits &= mynamespace::types::simple_bitset::one | mynamespace::types::simple_bitset::two;
     EXPECT_EQ(test_bits.to_underlying(), 3);
 
     // Mask single bit
-    test_bits &= test::simple_bitset::two;
+    test_bits &= mynamespace::types::simple_bitset::two;
     EXPECT_EQ(test_bits.to_underlying(), 2);
 
     // Set 'one' bit
-    test_bits = test_bits | mynamespace::type::simple_bitset::one;
+    test_bits = test_bits | mynamespace::types::simple_bitset::one;
     EXPECT_EQ(test_bits.to_underlying(), 3);
 
     // Toggle 'error' bit
-    test_bits = test_bits ^ mynamespace::type::simple_bitset::error;
+    test_bits = test_bits ^ mynamespace::types::simple_bitset::error;
     EXPECT_EQ(test_bits.to_underlying(), 7);
 
-    uint8_t flags = ((test_bits & test::simple_bitset::one) |
-                     (test_bits & test::simple_bitset::two) |
-                     (test_bits & test::simple_bitset::error)).to_underlying();
+    uint8_t flags = ((test_bits & mynamespace::types::simple_bitset::one) |
+                     (test_bits & mynamespace::types::simple_bitset::two) |
+                     (test_bits & mynamespace::types::simple_bitset::error)).to_underlying();
     EXPECT_EQ(flags, 7);
 
     // Clear 'error' bit
-    test::simple_bitset mask;
-    mask |= test::simple_bitset::error;
+    mynamespace::types::simple_bitset mask;
+    mask |= mynamespace::types::simple_bitset::error;
     test_bits &= ~mask;
     EXPECT_EQ(test_bits.to_underlying(), 3);
 
     // Keep only 'two' bit set
-    test_bits = test_bits & test::simple_bitset::two;
+    test_bits = test_bits & mynamespace::types::simple_bitset::two;
     EXPECT_EQ(test_bits.to_underlying(), 2);
 
-    test::another_simple_bitset another_bitset(test_bits.to_underlying());
+    mynamespace::types::another_simple_bitset another_bitset(test_bits.to_underlying());
     EXPECT_EQ(test_bits.to_underlying(), another_bitset.to_underlying());
 
-    test::simple_bitset test_bits2;
-    test_bits2 |= test::simple_bitset::two;
+    mynamespace::types::simple_bitset test_bits2;
+    test_bits2 |= mynamespace::types::simple_bitset::two;
     EXPECT_TRUE(test_bits == test_bits2);
 
-    test_bits = test::simple_bitset(7);
+    test_bits = mynamespace::types::simple_bitset(7);
     EXPECT_EQ(test_bits.to_underlying(), 7);
 
     test_bits.clear();
