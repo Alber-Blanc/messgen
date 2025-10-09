@@ -29,6 +29,13 @@ def toGoName(name: str) -> str:
 
 # Wraps messgen model
 class ResolvedType:
+    RESERVED_KEY_WORDS = {
+        "break", "case", "chan", "const", "continue", "default", "defer", "else",
+        "fallthrough", "for", "func", "go", "goto", "if", "import", "interface",
+        "map", "package", "range", "return", "select", "struct", "switch", "type",
+        "var",
+    }
+
     def __init__(self, model: MessgenType, package: str):
         parsed = model.type.split("/")
 
@@ -43,7 +50,11 @@ class ResolvedType:
         return "/".join(self._package)
 
     def package_name(self):
-        return self._package[-1]
+        package_name = self._package[-1]
+        if package_name in ResolvedType.RESERVED_KEY_WORDS:
+            package_name = "_" + package_name
+
+        return package_name
 
     def imported(self, caller_pkg = None):
         return caller_pkg != self._package
@@ -955,6 +966,9 @@ class GolangGenerator:
     def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
         for proto_full_name, proto_def in protocols.items():
             proto_name = proto_full_name.split("/")[-1]
+
+            if proto_name in ResolvedType.RESERVED_KEY_WORDS:
+                proto_name = "_" + proto_name
 
             # pkg_name = "proto"
             file_name = out_dir / proto_full_name / "proto_gen.go"

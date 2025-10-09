@@ -3,28 +3,28 @@ package tests
 import (
 	"testing"
 
-	"github.com/Alber-Blanc/messgen/build-golang-test/msgs/messgen/test"
+	_type "github.com/Alber-Blanc/messgen/build-golang-test/msgs/mynamespace/type"
 )
 
 func TestBitset(t *testing.T) {
-	bitset := test.SimpleBitset(0)
+	bitset := _type.SimpleBitset(0)
 
-	bitset.Set(test.SimpleBitset_One)
-	bitset.Set(test.SimpleBitset_Error)
+	bitset.Set(_type.SimpleBitset_One)
+	bitset.Set(_type.SimpleBitset_Error)
 
-	if bitset != test.SimpleBitset(0b101) {
+	if bitset != _type.SimpleBitset(0b101) {
 		t.Errorf("Expected bitset to be 0b101, got 0b%b", bitset)
 	}
 
-	if !bitset.Has(test.SimpleBitset_One) {
+	if !bitset.Has(_type.SimpleBitset_One) {
 		t.Errorf("Expected bitset to have 'One' bit set")
 	}
 
-	if bitset.Has(test.SimpleBitset_Two) {
+	if bitset.Has(_type.SimpleBitset_Two) {
 		t.Errorf("Expected bitset to not have 'Two' bit set")
 	}
 
-	if !bitset.Has(test.SimpleBitset_Error) {
+	if !bitset.Has(_type.SimpleBitset_Error) {
 		t.Errorf("Expected bitset to have 'Error' bit set")
 	}
 
@@ -34,13 +34,13 @@ func TestBitset(t *testing.T) {
 		t.Errorf("Expected bitset string to be %s, got %s", expectedString, bitset.String())
 	}
 
-	bitset.Clear(test.SimpleBitset_One)
-	if bitset != test.SimpleBitset(0b100) {
+	bitset.Clear(_type.SimpleBitset_One)
+	if bitset != _type.SimpleBitset(0b100) {
 		t.Errorf("Expected bitset to be 0b100 after clearing 'One', got 0b%b", bitset)
 	}
 
-	bitset.Clear(test.SimpleBitset_Error)
-	if bitset != test.SimpleBitset(0b000) {
+	bitset.Clear(_type.SimpleBitset_Error)
+	if bitset != _type.SimpleBitset(0b000) {
 		t.Errorf("Expected bitset to be 0b000 after clearing 'Error', got 0b%b", bitset)
 	}
 }
