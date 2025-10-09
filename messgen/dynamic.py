@@ -619,7 +619,7 @@ class Codec:
 
         if not protocols:
             return
-        parsed_protocols = parse_protocols(protocols)
+        parsed_protocols = parse_protocols(protocols, parsed_types)
         for proto_name, proto_def in parsed_protocols.items():
             for msg_id, message in proto_def.messages.items():
                 self._id_by_name[(proto_name, message.name)] = (proto_def.proto_id, message)
