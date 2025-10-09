@@ -11,7 +11,7 @@ TEST_F(CppTest20, TypeConcept) {
 
     struct not_a_message {};
 
-    EXPECT_TRUE(type<mynamespace::type::simple_struct>);
+    EXPECT_TRUE(type<mynamespace::types::simple_struct>);
     EXPECT_FALSE(type<mynamespace::proto::test_proto::simple_struct_msg>);
     EXPECT_FALSE(type<not_a_message>);
     EXPECT_FALSE(type<int>);
@@ -20,8 +20,8 @@ TEST_F(CppTest20, TypeConcept) {
 TEST_F(CppTest20, FlatTypeConcept) {
     using namespace messgen;
 
-    EXPECT_TRUE(flat_type<mynamespace::type::flat_struct>);
-    EXPECT_FALSE(flat_type<mynamespace::type::subspace::complex_struct>);
+    EXPECT_TRUE(flat_type<mynamespace::types::flat_struct>);
+    EXPECT_FALSE(flat_type<mynamespace::types::subspace::complex_struct>);
     EXPECT_FALSE(flat_type<int>);
 }
 
@@ -30,7 +30,7 @@ TEST_F(CppTest20, MessageConcept) {
 
     struct not_a_message {};
 
-    EXPECT_FALSE(message<mynamespace::type::simple_struct>);
+    EXPECT_FALSE(message<mynamespace::types::simple_struct>);
     EXPECT_FALSE(message<int>);
     EXPECT_TRUE(message<mynamespace::proto::test_proto::simple_struct_msg>);
 }
@@ -40,7 +40,7 @@ TEST_F(CppTest20, ProtoConcept) {
 
     struct not_a_message {};
 
-    EXPECT_FALSE(message<mynamespace::type::simple_struct>);
+    EXPECT_FALSE(message<mynamespace::types::simple_struct>);
     EXPECT_FALSE(protocol<mynamespace::proto::test_proto::simple_struct_msg>);
     EXPECT_FALSE(protocol<int>);
     EXPECT_TRUE(protocol<mynamespace::proto::test_proto>);
