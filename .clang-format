@@ -1,0 +1,16 @@
+---
+Language:        Cpp
+BasedOnStyle:    LLVM
+Standard:        c++20
+IndentWidth:     4
+TabWidth:        4
+UseTab:          Never
+ColumnLimit:     160
+SortIncludes:    Never
+SeparateDefinitionBlocks: Always
+EmptyLineBeforeAccessModifier: LogicalBlock
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: None
+PackConstructorInitializers: Never
+AlwaysBreakTemplateDeclarations: Yes
+IndentCaseLabels: Yes
