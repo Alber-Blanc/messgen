@@ -4,13 +4,12 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .protocol_version import version_hash
-from .validation import validate_protocol
 from .model import (
-    BitsetType,
     MessgenType,
     Protocol,
     TypeClass,
 )
+
 
 class JsonGenerator:
     _FILE_EXT = ".json"
@@ -19,23 +18,16 @@ class JsonGenerator:
         self._options = options
 
     def generate(self, out_dir: Path, types: dict[str, MessgenType], protocols: dict[str, Protocol]) -> None:
-        self.validate(types, protocols)
         self.generate_types(out_dir, types)
         self.generate_protocols(out_dir, protocols)
-
-    def validate(self, types: dict[str, MessgenType], protocols: dict[str, Protocol]):
-        for proto_def in protocols.values():
-            validate_protocol(proto_def, types)
 
     def generate_types(self, out_dir: Path, types: dict[str, MessgenType]) -> None:
         combined: list = []
 
         for type_name in sorted(types.keys()):
             type_def = types[type_name]
-            if type_def.type_class in [TypeClass.struct, TypeClass.enum]:
+            if type_def.type_class in [TypeClass.struct, TypeClass.enum, TypeClass.bitset]:
                 combined.append(asdict(type_def))
-            elif type_def.type_class is TypeClass.bitset:
-                combined.append(self._emit_bitset(type_def))
 
         self._write_file(out_dir, "types", combined)
 
@@ -55,23 +47,3 @@ class JsonGenerator:
         file_name.parent.mkdir(parents=True, exist_ok=True)
 
         with open(file_name, "w", encoding="utf-8") as f: json.dump(data, f, indent=2)
-
-    @staticmethod
-    def _emit_bitset(type_def: MessgenType) -> dict:
-        if not isinstance(type_def, BitsetType):
-                raise TypeError(f"Expected BitsetType, got {type(type_def)}")
-        return {
-            "type": type_def.type,
-            "type_class": "bitset",
-            "base_type": type_def.base_type,
-            "comment": getattr(type_def, "comment", None),
-            "bits": [
-                {
-                    "name": b.name.upper(),
-                    "offset": b.offset,
-                    "comment": getattr(b, "comment", None),
-                }
-                for b in getattr(type_def, "bits", []) or []
-            ],
-            "size": type_def.size,
-        }

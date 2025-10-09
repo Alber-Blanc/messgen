@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from messgen import generator, yaml_parser
+from messgen import generator, yaml_parser, validation
 from pathlib import Path
 
 print(os.getcwd())
@@ -20,8 +20,20 @@ def generate(args: argparse.Namespace):
             print(f"  {p[0]} = {p[1]}")
             opts[p[0]] = p[1]
 
-    types = yaml_parser.parse_types(args.types)
-    protocols = yaml_parser.parse_protocols(args.protocol, types)
+    if args.types:
+        types = yaml_parser.parse_types(args.types)
+    else:
+        types = None
+
+    if args.protocol:
+        protocols = yaml_parser.parse_protocols(args.protocol)
+    else:
+        protocols = None
+
+    # Perform deep validation if both protocol and types provided
+    if types is not None and protocols is not None:
+        for proto in protocols.values():
+            validation.validate_protocol_types(proto, types)
 
     if (gen := generator.get_generator(args.lang, opts)) is not None:
         if types is not None:
