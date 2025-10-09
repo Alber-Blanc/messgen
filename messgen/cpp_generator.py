@@ -218,7 +218,7 @@ class CppGenerator:
                             static constexpr int16_t PROTO_ID = protocol_type::PROTO_ID;
                             static constexpr int16_t MESSAGE_ID = {message.message_id};
                             static constexpr uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
-                            static constexpr const char* NAME = "{_qual_name(proto_name)}::{message.name}";
+                            static constexpr std::string_view NAME = "{_qual_name(proto_name)}::{message.name}";
 
                             data_type data;
                         """),
@@ -402,7 +402,7 @@ class CppGenerator:
         code.append(f"    constexpr {unqual_name}(Values other) : {unqual_name}{{underlying_type(other)}} {{}}")
 
         code.append("")
-        code.append(f'    static constexpr const char* NAME = "{qual_name}";')
+        code.append(f'    static constexpr std::string_view NAME = "{qual_name}";')
         if self._get_cpp_standard() >= 20:
             code.append("    using enum Values;")
         else:
@@ -500,8 +500,8 @@ class CppGenerator:
             code.append(_indent(f"static constexpr bool NEED_ALLOC = {need_alloc_str};"))
         if type_hash := hash_type(type_def, types):
             code.append(_indent(f"static constexpr uint64_t HASH = {type_hash}ULL;"))
-        code.append(_indent(f'static constexpr const char* NAME = "{_qual_name(type_name)}";'))
-        code.append(_indent(f'static constexpr const char* SCHEMA = R"_({self._generate_schema(type_def)})_";'))
+        code.append(_indent(f'static constexpr std::string_view NAME = "{_qual_name(type_name)}";'))
+        code.append(_indent(f'static constexpr std::string_view SCHEMA = R"_({self._generate_schema(type_def)})_";'))
         code.append("")
 
         for field in type_def.fields:
