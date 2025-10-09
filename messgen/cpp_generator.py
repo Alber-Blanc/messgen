@@ -190,7 +190,7 @@ class CppGenerator:
 
                 proto_id = proto_def.proto_id
                 if proto_id is not None:
-                    code.append(f"    constexpr static inline int16_t PROTO_ID = {proto_id};")
+                    code.append(f"    static constexpr int16_t PROTO_ID = {proto_id};")
 
                 code.extend(self._generate_messages(proto_name, class_name, proto_def))
                 code.extend(self._generate_reflect_message_decl())
@@ -215,10 +215,10 @@ class CppGenerator:
                             using data_type = {_qual_name(message.type)};
                             using protocol_type = {class_name};
 
-                            constexpr inline static int16_t PROTO_ID = protocol_type::PROTO_ID;
-                            constexpr inline static int16_t MESSAGE_ID = {message.message_id};
-                            constexpr inline static uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
-                            constexpr inline static const char* NAME = "{_qual_name(proto_name)}::{message.name}";
+                            static constexpr int16_t PROTO_ID = protocol_type::PROTO_ID;
+                            static constexpr int16_t MESSAGE_ID = {message.message_id};
+                            static constexpr uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
+                            static constexpr const char* NAME = "{_qual_name(proto_name)}::{message.name}";
 
                             data_type data;
                         """),
@@ -262,7 +262,7 @@ class CppGenerator:
         return textwrap.indent(
             textwrap.dedent("""
                 template <class Fn>
-                constexpr static void reflect_message(int16_t msg_id, Fn &&fn);
+                static constexpr void reflect_message(int16_t msg_id, Fn &&fn);
                 """),
             "    ",
         ).splitlines()
@@ -286,12 +286,12 @@ class CppGenerator:
         if self._get_mode() == "nostl":
             out = """
             template <class Fn>
-            constexpr static bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, uint8_t *dynamic_buf = nullptr, size_t dynamic_buf_size = 0);
+            static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, uint8_t *dynamic_buf = nullptr, size_t dynamic_buf_size = 0);
             """
         else:
             out = """
             template <class Fn>
-            constexpr static bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn);
+            static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn);
             """
         return textwrap.indent(textwrap.dedent(out), "    ").splitlines()
 
@@ -402,7 +402,7 @@ class CppGenerator:
         code.append(f"    constexpr {unqual_name}(Values other) : {unqual_name}{{underlying_type(other)}} {{}}")
 
         code.append("")
-        code.append(f'    constexpr inline static const char* NAME = "{qual_name}";')
+        code.append(f'    static constexpr const char* NAME = "{qual_name}";')
         if self._get_cpp_standard() >= 20:
             code.append("    using enum Values;")
         else:
@@ -490,18 +490,18 @@ class CppGenerator:
         is_empty = len(groups) == 0
         is_flat = is_empty or (len(groups) == 1 and groups[0].size is not None)
         if is_flat:
-            code.append(_indent("constexpr static inline size_t FLAT_SIZE = %d;" % (0 if is_empty else groups[0].size)))
+            code.append(_indent("static constexpr size_t FLAT_SIZE = %d;" % (0 if is_empty else groups[0].size)))
             is_flat_str = "true"
-        code.append(_indent(f"constexpr static inline bool IS_FLAT = {is_flat_str};"))
+        code.append(_indent(f"static constexpr bool IS_FLAT = {is_flat_str};"))
         if self._get_mode() == "nostl":
             need_alloc_str = "false"
             if self._need_alloc(type_name):
                 need_alloc_str = "true"
-            code.append(_indent(f"constexpr static inline bool NEED_ALLOC = {need_alloc_str};"))
+            code.append(_indent(f"static constexpr bool NEED_ALLOC = {need_alloc_str};"))
         if type_hash := hash_type(type_def, types):
-            code.append(_indent(f"constexpr inline static uint64_t HASH = {type_hash}ULL;"))
-        code.append(_indent(f'constexpr inline static const char* NAME = "{_qual_name(type_name)}";'))
-        code.append(_indent(f'constexpr inline static const char* SCHEMA = R"_({self._generate_schema(type_def)})_";'))
+            code.append(_indent(f"static constexpr uint64_t HASH = {type_hash}ULL;"))
+        code.append(_indent(f'static constexpr const char* NAME = "{_qual_name(type_name)}";'))
+        code.append(_indent(f'static constexpr const char* SCHEMA = R"_({self._generate_schema(type_def)})_";'))
         code.append("")
 
         for field in type_def.fields:
