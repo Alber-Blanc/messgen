@@ -2,7 +2,7 @@ import pathlib
 import subprocess
 from abc import abstractmethod
 from pathlib import Path
-from typing import cast, List, Tuple
+from typing import cast, List, Tuple, overload
 
 from .model import (
     EnumType,
@@ -49,10 +49,16 @@ class ResolvedType:
     def package_full(self) -> str:
         return "/".join(self._package)
 
-    def package_name(self):
-        package_name = self._package[-1]
-        if package_name in ResolvedType.RESERVED_KEY_WORDS:
-            package_name = "_" + package_name
+    def package_name(self, mod: str | None = None):
+        package_name = ""
+        if self._package is not None:
+            package_name = self._package[-1]
+            if package_name in ResolvedType.RESERVED_KEY_WORDS:
+                package_name = "_" + package_name
+        elif mod is not None:
+            package_name = mod.split("/")[-1]
+        else:
+            raise Exception(f"No package name and no module for the type {self._model.type}")
 
         return package_name
 
@@ -66,7 +72,7 @@ class ResolvedType:
 
         return self._name
 
-    def is_flat(self):
+    def is_flat(self) -> bool:
         return False
 
     @abstractmethod
@@ -84,7 +90,7 @@ class ResolvedType:
         return self._model
 
     @abstractmethod
-    def render(self, mod: str):
+    def render(self):
         raise Exception("There is no render method for type '%s'" % self._model.type)
 
 
@@ -94,6 +100,9 @@ class FieldGroup:
         self.pad = 0
         self.fields = []
         self.flat = True
+
+    def description(self) -> str:
+        return ",".join([name for name, _ in self.fields])
 
     def add_field(self, name: str, field: ResolvedType):
         self.fields.append((name, field))
@@ -156,7 +165,7 @@ class ResolvedBuiltin(ResolvedType):
                 return 24
         raise Exception("Unknown builtin type class for '%s'" % self._model.type)
 
-    def render(self, mod: str):
+    def render(self):
         raise Exception("Render is not supported for ResolvedBuiltin")
 
 
@@ -180,7 +189,7 @@ class ResolvedSlice(ResolvedType):
         # Dynamic vector is a slice: struc with size and pointer
         return 8
 
-    def is_flat(self):
+    def is_flat(self) -> bool:
         return self._element.is_flat()
 
     def type_size(self):
@@ -194,7 +203,7 @@ class ResolvedSlice(ResolvedType):
         # Dynamic vector has no static size
         return None
 
-    def render(self, mod: str):
+    def render(self):
         raise Exception("Render is not supported for ResolvedSlice")
 
 
@@ -210,7 +219,7 @@ class ResolvedMap(ResolvedType):
     def reference(self, caller_pkg = None):
         return "map[%s]%s" % (self._key.reference(caller_pkg), self._value.reference(caller_pkg))
 
-    def is_flat(self):
+    def is_flat(self) -> bool:
         return False
 
     def alignment(self):
@@ -222,7 +231,7 @@ class ResolvedMap(ResolvedType):
     def data_size(self):
         return None
 
-    def render(self, mod: str):
+    def render(self):
         raise Exception("Render is not supported for ResolvedMap")
 
 
@@ -240,17 +249,10 @@ class ResolvedEnum(ResolvedType):
     def data_size(self):
         return self._base.data_size()
 
-    def is_flat(self):
+    def is_flat(self) -> bool:
         return self._base.is_flat()
 
-    def render(self, mod: str):
-        yield CODEGEN_FILE_PREFIX + "\n"
-
-        if self._package is not None:
-            yield f"package {self.package_name()}\n"
-        else:
-            yield f"package {mod.split("/")[-1]}\n"
-
+    def render(self):
         if self._base.imported(self._package):
             yield f"import \"{self._base.package_full()}\"\n"
         yield f"import \"strconv\""
@@ -294,14 +296,7 @@ class ResolvedBitset(ResolvedType):
     def is_flat(self):
         return self._base.is_flat()
 
-    def render(self, mod: str):
-        yield CODEGEN_FILE_PREFIX + "\n"
-
-        if self._package is not None:
-            yield f"package {self.package_name()}\n"
-        else:
-            yield f"package {mod.split("/")[-1]}\n"
-
+    def render(self):
         if self._base.imported(self._package):
             yield f"import \"{self._base.package_full()}\"\n"
         yield f"import \"strings\""
@@ -588,14 +583,7 @@ class ResolvedStruct(ResolvedType):
             yield f" }}"
             yield f" }}"
 
-    def render(self, mod: str):
-        yield CODEGEN_FILE_PREFIX + "\n"
-
-        if self._package is not None:
-            yield f"package {self.package_name()}\n"
-        else:
-            yield f"package {mod.split("/")[-1]}%s\n"
-
+    def render(self):
         # Overall info about type:
         # Note that totalSize is struct size in memory, not size of data in the struct
         hasFlatGroups = False
@@ -656,8 +644,7 @@ class ResolvedStruct(ResolvedType):
         yield f"func (s *{self._name}) SerializedSize() uint32 {{"
         yield f" result := 0"
         for g in self.fieldGroups():
-            names = [name for name, _ in g.fields]
-            yield f"\n// Count group {",".join(names)}"
+            yield f"\n// Count group {g.description()}"
             if g.size != None and g.flat:
                 yield f" result += {g.size}"
                 continue
@@ -677,8 +664,7 @@ class ResolvedStruct(ResolvedType):
         else:
             yield "  outputOfs := 0"
         for g in self.fieldGroups():
-            names = [name for name, _ in g.fields]
-            yield f"\n// Write group {",".join(names)}"
+            yield f"\n// Write group {g.description()}"
             if g.size != None and g.flat:
                 yield f" {{"
                 yield f"   copy(output[outputOfs:(outputOfs+{g.size})], (*selfBytes)[selfOfs:])"
@@ -703,8 +689,7 @@ class ResolvedStruct(ResolvedType):
         else:
             yield "  inputOfs := 0"
         for g in self.fieldGroups():
-            names = [name for name, _ in g.fields]
-            yield f"\n// Read group {",".join(names)}"
+            yield f"\n// Read group {g.description()}"
             if g.size != None and g.flat:
                 yield f" {{"
                 yield f" copy((*selfBytes)[selfOfs:(selfOfs+{g.size})], input[inputOfs:])"
@@ -758,7 +743,6 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield "\t\"github.com/Alber-Blanc/messgen/port/golang/messgen\""
 
     seen = set()
-
     for _, msg in proto_def.messages.items():
         tp = types[msg.type]
         fp = tp.package_full()
@@ -956,8 +940,14 @@ class GolangGenerator:
 
             output.parent.mkdir(parents=True, exist_ok=True)
             with open(output, 'w') as file:
-                for line in type.render(gomod_name):
+                # Pefix
+                print(f"{CODEGEN_FILE_PREFIX}\n", file=file);
+                print(f"package {type.package_name(gomod_name)}\n", file=file);
+
+                # type
+                for line in type.render():
                     print(line, file=file)
+
                 file.close()
 
             subprocess.call(["gofmt", "-s", "-w", output], text=True)
