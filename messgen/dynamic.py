@@ -150,7 +150,7 @@ class DecimalConverter(TypeConverter):
         self.def_value: Decimal = Decimal("0")
         self.size = self._type_def.size
 
-    def _serialize(self, data: Decimal) -> bytes:
+    def _serialize(self, data) -> bytes:
         if not isinstance(data, Decimal):
             raise MessgenError(f"Expected Decimal type, got {type(data)}")
 
@@ -316,22 +316,26 @@ class BitsetConverter(TypeConverter):
             self.mapping[item.offset] = item.name
             self.rev_mapping[item.name] = item.offset
 
-    def _serialize(self, bits):
+    def _serialize(self, data):
         v = 0
-        if isinstance(bits, int):
+        if isinstance(data, int):
             # Bitset as number
-            v = bits
+            v = data
         else:
             # Bitset as collection of bit names
-            for b in bits:
+            for b in data:
                 if (offs := self.rev_mapping.get(b)) is not None:
                     v |= (1 << offs)
                 else:
                     raise MessgenError(f"Unsupported bit={b} for bitset={self._type_name}")
+
+        assert self.struct_fmt
         return struct.pack(self.struct_fmt, v)
 
     def _deserialize(self, data):
+        assert self.struct_fmt
         (v,) = struct.unpack(self.struct_fmt, data[: self.size])
+
         bits = list()
         for offs in range(len(self.mapping)):
             if v & (1 << offs):
@@ -396,7 +400,7 @@ class ArrayConverter(TypeConverter):
 
     def default_value(self):
         out = []
-        for i in range(self.array_size):
+        for _ in range(self.array_size):
             out.append(self.element_type.default_value())
         return out
 
@@ -614,16 +618,19 @@ class Codec:
 
     def load(self, type_dirs: list[str | Path], protocols: list[str] | None = None):
         parsed_types = parse_types(type_dirs)
-        for type_name in parsed_types:
-            self._converters_by_name[type_name] = create_type_converter(parsed_types, type_name)
+        if parsed_types is not None:
+            for type_name in parsed_types:
+                self._converters_by_name[type_name] = create_type_converter(parsed_types, type_name)
 
         if not protocols:
             return
+
         parsed_protocols = parse_protocols(protocols, parsed_types)
-        for proto_name, proto_def in parsed_protocols.items():
-            for msg_id, message in proto_def.messages.items():
-                self._id_by_name[(proto_name, message.name)] = (proto_def.proto_id, message)
-                self._name_by_id[(proto_def.proto_id, msg_id)] = (proto_name, message)
+        if parsed_protocols is not None: 
+            for proto_name, proto_def in parsed_protocols.items():
+                for msg_id, message in proto_def.messages.items():
+                    self._id_by_name[(proto_name, message.name)] = (proto_def.proto_id, message)
+                    self._name_by_id[(proto_def.proto_id, msg_id)] = (proto_name, message)
 
     def types(self) -> list[str]:
         return sorted(list(self._converters_by_name.keys()))

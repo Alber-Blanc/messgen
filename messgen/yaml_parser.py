@@ -46,7 +46,7 @@ _SCALAR_TYPES_INFO = {
 }
 
 
-def parse_protocols(protocols: list[str], types: dict[str, MessgenType] | None) -> dict[str, Protocol]:
+def parse_protocols(protocols: list[str], types: dict[str, MessgenType] | None) -> dict[str, Protocol] | None:
     if not protocols:
         return None
 
@@ -88,7 +88,7 @@ def _get_message_type(proto_id: int, msg_id: int, message_desc: dict[str, Any]) 
     )
 
 
-def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType]:
+def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType] | None:
     if not base_dirs:
         return None
 
@@ -257,23 +257,26 @@ def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
     type_desc = type_descriptors.get(type_name)
     assert type_desc
 
+    size = _SCALAR_TYPES_INFO["int"]["size"]
     base_type = type_desc.get("base_type", "")
-
     if base_type:
         type_dependencies.add(_get_dependency_type(type_name, base_type, type_descriptors, type_dependencies)[0])
         dependency = _get_type(base_type, type_descriptors, type_dependencies)
-        assert dependency
+
+        assert dependency and dependency.size
+        size = dependency.size
 
     values = [EnumValue(name=item.get("name"), value=item.get("value"), comment=item.get("comment")) for item in
               type_desc.get("values", {})]
 
+    assert size
     return EnumType(
         type=type_name,
         type_class=TypeClass.enum,
         base_type=base_type,
         comment=type_desc.get("comment"),
         values=values,
-        size=dependency.size or _SCALAR_TYPES_INFO["int"]["size"],
+        size=size,
     )
 
 
@@ -282,23 +285,27 @@ def _get_bitset_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
     type_desc = type_descriptors.get(type_name)
     assert type_desc
 
-    base_type = type_desc.get("base_type", "")
+    size = _SCALAR_TYPES_INFO["int"]["size"]
 
+    base_type = type_desc.get("base_type", "")
     if base_type:
         type_dependencies.add(_get_dependency_type(type_name, base_type, type_descriptors, type_dependencies)[0])
         dependency = _get_type(base_type, type_descriptors, type_dependencies)
-        assert dependency
+
+        assert dependency and dependency.size
+        size = dependency.size
 
     bits = [BitsetBit(name=item.get("name"), offset=item.get("offset"), comment=item.get("comment")) for item in
             type_desc.get("bits", {})]
 
+    assert size;
     return BitsetType(
         type=type_name,
         type_class=TypeClass.bitset,
         base_type=base_type,
         comment=type_desc.get("comment"),
         bits=bits,
-        size=dependency.size or _SCALAR_TYPES_INFO["int"]["size"],
+        size=size,
     )
 
 
