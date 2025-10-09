@@ -23,5 +23,5 @@ export interface Proto {
     [Message.COMPLEX_STRUCT_WITH_EMPTY_MSG]: MessgenTest.ComplexStructWithEmpty;
     [Message.COMPLEX_STRUCT_NOSTL_MSG]: MessgenTest.ComplexStructNostl;
     [Message.FLAT_STRUCT_MSG]: MessgenTest.FlatStruct;
-  };
+  }
 }
