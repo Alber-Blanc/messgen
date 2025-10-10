@@ -1,5 +1,4 @@
-import type * as CrossProto from './cross_proto';
-import type * as MessgenTest from './messgen/test';
-import type * as OneMoreMessage from './one_more_message';
+import type * as MynamespaceTypes from './mynamespace/types';
+import type * as MynamespaceTypesSubspace from './mynamespace/types/subspace';
 
-export type TypeMap = CrossProto.TypeMap & MessgenTest.TypeMap & OneMoreMessage.TypeMap;
+export type TypeMap = MynamespaceTypes.TypeMap & MynamespaceTypesSubspace.TypeMap;

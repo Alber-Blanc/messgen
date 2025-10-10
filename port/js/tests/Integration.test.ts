@@ -4,8 +4,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { execSync } from 'child_process';
 import { Codec } from '../src';
 import { uploadBinary, uploadProtocols, uploadTypes } from './utils';
-import { SimpleBitset } from './messgen/test';
-import type { ComplexStruct } from './messgen/test';
+import { SimpleBitset } from './mynamespace/types';
+import type { ComplexStruct } from './mynamespace/types/subspace';
+import * as Protocol from './mynamespace/proto/test_proto';
 
 describe('integration', () => {
   let codec: Codec;
@@ -35,8 +36,12 @@ describe('integration', () => {
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/simple_struct.bin');
 
-    const buffer = codec.serialize(1, 0, rawData);
-    const result = codec.deserialize(1, 0, new Uint8Array(rawDataBit).buffer);
+    const buffer = codec.serialize(Protocol.PROTO_ID, Protocol.Message.SIMPLE_STRUCT_MSG, rawData);
+    const result = codec.deserialize(
+      Protocol.PROTO_ID,
+      Protocol.Message.SIMPLE_STRUCT_MSG,
+      new Uint8Array(rawDataBit).buffer,
+    );
 
     expect(result).toEqual({ ...rawData, f5: expect.closeTo(rawData.f5, 5) });
     expect(buffer.size).toEqual(rawDataBit.length);
@@ -51,8 +56,12 @@ describe('integration', () => {
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/var_size_struct.bin');
 
-    const buffer = codec.serialize(1, 2, rawData);
-    const result = codec.deserialize(1, 2, new Uint8Array(rawDataBit).buffer);
+    const buffer = codec.serialize(Protocol.PROTO_ID, Protocol.Message.VAR_SIZE_STRUCT_MSG, rawData);
+    const result = codec.deserialize(
+      Protocol.PROTO_ID,
+      Protocol.Message.VAR_SIZE_STRUCT_MSG,
+      new Uint8Array(rawDataBit).buffer,
+    );
 
     expect(result).toEqual(rawData);
     expect(buffer.size).toEqual(rawDataBit.length);
@@ -63,8 +72,12 @@ describe('integration', () => {
     const rawData = { f0: bigint, f1: bigint, e0: 1 };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/struct_with_enum.bin');
 
-    const buffer = codec.serialize(1, 3, rawData);
-    const result = codec.deserialize(1, 3, new Uint8Array(rawDataBit).buffer);
+    const buffer = codec.serialize(Protocol.PROTO_ID, Protocol.Message.STRUCT_WITH_ENUM_MSG, rawData);
+    const result = codec.deserialize(
+      Protocol.PROTO_ID,
+      Protocol.Message.STRUCT_WITH_ENUM_MSG,
+      new Uint8Array(rawDataBit).buffer,
+    );
 
     expect(result).toEqual(rawData);
     expect(buffer.size).toEqual(rawDataBit.length);
@@ -75,8 +88,12 @@ describe('integration', () => {
     const rawData = {};
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/empty_struct.bin');
 
-    const buffer = codec.serialize(1, 4, rawData);
-    const result = codec.deserialize(1, 4, new Uint8Array(rawDataBit).buffer);
+    const buffer = codec.serialize(Protocol.PROTO_ID, Protocol.Message.EMPTY_STRUCT_MSG, rawData);
+    const result = codec.deserialize(
+      Protocol.PROTO_ID,
+      Protocol.Message.EMPTY_STRUCT_MSG,
+      new Uint8Array(rawDataBit).buffer,
+    );
 
     expect(result).toEqual(rawData);
     expect(buffer.size).toEqual(rawDataBit.length);
@@ -107,8 +124,12 @@ describe('integration', () => {
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct_with_empty.bin');
 
-    const buffer = codec.serialize(1, 5, rawData);
-    const result = codec.deserialize(1, 5, new Uint8Array(rawDataBit).buffer);
+    const buffer = codec.serialize(Protocol.PROTO_ID, Protocol.Message.COMPLEX_STRUCT_WITH_EMPTY_MSG, rawData);
+    const result = codec.deserialize(
+      Protocol.PROTO_ID,
+      Protocol.Message.COMPLEX_STRUCT_WITH_EMPTY_MSG,
+      new Uint8Array(rawDataBit).buffer,
+    );
 
     expect(result).toEqual(rawData);
     expect(buffer.size).toEqual(rawDataBit.length);
@@ -165,8 +186,12 @@ describe('integration', () => {
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct_nostl.bin');
 
-    const buffer = codec.serialize(1, 6, rawData);
-    const result = codec.deserialize(1, 6, new Uint8Array(rawDataBit).buffer);
+    const buffer = codec.serialize(Protocol.PROTO_ID, Protocol.Message.COMPLEX_STRUCT_NOSTL_MSG, rawData);
+    const result = codec.deserialize(
+      Protocol.PROTO_ID,
+      Protocol.Message.COMPLEX_STRUCT_NOSTL_MSG,
+      new Uint8Array(rawDataBit).buffer,
+    );
 
     simpleStruct.f5 = expect.closeTo(simpleStruct.f5, 4);
     expect(result).toEqual(rawData);
@@ -224,8 +249,12 @@ describe('integration', () => {
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct.bin');
 
-    const buffer = codec.serialize(1, 1, rawData);
-    const result = codec.deserialize(1, 1, new Uint8Array(rawDataBit).buffer);
+    const buffer = codec.serialize(Protocol.PROTO_ID, Protocol.Message.COMPLEX_STRUCT_MSG, rawData);
+    const result = codec.deserialize(
+      Protocol.PROTO_ID,
+      Protocol.Message.COMPLEX_STRUCT_MSG,
+      new Uint8Array(rawDataBit).buffer,
+    );
 
     simpleStruct.f5 = expect.closeTo(simpleStruct.f5, 4);
     expect(result).toEqual(rawData);
@@ -249,8 +278,12 @@ describe('integration', () => {
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/flat_struct.bin');
 
-    const buffer = codec.serialize(1, 7, rawData);
-    const result = codec.deserialize(1, 7, new Uint8Array(rawDataBit).buffer);
+    const buffer = codec.serialize(Protocol.PROTO_ID, Protocol.Message.FLAT_STRUCT_MSG, rawData);
+    const result = codec.deserialize(
+      Protocol.PROTO_ID,
+      Protocol.Message.FLAT_STRUCT_MSG,
+      new Uint8Array(rawDataBit).buffer,
+    );
 
     rawData.f5 = expect.closeTo(rawData.f5, 5);
     expect(result).toEqual(rawData);
