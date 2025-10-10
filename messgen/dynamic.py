@@ -269,8 +269,8 @@ class EnumConverter(TypeConverter):
             self.struct_fmt = STRUCT_TYPES_MAP[self.base_type]
         except KeyError:
             raise RuntimeError('Unsupported base type "%s" in %s' % (self.base_type, type_name))
-
         self.struct_fmt = "<" + self.struct_fmt
+
         self.size = struct.calcsize(self.struct_fmt)
         self.mapping = {}
         self.rev_mapping = {}
@@ -299,10 +299,13 @@ class BitsetConverter(TypeConverter):
         assert self._type_class == TypeClass.bitset
         assert isinstance(self._type_def, BitsetType)
         self.base_type = self._type_def.base_type
-        self.struct_fmt = STRUCT_TYPES_MAP.get(self.base_type, None)
-        if self.struct_fmt is None:
+
+        try:
+            self.struct_fmt = STRUCT_TYPES_MAP[self.base_type]
+        except KeyError:
             raise RuntimeError('Unsupported base type "%s" in %s' % (self.base_type, type_name))
         self.struct_fmt = "<" + self.struct_fmt
+
         self.size = struct.calcsize(self.struct_fmt)
         self.mapping = [""] * self.size * 8
         for offs in range(len(self.mapping)):
