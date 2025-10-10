@@ -26,6 +26,7 @@ from .model import (
 from .validation import (
     is_valid_name,
     validate_type_dict,
+    validate_types,
     validate_protocol,
 )
 
@@ -46,10 +47,7 @@ _SCALAR_TYPES_INFO = {
 }
 
 
-def parse_protocols(protocols: list[str], types: dict[str, MessgenType] | None) -> dict[str, Protocol] | None:
-    if not protocols:
-        return None
-
+def parse_protocols(protocols: list[str]) -> dict[str, Protocol]:
     if not all(proto.count(":") == 1 for proto in (protocols or [])):
         raise RuntimeError("Protocol must be in format /path/of/basedir:namespace/of/proto")
 
@@ -60,7 +58,7 @@ def parse_protocols(protocols: list[str], types: dict[str, MessgenType] | None) 
         if not proto_file.exists():
             raise RuntimeError(f"Protocol file not found: {proto_file}")
         proto_descr = _parse_protocol(proto_name, proto_file)
-        validate_protocol(proto_descr, types)
+        validate_protocol(proto_descr)
         protocol_descriptors[proto_name] = proto_descr
 
     return protocol_descriptors
@@ -88,10 +86,7 @@ def _get_message_type(proto_id: int, msg_id: int, message_desc: dict[str, Any]) 
     )
 
 
-def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType] | None:
-    if not base_dirs:
-        return None
-
+def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType]:
     type_descriptors = {}
     for directory in base_dirs:
         base_dir = Path.cwd() / directory if not isinstance(directory, Path) else directory
@@ -113,6 +108,7 @@ def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType] | None:
     parsed_types.update(
         {type_name: _get_type(type_name, type_descriptors, ignore_dependencies) for type_name in type_dependencies})
 
+    validate_types(parsed_types)
     return parsed_types
 
 

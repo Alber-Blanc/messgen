@@ -14,10 +14,13 @@ protected:
     void test_serialization(const T &msg) {
         size_t sz_check = msg.serialized_size();
 
-        // serialized size might be 0, to refer buf element we must have at least some memory
-        // allocated
-        _buf.resize(std::max(1ul, sz_check));
-        size_t ser_size = msg.serialize(&_buf[0]);
+        size_t ser_size = 0;
+        if (sz_check > 0) {
+            _buf.resize(sz_check);
+            ser_size = msg.serialize(&_buf[0]);
+        } else {
+            ser_size = msg.serialize(nullptr);
+        }
         EXPECT_EQ(ser_size, sz_check);
 
         T msg1{};
@@ -25,8 +28,10 @@ protected:
         if constexpr (T::NEED_ALLOC) {
             auto alloc = messgen::Allocator(_alloc_buf, sizeof(_alloc_buf));
             deser_size = msg1.deserialize(&_buf[0], alloc);
-        } else {
+        } else if (sz_check > 0) {
             deser_size = msg1.deserialize(&_buf[0]);
+        } else {
+            deser_size = msg1.deserialize(nullptr);
         }
         EXPECT_EQ(deser_size, sz_check);
 

@@ -625,7 +625,7 @@ class Codec:
         if not protocols:
             return
 
-        parsed_protocols = parse_protocols(protocols, parsed_types)
+        parsed_protocols = parse_protocols(protocols)
         if parsed_protocols is not None: 
             for proto_name, proto_def in parsed_protocols.items():
                 for msg_id, message in proto_def.messages.items():

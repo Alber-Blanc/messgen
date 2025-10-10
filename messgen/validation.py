@@ -149,7 +149,7 @@ RESERVED_KEY_WORDS = {
 }
 
 
-def validate_protocol(protocol: Protocol, types: dict[str, MessgenType] | None):
+def validate_protocol(protocol: Protocol):
     for p in protocol.name.split(SEPARATOR):
         if not is_valid_name(p):
             raise RuntimeError(f"Invalid protocol name part \"{p}\" in protocol \"{protocol.name}\"")
@@ -159,9 +159,6 @@ def validate_protocol(protocol: Protocol, types: dict[str, MessgenType] | None):
             raise RuntimeError(f"Invalid protocol message name {msg.name} in protocol {protocol.name}")
         if msg.name in seen_names:
             raise RuntimeError(f"Message with name={msg.name} appears multiple times in protocol={protocol.name}")
-        if types is not None:
-            if msg.type not in types:
-                raise RuntimeError(f"Type {msg.type} required by message={msg.name} protocol={protocol.name} not found")
         if msg.message_id != msg_id:
             raise RuntimeError(
                 f"Message {msg.name} has different message_id={msg.message_id} than key={msg_id} in protocol={protocol.name}")
@@ -177,6 +174,12 @@ def validate_types(types: dict[str, MessgenType]):
         if hash_conflict := seen_hashes.get(type_hash):
             raise RuntimeError(f"Type {type_name} has the same hash as {hash_conflict.type}")
         seen_hashes[type_hash] = type_def
+
+
+def validate_protocol_types(protocol: Protocol, types: dict[str, MessgenType] | None):
+    for msg in protocol.messages.values():
+        if types is None or msg.type not in types:
+            raise RuntimeError(f"Type {msg.type} required by message={msg.name} protocol={protocol.name} not found")
 
 
 # Checks if `s` is a valid name for a field or a message type
