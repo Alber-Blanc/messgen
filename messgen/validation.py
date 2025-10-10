@@ -169,6 +169,8 @@ def validate_types(types: dict[str, MessgenType]):
     seen_hashes: dict[int, Any] = {}
     for type_name, type_def in types.items():
         type_hash = hash_type(type_def, types)
+        if not type_hash:
+            continue
         if hash_conflict := seen_hashes.get(type_hash):
             raise RuntimeError(f"Type {type_name} has the same hash as {hash_conflict.type}")
         seen_hashes[type_hash] = type_def
@@ -198,7 +200,7 @@ def _is_valid_name(name: str) -> bool:
 
 
 # Checks if `name` is a valid fully qualified name for a type or protocol
-def _is_valid_full_name(name: str) -> (bool, str):
+def _is_valid_full_name(name: str) -> tuple[bool, str]:
     for p in name.split(SEPARATOR):
         if not _is_valid_name(p):
             return False, p

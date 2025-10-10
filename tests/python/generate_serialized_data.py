@@ -10,7 +10,7 @@ from messgen.dynamic import Codec
 
 if __name__ == "__main__":
     codec = Codec()
-    codec.load(type_dirs=['tests/data/types'], protocols=["tests/data/protocols:test_proto", "tests/data/protocols:nested/another_proto"])
+    codec.load_yaml(type_dirs=['tests/data/types'], protocols=["tests/data/protocols:test_proto", "tests/data/protocols:nested/another_proto"])
 
     # simple_struct
     t = codec.type_converter("messgen/test/simple_struct")
