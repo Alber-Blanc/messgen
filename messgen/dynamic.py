@@ -109,8 +109,9 @@ class ScalarConverter(TypeConverter):
         super().__init__(types, type_name)
         assert self._type_class == TypeClass.scalar
 
-        self.struct_fmt = STRUCT_TYPES_MAP.get(type_name)
-        if self.struct_fmt is None:
+        try:
+            self.struct_fmt = STRUCT_TYPES_MAP[type_name]
+        except KeyError:
             raise RuntimeError('Unsupported scalar type "%s"' % type_name)
 
         self.struct_fmt = "<" + self.struct_fmt
@@ -122,12 +123,10 @@ class ScalarConverter(TypeConverter):
         elif type_name == "float32" or type_name == "float64":
             self.def_value = 0.0
 
-    def _serialize(self, data):
-        assert self.struct_fmt
+    def _serialize(self, data) -> bytes:
         return struct.pack(self.struct_fmt, data)
 
     def _deserialize(self, data: memoryview):
-        assert self.struct_fmt
         return struct.unpack(self.struct_fmt, data[: self.size])[0], self.size
 
     def default_value(self):
@@ -265,9 +264,12 @@ class EnumConverter(TypeConverter):
         assert self._type_class == TypeClass.enum
         assert isinstance(self._type_def, EnumType)
         self.base_type = self._type_def.base_type
-        self.struct_fmt = STRUCT_TYPES_MAP.get(self.base_type, None)
-        if self.struct_fmt is None:
+
+        try:
+            self.struct_fmt = STRUCT_TYPES_MAP[self.base_type]
+        except KeyError:
             raise RuntimeError('Unsupported base type "%s" in %s' % (self.base_type, type_name))
+
         self.struct_fmt = "<" + self.struct_fmt
         self.size = struct.calcsize(self.struct_fmt)
         self.mapping = {}
@@ -276,14 +278,12 @@ class EnumConverter(TypeConverter):
             self.mapping[item.value] = item.name
             self.rev_mapping[item.name] = item.value
 
-    def _serialize(self, data):
+    def _serialize(self, data) -> bytes:
         if (v := self.rev_mapping.get(data)) is not None:
-            assert self.struct_fmt
             return struct.pack(self.struct_fmt, v)
         raise MessgenError(f"Unsupported value={data} for enum={self._type_name}")
 
     def _deserialize(self, data: memoryview):
-        assert self.struct_fmt
         (v,) = struct.unpack(self.struct_fmt, data[: self.size])
         if (mapped := self.mapping.get(v)) is not None:
             return mapped, self.size
@@ -313,7 +313,7 @@ class BitsetConverter(TypeConverter):
             self.mapping[item.offset] = item.name
             self.rev_mapping[item.name] = item.offset
 
-    def _serialize(self, data):
+    def _serialize(self, data) -> bytes:
         v = 0
         if isinstance(data, int):
             # Bitset as number
@@ -326,11 +326,9 @@ class BitsetConverter(TypeConverter):
                 else:
                     raise MessgenError(f"Unsupported bit={b} for bitset={self._type_name}")
 
-        assert self.struct_fmt
         return struct.pack(self.struct_fmt, v)
 
     def _deserialize(self, data):
-        assert self.struct_fmt
         (v,) = struct.unpack(self.struct_fmt, data[: self.size])
 
         bits = list()
@@ -349,7 +347,7 @@ class StructConverter(TypeConverter):
         assert isinstance(self._type_def, StructType)
         self.fields = [(field.name, create_type_converter(types, field.type)) for field in self._type_def.fields]
 
-    def _serialize(self, data):
+    def _serialize(self, data) -> bytes:
         out = []
         for field_name, field_type in self.fields:
             v = data.get(field_name, None)
@@ -379,7 +377,7 @@ class ArrayConverter(TypeConverter):
         self.element_type = create_type_converter(types, self._type_def.element_type)
         self.array_size = self._type_def.array_size
 
-    def _serialize(self, data):
+    def _serialize(self, data) -> bytes:
         out = []
         assert len(data) == self.array_size
         for item in data:
@@ -410,7 +408,7 @@ class VectorConverter(TypeConverter):
         self.size_type = create_type_converter(types, "uint32")
         self.element_type = create_type_converter(types, self._type_def.element_type)
 
-    def _serialize(self, data):
+    def _serialize(self, data) -> bytes:
         out = []
         out.append(self.size_type._serialize(len(data)))
 
@@ -442,7 +440,7 @@ class MapConverter(TypeConverter):
         self.key_type = create_type_converter(types, self._type_def.key_type)
         self.value_type = create_type_converter(types, self._type_def.value_type)
 
-    def _serialize(self, data):
+    def _serialize(self, data) -> bytes:
         out = []
         out.append(self.size_type._serialize(len(data)))
         for k, v in data.items():
@@ -474,7 +472,7 @@ class StringConverter(TypeConverter):
         self.size_type = create_type_converter(types, "uint32")
         self.struct_fmt = "<%is"
 
-    def _serialize(self, data):
+    def _serialize(self, data) -> bytes:
         encoded_data = data.encode("utf-8")
         size = len(encoded_data)
         return self.size_type._serialize(size) + struct.pack(self.struct_fmt % size, encoded_data)
@@ -497,7 +495,7 @@ class BytesConverter(TypeConverter):
         self.size_type = create_type_converter(types, "uint32")
         self.struct_fmt = "<%is"
 
-    def _serialize(self, data):
+    def _serialize(self, data) -> bytes:
         return self.size_type._serialize(len(data)) + struct.pack(self.struct_fmt % len(data), data)
 
     def _deserialize(self, data: memoryview):
@@ -516,7 +514,7 @@ class ExternalConverter(TypeConverter):
         super().__init__(types, type_name)
         assert self._type_class == TypeClass.external
 
-    def _serialize(self, data):
+    def _serialize(self, data) -> bytes:
         raise RuntimeError("External types are not implemented yet")
 
     def _deserialize(self, data):
