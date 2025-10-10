@@ -174,7 +174,7 @@ class CppGenerator:
         return code
 
     def _generate_proto_file(self, proto_name: str, proto_def: Protocol) -> list[str]:
-        print("Generate protocol file: %s" % proto_name)
+        print("Generate protocol: %s" % proto_name)
 
         self._reset_file()
         code: list[str] = []

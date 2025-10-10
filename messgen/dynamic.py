@@ -346,8 +346,6 @@ class BitsetConverter(TypeConverter):
 class StructConverter(TypeConverter):
     def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
-        if type_name == "mynamespace/types/empty_struct":
-            print("dupa", isinstance(self._type_def, StructType), type(self._type_def))
         assert self._type_class == TypeClass.struct
         assert isinstance(self._type_def, StructType)
         self.fields = [(field.name, create_type_converter(types, field.type)) for field in self._type_def.fields]

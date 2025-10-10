@@ -153,12 +153,12 @@ def validate_protocol(protocol: Protocol):
     seen_names = set()
     for msg_id, msg in protocol.messages.items():
         if not _is_valid_name(msg.name):
-            raise RuntimeError(f"Invalid protocol message name {msg.name} in protocol {protocol.name}")
+            raise RuntimeError(f"Invalid protocol message name \"{msg.name}\" in protocol \"{protocol.name}\"")
         if msg.name in seen_names:
-            raise RuntimeError(f"Message with name={msg.name} appears multiple times in protocol={protocol.name}")
+            raise RuntimeError(f"Message with name \"{msg.name}\" appears multiple times in protocol \"{protocol.name}\"")
         if msg.message_id != msg_id:
             raise RuntimeError(
-                f"Message {msg.name} has different message_id={msg.message_id} than key={msg_id} in protocol={protocol.name}")
+                f"Message \"{msg.name}\" has different message_id={msg.message_id} than key={msg_id} in protocol \"{protocol.name}\"")
         seen_names.add(msg.name)
 
 
