@@ -1,10 +1,5 @@
 #pragma once
 
-#if defined(__GNUG__) && !defined(__clang__)
-#ifndef MESSGEN_DEC_FP
-#define MESSGEN_DEC_FP
-#endif
-
 #include <decimal/decimal>
 
 #include <array>
@@ -14,10 +9,42 @@
 #include <cstdint>
 #include <ios>
 #include <istream>
+#include <iostream>
 #include <optional>
 #include <string>
 
 namespace messgen {
+namespace detail {
+
+constexpr auto DEC_INF_MASK = 0b11110ULL << 58;
+constexpr auto DEC_MAX_EXPONENT = 369;
+constexpr auto DEC_MIN_EXPONENT = -398;
+constexpr auto DEC_MAX_COEFFICIENT = [] {
+    uint64_t pow = 1;
+    for (int i = 1; i <= 16; ++i) {
+        pow *= 10;
+    }
+    return pow - 1;
+}();
+
+static constexpr auto TICK_POW10 = []() {
+    constexpr int exponent_max = 16;
+    constexpr int exponent_min = -exponent_max;
+    constexpr auto size = exponent_max - exponent_min + 1;
+
+    auto res = std::array<double, size>{1.0};
+    uint64_t pow10 = 1;
+    for (int i = exponent_max; i < size; ++i) {
+        res[i] = double(pow10);
+        pow10 *= 10; // NOLINT
+    }
+    for (int i = 0; i < exponent_max; ++i) {
+        res[i] /= res[size - i - 1];
+    }
+    return res;
+}();
+
+} // namespace detail
 
 enum class round_mode {
     down = -1,
@@ -171,18 +198,26 @@ struct decimal64 {
 
 private:
     using value_type = std::decimal::decimal64;
+    using integral_type = uint64_t;
 
     union decimal_cast {
-        unsigned long long integer = 0;
+        integral_type integer = 0;
         value_type decimal;
     };
 
     template <char... C>
     friend decimal64 operator""_dd();
 
-    explicit decimal64(long long coeff, int exponent);
-    explicit decimal64(double value);
-    explicit decimal64(value_type value);
+    explicit decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept;
+    explicit decimal64(long long coeff, int exponent) noexcept;
+    explicit decimal64(double value) noexcept;
+    explicit decimal64(value_type value) noexcept;
+
+    /// @brief Decomposes the decimal into its components
+    ///
+    /// @return A tuple containing (sign, coefficient, exponent)
+    [[gnu::noinline, clang::noinline, nodiscard]]
+    std::pair<uint64_t, int16_t> normalize(uint64_t coeff, int16_t exponent) const noexcept;
 
     /// @brief Decomposes the decimal into its components
     ///
@@ -213,6 +248,7 @@ private:
     auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
     value *= tick_pow10(-tick_exp);
     switch (round_mode) {
+
         case round_mode::down:
             return decimal64{static_cast<long long>(std::floor(value / tick_coeff) * tick_coeff), tick_exp};
         case round_mode::mid:
@@ -222,6 +258,7 @@ private:
         default:
             __builtin_unreachable();
     }
+
     return decimal64{0, 0};
 }
 
@@ -239,11 +276,11 @@ private:
     }
 
     if (str == "inf") {
-        return decimal64{1LL, 10000000}; // NOLINT
+        return decimal64{detail::DEC_MAX_COEFFICIENT, detail::DEC_MAX_EXPONENT + 1}; // NOLINT
     }
 
     if (str == "-inf") {
-        return decimal64{-1LL, 10000000}; // NOLINT
+        return decimal64{-1, detail::DEC_MAX_COEFFICIENT, detail::DEC_MAX_EXPONENT + 1}; // NOLINT
     }
 
     if (str == "nan") {
@@ -332,29 +369,35 @@ private:
     // fractional part till leading zeros
     auto mul = int64_t{1};
     auto print_frac = int64_t{0};
-    auto exp_step = (exponent < 0) * 2 - 1;
-    while (coeff && exponent != 0) {
+    auto print_exp = 0;
+    auto print_int = int64_t{0};
+
+    while (exponent < 0 && coeff) {
         print_frac += mul * (coeff % 10);
         coeff /= 10;
         mul *= 10;
-        exponent += exp_step;
+        exponent += 1;
     }
 
     // leading zeros of fractional part
-    auto print_exp = 0;
-    while (exponent != 0) {
-        print_exp -= exp_step;
-        exponent += exp_step;
+    while (exponent < 0) {
+        print_exp -= 1;
+        exponent += 1;
     }
 
     // integral part
     mul = 1;
-    auto print_int = int64_t{0};
     while (coeff) {
         print_int += mul * (coeff % 10);
         coeff /= 10;
         mul *= 10;
     };
+
+    while (exponent > 0) {
+        print_int *= 10;
+        --exponent;
+    }
+
     print_int *= sign;
 
     // convert to string
@@ -371,8 +414,7 @@ private:
 }
 
 [[nodiscard]] inline bool decimal64::is_infinite() const noexcept {
-    constexpr auto infity_mask = 0x7800000000000000ULL;
-    return (decimal_cast{.decimal = _value}.integer & infity_mask) == infity_mask && !is_nan();
+    return (decimal_cast{.decimal = _value}.integer & detail::DEC_INF_MASK) == detail::DEC_INF_MASK && !is_nan();
 }
 
 [[nodiscard]] inline bool decimal64::is_nan() const noexcept {
@@ -398,32 +440,89 @@ inline decimal64 &decimal64::operator*=(int64_t other) noexcept {
     return decimal64(-_value);
 }
 
-inline decimal64::decimal64(long long coeff, int exponent)
-    : _value(std::decimal::make_decimal64(static_cast<long long>(coeff), exponent)) {
+inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept {
+    if (coeff > detail::DEC_MAX_COEFFICIENT || exponent < detail::DEC_MIN_EXPONENT || exponent > detail::DEC_MAX_EXPONENT) [[unlikely]] {
+        std::tie(coeff, exponent) = normalize(coeff, exponent);
+    }
+
+    // Check if dec64 is inifity
+    auto sign_bit = uint64_t{sign < 0};
+    if ((sign_bit == 0 and coeff > detail::DEC_MAX_COEFFICIENT) or exponent > detail::DEC_MAX_EXPONENT) [[unlikely]] {
+        _value = decimal_cast((sign_bit << 63) | detail::DEC_INF_MASK).decimal;
+        return;
+    }
+
+    // Check if dec64 trimms to zero
+    if (coeff > detail::DEC_MAX_COEFFICIENT or exponent < detail::DEC_MIN_EXPONENT) [[unlikely]] {
+        _value = decimal_cast(int64_t(sign_bit) << 63).decimal;
+        return;
+    }
+
+    // Store the sign
+    auto bits = sign_bit;
+    auto coefficient_bits = 0;
+    if (coeff > ((integral_type{1} << 53) - 1)) {
+        coefficient_bits = 51;
+        bits <<= 2;
+        bits |= 0b11; // Top 2 bits of combination field
+    } else {
+        coefficient_bits = 53;
+    }
+
+    // Apply exponent bias
+    bits <<= 10;
+    bits |= exponent - detail::DEC_MIN_EXPONENT;
+
+    // Apply the coefficient
+    bits <<= coefficient_bits;
+    bits |= coeff & ((integral_type{1} << coefficient_bits) - 1);
+
+    _value = decimal_cast(bits).decimal;
 }
 
-inline decimal64::decimal64(double value)
+inline decimal64::decimal64(long long coeff, int exponent) noexcept
+    : decimal64(int8_t((coeff > 0) * 2 - 1), std::abs(coeff), int16_t(exponent)) {
+}
+
+inline decimal64::decimal64(double value) noexcept
     : _value(value) {
 }
 
-inline decimal64::decimal64(value_type value)
+inline decimal64::decimal64(value_type value) noexcept
     : _value(value) {
+}
+
+[[gnu::noinline, clang::noinline, nodiscard]]
+inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coeff, int16_t exponent) const noexcept {
+    // Normalize the coefficient
+    while (coeff != 0 and coeff % 10 == 0 and exponent < detail::DEC_MAX_EXPONENT) {
+        coeff /= 10;
+        exponent += 1;
+    }
+
+    // Normalize the exponent
+    while (exponent > detail::DEC_MAX_EXPONENT and coeff * 10 <= detail::DEC_MAX_COEFFICIENT) {
+        coeff *= 10;
+        exponent -= 1;
+    }
+
+    return {coeff, exponent};
 }
 
 [[nodiscard]] inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const noexcept {
     assert(!is_nan());
     assert(!is_infinite());
 
-    constexpr auto exponent_bias = int16_t{398};
+    constexpr auto exponent_bias = detail::DEC_MIN_EXPONENT;
     constexpr auto exponent_mask = (int16_t{1} << 10) - 1;
 
     auto bits = decimal_cast{.decimal = _value}.integer;
     auto sign = (bits >> 63) * -2 + 1;
 
-    auto exponent_1 = (bits >> 51 & exponent_mask) - exponent_bias;
+    auto exponent_1 = (bits >> 51 & exponent_mask) + exponent_bias;
     auto coeff_1 = (bits & ((uint64_t{1} << 51) - 1)) | uint64_t{1} << 53;
 
-    auto exponent_2 = (bits >> 53 & exponent_mask) - exponent_bias;
+    auto exponent_2 = (bits >> 53 & exponent_mask) + exponent_bias;
     auto coeff_2 = bits & ((uint64_t{1} << 53) - 1);
 
     auto is_v1 = bool((bits >> 62) & 1);
@@ -435,29 +534,10 @@ inline decimal64::decimal64(value_type value)
 }
 
 [[nodiscard]] inline double decimal64::tick_pow10(int exp) {
-    constexpr int tick_exponent_max = 16;
-    constexpr int tick_exponent_min = -tick_exponent_max;
-
-    assert(exp >= tick_exponent_min);
-    assert(exp <= tick_exponent_max);
-
-    static constexpr auto TICK_POW10 = []() {
-        constexpr auto size = tick_exponent_max - tick_exponent_min + 1;
-
-        auto res = std::array<double, size>{1.0};
-        uint64_t pow10 = 1;
-        for (int i = tick_exponent_max; i < size; ++i) {
-            res[i] = double(pow10);
-            pow10 *= 10; // NOLINT
-        }
-        for (int i = 0; i < tick_exponent_max; ++i) {
-            res[i] /= res[size - i - 1];
-            pow10 *= 10; // NOLINT
-        }
-        return res;
-    }();
-
-    return TICK_POW10[exp + tick_exponent_max];
+    constexpr auto offset = int(detail::TICK_POW10.size()) / 2;
+    assert(exp <= offset);
+    assert(exp >= -offset);
+    return detail::TICK_POW10[exp + offset];
 }
 
 [[nodiscard]] inline decimal64 operator+(decimal64 lhs, decimal64 rhs) noexcept {
@@ -571,5 +651,3 @@ template <char... C>
 }
 
 } // namespace messgen
-
-#endif // defined(__GNUG__) && !defined(__clang__)
