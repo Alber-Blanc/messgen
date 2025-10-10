@@ -1,7 +1,7 @@
 from typing import Any
 
-from common import SEPARATOR
-from model import (
+from .common import SEPARATOR
+from .model import (
     hash_type,
     MessgenType,
     Protocol,

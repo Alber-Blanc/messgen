@@ -1,11 +1,10 @@
 import os
+import yaml
 from pathlib import Path
 from typing import Any
 
-import yaml
-
-from common import SEPARATOR, SIZE_TYPE
-from model import (
+from .common import SEPARATOR, SIZE_TYPE
+from .model import (
     ArrayType,
     BasicType,
     DecimalType,
@@ -23,7 +22,7 @@ from model import (
     BitsetBit,
     BitsetType
 )
-from validation import (
+from .validation import (
     validate_types,
     validate_protocol,
     validate_type_descriptor,

@@ -1,7 +1,7 @@
-from json_generator import JsonGenerator
-from cpp_generator import CppGenerator
-from ts_generator import TypeScriptGenerator
-from golang_generator import GolangGenerator
+from .json_generator import JsonGenerator
+from .cpp_generator import CppGenerator
+from .ts_generator import TypeScriptGenerator
+from .golang_generator import GolangGenerator
 
 
 def get_generator(lang: str, options):

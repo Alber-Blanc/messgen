@@ -3,8 +3,8 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from protocol_version import version_hash
-from model import (
+from .protocol_version import version_hash
+from .model import (
     MessgenType,
     Protocol,
     TypeClass,

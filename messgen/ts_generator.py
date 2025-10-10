@@ -5,8 +5,8 @@ from typing import Dict, Set, List, DefaultDict, cast, Tuple, Iterable
 from collections import defaultdict
 from contextlib import contextmanager
 
-from common import SEPARATOR
-from model import MessgenType, EnumType, StructType, Protocol, TypeClass, BitsetType
+from .common import SEPARATOR
+from .model import MessgenType, EnumType, StructType, Protocol, TypeClass, BitsetType
 
 _ARRAY_RE = re.compile(r"(?P<base>[^\[{]+)(?P<dims>(?:\[[^\]]*\])*)$")
 _MAP_RE = re.compile(r"^(?P<base>[^\{]+)\{(?P<key>[^\}]+)\}$")

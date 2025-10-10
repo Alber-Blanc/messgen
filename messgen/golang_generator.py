@@ -4,7 +4,7 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import cast, List, Tuple, overload
 
-from model import (
+from .model import (
     EnumType,
     BitsetType,
     ArrayType,

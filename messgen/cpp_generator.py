@@ -8,12 +8,12 @@ from pathlib import (
     Path,
 )
 
-from common import (
+from .common import (
     SEPARATOR,
     SIZE_TYPE,
     write_file_if_diff,
 )
-from model import (
+from .model import (
     ArrayType,
     BasicType,
     DecimalType,

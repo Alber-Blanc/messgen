@@ -2,7 +2,7 @@ import json
 import struct
 import typing
 
-from yaml_parser import parse_types, parse_protocols
+from .yaml_parser import parse_types, parse_protocols
 from abc import (
     ABC,
     abstractmethod,
@@ -14,7 +14,7 @@ from pathlib import (
     Path,
 )
 
-from model import (
+from .model import (
     ArrayType,
     EnumType,
     BitsetType,
