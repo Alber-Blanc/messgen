@@ -35,7 +35,7 @@ def test_validate_protocol_correct():
         },
     )
 
-    validation.validate_protocol(protocol=proto, types={test_type.type: test_type.type})
+    validation.validate_protocol(protocol=proto)
 
 
 def test_validate_protocol_id_mismatch():
@@ -50,7 +50,7 @@ def test_validate_protocol_id_mismatch():
     )
 
     with pytest.raises(RuntimeError, match="Message other_msg has different message_id=0 than key=1 in protocol=test"):
-        validation.validate_protocol(protocol=proto, types={test_type.type: test_type.type})
+        validation.validate_protocol(protocol=proto)
 
 
 def test_validate_protocol_missing_type():
@@ -62,7 +62,8 @@ def test_validate_protocol_missing_type():
     )
 
     with pytest.raises(RuntimeError, match="Type types/missing required by message=some_msg protocol=test not found"):
-        validation.validate_protocol(protocol=proto, types={test_type.type: test_type})
+        validation.validate_protocol(protocol=proto)
+        validation.validate_protocol_types(protocol=proto, types={"types/test": test_type})
 
 
 def test_validate_protocol_duplicated_msg_name():
@@ -77,7 +78,7 @@ def test_validate_protocol_duplicated_msg_name():
     )
 
     with pytest.raises(RuntimeError, match="Message with name=some_msg appears multiple times in protocol=test"):
-        validation.validate_protocol(protocol=proto, types={test_type.type: test_type.type})
+        validation.validate_protocol(protocol=proto)
 
 
 def test_validate_types_no_conflict():
