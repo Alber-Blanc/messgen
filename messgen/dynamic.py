@@ -1,8 +1,8 @@
 import json
 import struct
 import typing
-import yaml_parser
 
+from yaml_parser import parse_types, parse_protocols
 from abc import (
     ABC,
     abstractmethod,
@@ -14,7 +14,7 @@ from pathlib import (
     Path,
 )
 
-from .model import (
+from model import (
     ArrayType,
     EnumType,
     BitsetType,
@@ -346,6 +346,8 @@ class BitsetConverter(TypeConverter):
 class StructConverter(TypeConverter):
     def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
+        if type_name == "mynamespace/types/empty_struct":
+            print("dupa", isinstance(self._type_def, StructType), type(self._type_def))
         assert self._type_class == TypeClass.struct
         assert isinstance(self._type_def, StructType)
         self.fields = [(field.name, create_type_converter(types, field.type)) for field in self._type_def.fields]
@@ -615,12 +617,12 @@ class Codec:
         self._name_by_id: dict[tuple[int, int], tuple[str, Message]] = {}
 
     def load_yaml(self, type_dirs: list[str | Path], protocols: list[str] | None = None):
-        parsed_types = yaml_parser.parse_types(type_dirs)
+        parsed_types = parse_types(type_dirs)
         for type_name in parsed_types:
             self._converters_by_name[type_name] = create_type_converter(parsed_types, type_name)
 
         if protocols:
-            parsed_protocols = yaml_parser.parse_protocols(protocols)
+            parsed_protocols = parse_protocols(protocols)
             for proto_name, proto_def in parsed_protocols.items():
                 for msg_id, message in proto_def.messages.items():
                     self._id_by_name[(proto_name, message.name)] = (proto_def.proto_id, message)

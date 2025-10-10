@@ -26,7 +26,7 @@ path_root = Path(__file__).parents[2]
 @pytest.fixture
 def codec():
     codec_ = Codec()
-    codec_.load(
+    codec_.load_yaml(
         type_dirs=[path_root / "tests/msg/types", path_root / "tests/msg/types_decimal"],
         protocols=[f"{path_root}/tests/msg/protocols:mynamespace/proto/test_proto"],
     )

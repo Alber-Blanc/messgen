@@ -1,13 +1,10 @@
 from typing import Any
 
-from .common import SEPARATOR
-from .model import (
-    EnumType,
+from common import SEPARATOR
+from model import (
     hash_type,
     MessgenType,
     Protocol,
-    StructType,
-    BitsetType,
 )
 
 RESERVED_KEY_WORDS = {
