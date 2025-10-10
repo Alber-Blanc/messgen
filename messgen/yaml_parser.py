@@ -24,10 +24,9 @@ from .model import (
     BitsetType
 )
 from .validation import (
-    is_valid_name,
-    validate_type_dict,
     validate_types,
     validate_protocol,
+    validate_type_descriptor,
 )
 
 _CONFIG_EXT = ".yaml"
@@ -48,7 +47,7 @@ _SCALAR_TYPES_INFO = {
 
 
 def parse_protocols(protocols: list[str]) -> dict[str, Protocol]:
-    if not all(proto.count(":") == 1 for proto in (protocols or [])):
+    if not all(proto.count(":") == 1 for proto in protocols):
         raise RuntimeError("Protocol must be in format /path/of/basedir:namespace/of/proto")
 
     protocol_descriptors: dict[str, Protocol] = {}
@@ -95,7 +94,7 @@ def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType]:
             with open(type_file, "r") as f:
                 item = yaml.safe_load(f)
                 type_name = _type_name(type_file, base_dir)
-                validate_type_dict(type_name, item)
+                validate_type_descriptor(type_name, item)
                 type_descriptors[type_name] = item
 
     type_dependencies: set[str] = {SIZE_TYPE}
@@ -325,9 +324,6 @@ def _get_struct_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
     seen_names = set()
     for field in fields:
         field_name, field_type = field.get("name"), field.get("type")
-
-        if not is_valid_name(field_name):
-            raise RuntimeError(f"Invalid field '{field_name}' in {type_class}")
 
         if field_name in seen_names:
             raise RuntimeError(f"Duplicate field name '{field_name}' in {type_class}")

@@ -1,6 +1,7 @@
 import json
 import struct
 import typing
+import yaml_parser
 
 from abc import (
     ABC,
@@ -25,10 +26,6 @@ from .model import (
     StructType,
     TypeClass,
     VectorType
-)
-from .yaml_parser import (
-    parse_protocols,
-    parse_types,
 )
 
 STRUCT_TYPES_MAP = {
@@ -616,17 +613,13 @@ class Codec:
         self._id_by_name: dict[tuple[str, str], tuple[int, Message]] = {}
         self._name_by_id: dict[tuple[int, int], tuple[str, Message]] = {}
 
-    def load(self, type_dirs: list[str | Path], protocols: list[str] | None = None):
-        parsed_types = parse_types(type_dirs)
-        if parsed_types is not None:
-            for type_name in parsed_types:
-                self._converters_by_name[type_name] = create_type_converter(parsed_types, type_name)
+    def load_yaml(self, type_dirs: list[str | Path], protocols: list[str] | None = None):
+        parsed_types = yaml_parser.parse_types(type_dirs)
+        for type_name in parsed_types:
+            self._converters_by_name[type_name] = create_type_converter(parsed_types, type_name)
 
-        if not protocols:
-            return
-
-        parsed_protocols = parse_protocols(protocols)
-        if parsed_protocols is not None: 
+        if protocols:
+            parsed_protocols = yaml_parser.parse_protocols(protocols)
             for proto_name, proto_def in parsed_protocols.items():
                 for msg_id, message in proto_def.messages.items():
                     self._id_by_name[(proto_name, message.name)] = (proto_def.proto_id, message)
