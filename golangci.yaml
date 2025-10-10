@@ -1,0 +1,16 @@
+version: "2"
+
+run:
+  timeout: 10m
+
+linters:
+  default: fast
+  disable:
+    - wsl
+    - gomodguard
+    - depguard
+    - gomoddirectives
+    - testpackage
+  exclusions:
+    paths:
+      - "build-golang-test/.*_gen.go"

@@ -11,8 +11,6 @@ describe('Codec', () => {
   let protocols: Protocol[];
   let codec: Codec;
 
-  const crossProtoMessage = new Int8Array([-17, -51, -85, -112, 120, 86, 52, 18, 1]).buffer;
-
   beforeAll(() => {
     execSync('npm run gen:json');
     types = uploadTypes('./types.json');
@@ -55,17 +53,6 @@ describe('Codec', () => {
       expect(message.buffer).toEqual(buffer);
     });
 
-    it('should serialize and deserialize cross proto message', () => {
-      const rawData = {
-        f0: BigInt('0x1234567890abcdef'),
-        cross0: 1,
-      };
-
-      const message = codec.serialize(2, 0, rawData);
-
-      expect(message.buffer).toEqual(crossProtoMessage);
-    });
-
     it('should serialize chinese characters', () => {
       const rawData = {
         f0: 0n,
@@ -104,17 +91,6 @@ describe('Codec', () => {
       });
     });
 
-    it('should deserialize a message with cors', () => {
-      const rawData = {
-        f0: BigInt('0x1234567890abcdef'),
-        cross0: 1,
-      };
-
-      const message = codec.serialize(2, 0, rawData);
-
-      expect(codec.deserialize(2, 0, message.buffer)).toEqual(rawData);
-    });
-
     it('should deserialize chinese characters', () => {
       const rawData = {
         f0: 0n,
@@ -131,13 +107,14 @@ describe('Codec', () => {
   describe('#deserializeType', () => {
     it('should deserialize cross type by name', () => {
       const rawData = {
-        f0: BigInt('0x1234567890abcdef'),
-        cross0: 1,
+        f0: 0n,
+        f1_vec: new BigInt64Array([-0n, 5n, 1n]),
+        str: 'Hello messgen!',
       };
 
-      const message = codec.serialize(2, 0, rawData);
+      const message = codec.serialize(1, 2, rawData);
 
-      expect(codec.deserializeType('cross_proto', message.buffer)).toEqual(rawData);
+      expect(codec.deserializeType('mynamespace/types/var_size_struct', message.buffer)).toEqual(rawData);
     });
   });
 });

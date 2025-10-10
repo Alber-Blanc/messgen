@@ -1,6 +1,5 @@
 import os
 import yaml
-
 from pathlib import Path
 from typing import Any
 
@@ -24,10 +23,10 @@ from .model import (
     BitsetType
 )
 from .validation import (
-    is_valid_name,
-    validate_type_dict,
+    validate_types,
+    validate_protocol,
+    validate_type_descriptor,
 )
-
 
 _CONFIG_EXT = ".yaml"
 _SCALAR_TYPES_INFO = {
@@ -47,43 +46,31 @@ _SCALAR_TYPES_INFO = {
 
 
 def parse_protocols(protocols: list[str]) -> dict[str, Protocol]:
-    if not protocols:
-        return {}
-
-    if not all(proto.count(":") == 1 for proto in (protocols or [])):
+    if not all(proto.count(":") == 1 for proto in protocols):
         raise RuntimeError("Protocol must be in format /path/of/basedir:namespace/of/proto")
 
-    protocol_files = {}
+    protocol_descriptors: dict[str, Protocol] = {}
     for proto in protocols:
         proto_path, proto_name = proto.split(":")
-        expected_file = Path(proto_path) / f"{proto_name}{_CONFIG_EXT}"
-        if not expected_file.exists():
-            raise RuntimeError(f"Protocol file not found: {expected_file}")
-        protocol_files[proto_name] = expected_file
-
-    protocol_descriptors: dict[str, Protocol] = {}
-    for proto_name, protocol_file in protocol_files.items():
-        protocol_descriptors[proto_name] = _parse_protocol(protocol_file)
+        proto_file = Path(proto_path) / f"{proto_name}{_CONFIG_EXT}"
+        if not proto_file.exists():
+            raise RuntimeError(f"Protocol file not found: {proto_file}")
+        proto_descr = _parse_protocol(proto_name, proto_file)
+        validate_protocol(proto_descr)
+        protocol_descriptors[proto_name] = proto_descr
 
     return protocol_descriptors
 
 
-def _parse_protocol(protocol_file: Path) -> Protocol:
-    with open(protocol_file, "r") as f:
-        item = yaml.safe_load(f)
-        item_name = protocol_file.stem
-        if not is_valid_name(item_name):
-            raise RuntimeError(f"Invalid message name {item_name}")
-        return _get_protocol(item_name, item)
-    raise RuntimeError(f"Failed to open file: {protocol_file}")
-
-
-def _get_protocol(proto_name, protocol_desc: dict[str, Any]) -> Protocol:
-    proto_id = int(protocol_desc["proto_id"])
+def _parse_protocol(proto_name: str, proto_file: Path) -> Protocol:
+    f = open(proto_file, "r")
+    proto_desc = yaml.safe_load(f)
+    proto_id = int(proto_desc["proto_id"])
     return Protocol(
         name=proto_name,
         proto_id=proto_id,
-        messages={msg_id: _get_message_type(proto_id, msg_id, msg) for msg_id, msg in protocol_desc.get("messages", {}).items()},
+        messages={msg_id: _get_message_type(proto_id, msg_id, msg) for msg_id, msg in
+                  proto_desc.get("messages", {}).items()},
     )
 
 
@@ -98,9 +85,6 @@ def _get_message_type(proto_id: int, msg_id: int, message_desc: dict[str, Any]) 
 
 
 def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType]:
-    if not base_dirs:
-        return {}
-
     type_descriptors = {}
     for directory in base_dirs:
         base_dir = Path.cwd() / directory if not isinstance(directory, Path) else directory
@@ -108,17 +92,21 @@ def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType]:
         for type_file in type_files:
             with open(type_file, "r") as f:
                 item = yaml.safe_load(f)
-                validate_type_dict(type_file.stem, item)
-                type_descriptors[_type_name(type_file, base_dir)] = item
+                type_name = _type_name(type_file, base_dir)
+                validate_type_descriptor(type_name, item)
+                type_descriptors[type_name] = item
 
     type_dependencies: set[str] = {SIZE_TYPE}
-    parsed_types = {type_name: _get_type(type_name, type_descriptors, type_dependencies) for type_name in type_descriptors}
+    parsed_types = {type_name: _get_type(type_name, type_descriptors, type_dependencies) for type_name in
+                    type_descriptors}
 
     ignore_dependencies: set[str] = set()
     type_dependencies -= set(parsed_types.keys())
 
-    parsed_types.update({type_name: _get_type(type_name, type_descriptors, ignore_dependencies) for type_name in type_dependencies})
+    parsed_types.update(
+        {type_name: _get_type(type_name, type_descriptors, ignore_dependencies) for type_name in type_dependencies})
 
+    validate_types(parsed_types)
     return parsed_types
 
 
@@ -198,7 +186,8 @@ def _get_decimal_type(type_name: str) -> DecimalType:
     )
 
 
-def _get_vector_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> VectorType:
+def _get_vector_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
+                     type_dependencies: set[str]) -> VectorType:
     assert _get_type(type_name[:-2], type_descriptors, type_dependencies)
 
     element_type = type_name[:-2]
@@ -212,7 +201,8 @@ def _get_vector_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
     )
 
 
-def _get_array_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> ArrayType:
+def _get_array_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
+                    type_dependencies: set[str]) -> ArrayType:
     p = type_name[:-1].split("[")
     element_type = "[".join(p[:-1])
     type_dependencies.add(_get_dependency_type(type_name, element_type, type_descriptors, type_dependencies)[0])
@@ -256,53 +246,65 @@ def _get_map_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], t
     )
 
 
-def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> EnumType:
+def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
+                   type_dependencies: set[str]) -> EnumType:
     type_desc = type_descriptors.get(type_name)
     assert type_desc
 
+    size = _SCALAR_TYPES_INFO["int"]["size"]
     base_type = type_desc.get("base_type", "")
-
     if base_type:
         type_dependencies.add(_get_dependency_type(type_name, base_type, type_descriptors, type_dependencies)[0])
         dependency = _get_type(base_type, type_descriptors, type_dependencies)
-        assert dependency
 
-    values = [EnumValue(name=item.get("name"), value=item.get("value"), comment=item.get("comment")) for item in type_desc.get("values", {})]
+        assert dependency and dependency.size
+        size = dependency.size
 
+    values = [EnumValue(name=item.get("name"), value=item.get("value"), comment=item.get("comment")) for item in
+              type_desc.get("values", {})]
+
+    assert size
     return EnumType(
         type=type_name,
         type_class=TypeClass.enum,
         base_type=base_type,
         comment=type_desc.get("comment"),
         values=values,
-        size=dependency.size or _SCALAR_TYPES_INFO["int"]["size"],
+        size=size,
     )
 
 
-def _get_bitset_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> BitsetType:
+def _get_bitset_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
+                     type_dependencies: set[str]) -> BitsetType:
     type_desc = type_descriptors.get(type_name)
     assert type_desc
 
-    base_type = type_desc.get("base_type", "")
+    size = _SCALAR_TYPES_INFO["int"]["size"]
 
+    base_type = type_desc.get("base_type", "")
     if base_type:
         type_dependencies.add(_get_dependency_type(type_name, base_type, type_descriptors, type_dependencies)[0])
         dependency = _get_type(base_type, type_descriptors, type_dependencies)
-        assert dependency
 
-    bits = [BitsetBit(name=item.get("name"), offset=item.get("offset"), comment=item.get("comment")) for item in type_desc.get("bits", {})]
+        assert dependency and dependency.size
+        size = dependency.size
 
+    bits = [BitsetBit(name=item.get("name"), offset=item.get("offset"), comment=item.get("comment")) for item in
+            type_desc.get("bits", {})]
+
+    assert size;
     return BitsetType(
         type=type_name,
         type_class=TypeClass.bitset,
         base_type=base_type,
         comment=type_desc.get("comment"),
         bits=bits,
-        size=dependency.size or _SCALAR_TYPES_INFO["int"]["size"],
+        size=size,
     )
 
 
-def _get_struct_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> StructType:
+def _get_struct_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
+                     type_dependencies: set[str]) -> StructType:
     type_desc = type_descriptors[type_name]
     type_class = type_desc.get("type_class")
 
@@ -321,9 +323,6 @@ def _get_struct_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
     seen_names = set()
     for field in fields:
         field_name, field_type = field.get("name"), field.get("type")
-
-        if not is_valid_name(field_name):
-            raise RuntimeError(f"Invalid field '{field_name}' in {type_class}")
 
         if field_name in seen_names:
             raise RuntimeError(f"Duplicate field name '{field_name}' in {type_class}")
@@ -345,7 +344,8 @@ def _get_struct_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
     return struct_type
 
 
-def _get_external_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> ExternalType:
+def _get_external_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
+                       type_dependencies: set[str]) -> ExternalType:
     type_desc = type_descriptors[type_name]
 
     external_type = ExternalType(

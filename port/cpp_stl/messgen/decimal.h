@@ -16,6 +16,7 @@
 #include <istream>
 #include <optional>
 #include <string>
+#include <tuple>
 
 namespace messgen {
 

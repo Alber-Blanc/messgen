@@ -1,0 +1,3 @@
+proto_id: 2
+messages:
+  0: { name: "simple_struct_msg", type: "mynamespace/types/simple_struct", comment: "Simple struct message" }

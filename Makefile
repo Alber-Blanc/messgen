@@ -3,6 +3,12 @@ BUILD_DIR ?= $(ROOT_DIR)/build
 BUILD_TYPE ?= Debug
 CXX_STANDARD ?= 20
 
+BIN_DIR ?= bin
+
+GOLANG_DIRECTORIES := ./build-golang-test/... ./port/golang/... ./tests/golang/...
+GOLANGCI_LINT := $(BIN_DIR)/golangci-lint
+GOLANGCI_LINT_VERSION := v2.5.0
+
 all: check
 
 configure:
@@ -18,5 +24,19 @@ test: build
 check: test
 	python3 -m mypy .
 
+generate-golang:
+	rm -rf build-golang-test/msgs
+	python3 messgen-generate.py --types tests/msg/types --protocol tests/msg/protocols:mynamespace/proto/test_proto --protocol tests/msg/protocols:mynamespace/proto/subspace/another_proto --options mod_name=github.com/Alber-Blanc/messgen/build-golang-test --outdir build-golang-test/msgs --lang golang
+
+test-golang: generate-golang
+	go test -v $(GOLANG_DIRECTORIES)
+
+check-golang: $(GOLANGCI_LINT)
+	$(GOLANGCI_LINT) run --config golangci.yaml $(GOLANG_DIRECTORIES)
+
+$(GOLANGCI_LINT):
+	mkdir -p bin
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(BIN_DIR) $(GOLANGCI_LINT_VERSION)
+
 clean:
-	rm -rf ${BUILD_DIR}
+	rm -rf ${BUILD_DIR} $(BIN_DIR) build-golang-test/msgs

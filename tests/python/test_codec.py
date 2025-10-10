@@ -26,9 +26,9 @@ path_root = Path(__file__).parents[2]
 @pytest.fixture
 def codec():
     codec_ = Codec()
-    codec_.load(
-        type_dirs=[path_root / "tests/data/types", path_root / "tests/data/types_decimal"],
-        protocols=[f"{path_root}/tests/data/protocols:test_proto"],
+    codec_.load_yaml(
+        type_dirs=[path_root / "tests/msg/types", path_root / "tests/msg/types_decimal"],
+        protocols=[f"{path_root}/tests/msg/protocols:mynamespace/proto/test_proto"],
     )
     yield codec_
 
@@ -48,7 +48,7 @@ def simple_struct():
 
 
 def test_simple_struct_serialization(codec, simple_struct):
-    type_def = codec.type_converter("messgen/test/simple_struct")
+    type_def = codec.type_converter("mynamespace/types/simple_struct")
     expected_msg = simple_struct
     expected_bytes = type_def.serialize(expected_msg)
     assert expected_bytes
@@ -59,7 +59,7 @@ def test_simple_struct_serialization(codec, simple_struct):
 
 
 def test_var_size_struct_serialization(codec):
-    type_def = codec.type_converter("messgen/test/var_size_struct")
+    type_def = codec.type_converter("mynamespace/types/var_size_struct")
     expected_msg = {
         "f0": 0x1234567890ABCDEF,
         "f1_vec": [-0x1234567890ABCDEF, 5, 1],
@@ -74,7 +74,7 @@ def test_var_size_struct_serialization(codec):
 
 
 def test_struct_with_decimal_serialization(codec):
-    type_def = codec.type_converter("messgen/test/flat_struct_with_decimal")
+    type_def = codec.type_converter("mynamespace/types/flat_struct_with_decimal")
     expected_msg = {
         "int_field": 12345,
         "dec_field": Decimal("1234.22e-4"),
@@ -90,7 +90,7 @@ def test_struct_with_decimal_serialization(codec):
 
 def test_protocol_deserialization(codec, simple_struct):
     message_info_by_name = codec.message_info_by_name(
-        proto_name="test_proto",
+        proto_name="mynamespace/proto/test_proto",
         message_name="simple_struct_msg",
     )
     expected_bytes = message_info_by_name.type_converter().serialize(simple_struct)
@@ -104,9 +104,9 @@ def test_protocol_deserialization(codec, simple_struct):
 
     assert message_info_by_name.proto_id() == 1
     assert message_info_by_name.message_id() == 0
-    assert message_info_by_name.proto_name() == "test_proto"
+    assert message_info_by_name.proto_name() == "mynamespace/proto/test_proto"
     assert message_info_by_name.message_name() == "simple_struct_msg"
-    assert message_info_by_name.type_name() == "messgen/test/simple_struct"
+    assert message_info_by_name.type_name() == "mynamespace/types/simple_struct"
 
     assert message_info_by_name.proto_id() == message_info_by_id.proto_id()
     assert message_info_by_name.message_id() == message_info_by_id.message_id()
@@ -119,26 +119,27 @@ def test_protocol_deserialization(codec, simple_struct):
 
 
 def test_protocol_info(codec):
-    protocol_by_name = codec.protocol_info_by_name("test_proto")
+    test_proto_name = "mynamespace/proto/test_proto"
+    protocol_by_name = codec.protocol_info_by_name(test_proto_name)
     assert len(protocol_by_name.messages()) == 8
-    assert protocol_by_name.proto_name() == "test_proto"
+    assert protocol_by_name.proto_name() == test_proto_name
     assert protocol_by_name.proto_id() == 1
     assert protocol_by_name.proto_hash() == (
-        codec.message_info_by_name(proto_name="test_proto", message_name="simple_struct_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="complex_struct_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="var_size_struct_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="struct_with_enum_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="empty_struct_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="complex_struct_with_empty_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="complex_struct_nostl_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name="test_proto", message_name="flat_struct_msg").message_hash()
+        codec.message_info_by_name(proto_name=test_proto_name, message_name="simple_struct_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="var_size_struct_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="struct_with_enum_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="empty_struct_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct_with_empty_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct_nostl_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="flat_struct_msg").message_hash()
     )
 
-    protocol_by_id = codec.protocol_info_by_name("test_proto")
+    protocol_by_id = codec.protocol_info_by_id(1)
     assert protocol_by_id.proto_name() == protocol_by_name.proto_name()
     assert protocol_by_id.proto_id() == protocol_by_name.proto_id()
     assert protocol_by_id.proto_hash() == protocol_by_name.proto_hash()
-    assert protocol_by_id.proto_hash() == 5639281651251954308
+    assert protocol_by_id.proto_hash() == 17049879361460499161
 
 
 def test_decimal_decoding():
@@ -253,12 +254,12 @@ def test_decimal_encoding():
 
 
 def test_type_definition(codec):
-    type_def = codec.type_definition("messgen/test/simple_struct")
-    assert type_def.type == "messgen/test/simple_struct"
+    type_def = codec.type_definition("mynamespace/types/simple_struct")
+    assert type_def.type == "mynamespace/types/simple_struct"
     assert type_def.type_class == TypeClass.struct
 
-    type_def = codec.type_definition("messgen/test/var_size_struct")
-    assert type_def.type == "messgen/test/var_size_struct"
+    type_def = codec.type_definition("mynamespace/types/var_size_struct")
+    assert type_def.type == "mynamespace/types/var_size_struct"
     assert type_def.type_class == TypeClass.struct
 
     type_def = codec.type_definition("dec64")
@@ -271,8 +272,8 @@ def test_type_definition(codec):
 
 
 def test_enum_type_definition(codec):
-    type_def = codec.type_definition("messgen/test/simple_enum")
-    assert type_def.type == "messgen/test/simple_enum"
+    type_def = codec.type_definition("mynamespace/types/simple_enum")
+    assert type_def.type == "mynamespace/types/simple_enum"
     assert type_def.type_class == TypeClass.enum
     assert type_def.base_type == "uint8"
 
@@ -288,8 +289,8 @@ def test_enum_type_definition(codec):
 
 
 def test_bitset_type_definition(codec):
-    type_def = codec.type_definition("messgen/test/simple_bitset")
-    assert type_def.type == "messgen/test/simple_bitset"
+    type_def = codec.type_definition("mynamespace/types/simple_bitset")
+    assert type_def.type == "mynamespace/types/simple_bitset"
     assert type_def.type_class == TypeClass.bitset
     assert type_def.base_type == "uint8"
 
@@ -306,23 +307,23 @@ def test_bitset_type_definition(codec):
 
 
 def test_enum_converter_serialization(codec):
-    type_converter = codec.type_converter("messgen/test/simple_enum")
+    type_converter = codec.type_converter("mynamespace/types/simple_enum")
 
     serialized_val1 = type_converter.serialize("one_value")
-    assert serialized_val1 == (0).to_bytes()
+    assert serialized_val1 == (0).to_bytes(length=1, byteorder="little")
 
     serialized_val2 = type_converter.serialize("another_value")
-    assert serialized_val2 == (1).to_bytes()
+    assert serialized_val2 == (1).to_bytes(length=1, byteorder="little")
 
-    assert type_converter.deserialize((0).to_bytes()) == "one_value"
-    assert type_converter.deserialize((1).to_bytes()) == "another_value"
+    assert type_converter.deserialize((0).to_bytes(length=1, byteorder="little")) == "one_value"
+    assert type_converter.deserialize((1).to_bytes(length=1, byteorder="little")) == "another_value"
 
     with pytest.raises(MessgenError):
         type_converter.serialize("NON_EXISTENT_VALUE")
 
 
 def test_struct_with_enum_serialization(codec):
-    type_converter = codec.type_converter("messgen/test/struct_with_enum")
+    type_converter = codec.type_converter("mynamespace/types/struct_with_enum")
 
     message = {
         "e0": "another_value",
@@ -337,14 +338,14 @@ def test_struct_with_enum_serialization(codec):
 
 
 def test_type_converter_type_info(codec):
-    struct_converter = codec.type_converter("messgen/test/simple_struct")
+    struct_converter = codec.type_converter("mynamespace/types/simple_struct")
 
-    assert struct_converter.type_name() == "messgen/test/simple_struct"
+    assert struct_converter.type_name() == "mynamespace/types/simple_struct"
     assert struct_converter.type_hash() > 0
     assert struct_converter.type_definition().type_class == TypeClass.struct
 
-    enum_converter = codec.type_converter("messgen/test/simple_enum")
-    assert enum_converter.type_name() == "messgen/test/simple_enum"
+    enum_converter = codec.type_converter("mynamespace/types/simple_enum")
+    assert enum_converter.type_name() == "mynamespace/types/simple_enum"
     assert enum_converter.type_hash() > 0
     assert enum_converter.type_definition().type_class == TypeClass.enum
 
@@ -367,16 +368,16 @@ def test_codec_types(codec):
         "int32",
         "int64",
         "int8",
-        "messgen/test/complex_struct_nostl",
-        "messgen/test/complex_struct_with_empty",
-        "messgen/test/complex_struct",
-        "messgen/test/empty_struct",
-        "messgen/test/flat_struct_with_decimal",
-        "messgen/test/flat_struct",
-        "messgen/test/simple_enum",
-        "messgen/test/simple_struct",
-        "messgen/test/struct_with_enum",
-        "messgen/test/var_size_struct",
+        "mynamespace/types/subspace/complex_struct_nostl",
+        "mynamespace/types/subspace/complex_struct_with_empty",
+        "mynamespace/types/subspace/complex_struct",
+        "mynamespace/types/empty_struct",
+        "mynamespace/types/flat_struct_with_decimal",
+        "mynamespace/types/flat_struct",
+        "mynamespace/types/simple_enum",
+        "mynamespace/types/simple_struct",
+        "mynamespace/types/struct_with_enum",
+        "mynamespace/types/var_size_struct",
         "string",
         "uint16",
         "uint32",
@@ -394,7 +395,7 @@ def test_codec_protocols(codec):
     assert isinstance(protocols, list)
     assert protocols == sorted(protocols)
 
-    expected_protocols = ["test_proto"]
+    expected_protocols = ["mynamespace/proto/test_proto"]
     assert protocols == expected_protocols
 
 
@@ -406,7 +407,7 @@ def test_codec_empty():
     assert empty_codec.protocols() == []
 
 def test_var_size_string_serialization(codec):
-    type_def = codec.type_converter("messgen/test/var_size_struct")
+    type_def = codec.type_converter("mynamespace/types/var_size_struct")
     expected_msg = {
         "f0": 0x0,
         "f1_vec": [],

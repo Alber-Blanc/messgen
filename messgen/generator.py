@@ -1,6 +1,7 @@
 from .json_generator import JsonGenerator
 from .cpp_generator import CppGenerator
 from .ts_generator import TypeScriptGenerator
+from .golang_generator import GolangGenerator
 
 
 def get_generator(lang: str, options):
@@ -10,3 +11,5 @@ def get_generator(lang: str, options):
         return CppGenerator(options)
     elif lang == "ts":
         return TypeScriptGenerator(options)
+    elif lang == "golang":
+        return GolangGenerator(options)
