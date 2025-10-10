@@ -14,8 +14,13 @@ protected:
     void test_serialization(const T &msg) {
         size_t sz_check = msg.serialized_size();
 
-        _buf.reserve(sz_check);
-        size_t ser_size = msg.serialize(&_buf[0]);
+        size_t ser_size = 0;
+        if (sz_check > 0) {
+            _buf.reserve(sz_check);
+            ser_size = msg.serialize(&_buf[0]);
+        } else {
+            ser_size = msg.serialize(nullptr);
+        }
         EXPECT_EQ(ser_size, sz_check);
 
         T msg1{};
