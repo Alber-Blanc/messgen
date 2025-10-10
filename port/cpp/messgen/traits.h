@@ -67,10 +67,22 @@ struct has_deserialize_method<T, std::void_t<decltype(static_cast<std::size_t (T
 template <typename T>
 inline constexpr bool has_deserialize_method_v = has_deserialize_method<T>::value;
 
+template <typename T, typename = void>
+struct has_deserialize_alloc_method : std::false_type {};
+
+class Allocator;
+
+template <typename T>
+struct has_deserialize_alloc_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)(const uint8_t *, Allocator &)>(&T::deserialize))>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_deserialize_alloc_method_v = has_deserialize_alloc_method<T>::value;
+
 template <class T>
 struct is_serializable : std::bool_constant<has_serialized_size_method_v<T> && //
                                             has_serialize_method_v<T> &&       //
-                                            has_deserialize_method_v<T>> {};
+                                            (has_deserialize_method_v<T> || has_deserialize_alloc_method_v<T>)> {};
 
 template <class T>
 inline constexpr bool is_serializable_v = messgen::is_serializable<T>::value;

@@ -1,5 +1,6 @@
 #pragma once
 
-#include "traits.h"
+#include "Allocator.h"
 #include "vector.h"
+#include "map.h"
 #include <messgen/messgen_common.h>

@@ -29,20 +29,28 @@ struct vector {
           _size(size) {
     }
 
-    vector(std::vector<T> &v)
-        : _ptr(v.begin().base()),
+    template <class InputIterator, typename = std::enable_if_t<std::is_pointer<InputIterator>::value>>
+    vector(InputIterator &begin, InputIterator &end)
+        : _ptr(begin),
+          _size(end - begin) {
+    }
+
+    template <class V>
+    vector(V &v)
+        : _ptr(v.data()),
           _size(v.size()) {
     }
 
-    vector(const std::vector<T> &v)
-        : _ptr(const_cast<T *>(v.begin().base())),
-          _size(v.size()) {
-    }
-
-    vector<T> &operator=(const vector<T> &other) {
+    vector &operator=(const vector &other) {
         _ptr = other._ptr;
         _size = other._size;
         return *this;
+    }
+
+    template <class InputIt>
+    void assign(const InputIt first, const InputIt last) {
+        _ptr = const_cast<T *>(first);
+        _size = last - first;
     }
 
     size_t size() const {

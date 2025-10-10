@@ -1,6 +1,6 @@
 #pragma once
 
-#include "traits_common.h"
+#include "traits.h"
 
 #include <string>
 #include <string_view>

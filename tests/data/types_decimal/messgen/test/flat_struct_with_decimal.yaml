@@ -1,6 +1,0 @@
-type_class: struct
-comment: "Flat struct without paddings, for zero-copy"
-fields:
-  - { name: "int_field", type: "uint64", comment: "64 bit integer field" }
-  - { name: "dec_field", type: "dec64", comment: "64 bit decimal floating point field" }
-  - { name: "float_field", type: "float64", comment: "64 bit floating point field" }

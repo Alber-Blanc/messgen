@@ -5,6 +5,7 @@
 #endif
 
 #include <messgen/reflection.h>
+#include <messgen/traits.h>
 
 #include <cstdint>
 #include <type_traits>

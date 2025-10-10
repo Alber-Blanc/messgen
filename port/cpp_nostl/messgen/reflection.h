@@ -67,11 +67,31 @@ struct vector;
 
 template <typename T>
 constexpr std::string_view name_of(reflect_t<messgen::vector<T>>) {
-    constexpr auto type_name = name_of(reflect_type<T>);
+    constexpr auto el_type_name = name_of(reflect_type<T>);
+    constexpr ConstexprString<64> buffer = [el_type_name]() constexpr {
+        ConstexprString<64> result;
+        result.append(el_type_name);
+        result.append("[]");
+        return result;
+    }();
+
+    return buffer.view();
+}
+
+// Forward declaration
+template <class Key, class T>
+struct map;
+
+template <typename Key, typename T>
+constexpr std::string_view name_of(reflect_t<messgen::map<Key, T>>) {
+    constexpr auto key_name = name_of(reflect_type<Key>);
+    constexpr auto value_name = name_of(reflect_type<T>);
     constexpr ConstexprString<64> buffer = []() constexpr {
         ConstexprString<64> result;
-        result.append(type_name);
-        result.append("[]");
+        result.append(value_name);
+        result.append("[");
+        result.append(key_name);
+        result.append("]");
         return result;
     }();
 

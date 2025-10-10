@@ -743,7 +743,7 @@ class CppGenerator:
                 return "std::map<%s, %s>" % (key_c_type, value_c_type)
             elif mode == "nostl":
                 self._add_include("span")
-                return "std::span<std::pair<%s, %s>>" % (key_c_type, value_c_type)
+                return "messgen::map<%s, %s>" % (key_c_type, value_c_type)
             else:
                 raise RuntimeError("Unsupported mode for map: %s" % mode)
 
@@ -913,10 +913,11 @@ class CppGenerator:
                 c.append("}")
 
         elif type_class == TypeClass.vector:
+            el_type_def = self._types.get(field_type_def.element_type)
+            el_size = el_type_def.size
+            el_align = self._get_alignment(el_type_def)
+
             if mode == "stl":
-                el_type_def = self._types.get(field_type_def.element_type)
-                el_size = el_type_def.size
-                el_align = self._get_alignment(el_type_def)
                 c.append("%s.resize(*reinterpret_cast<const messgen::size_type *>(&_buf[_size]));" % field_name)
                 c.append("_size += sizeof(messgen::size_type);")
                 if el_size == 0:
@@ -931,10 +932,7 @@ class CppGenerator:
                     c.extend(_indent(self._deserialize_field("_i%d" % level_n, el_type_def, level_n + 1)))
                     c.append("}")
             elif mode == "nostl":
-                el_type_def = self._types.get(field_type_def.element_type)
                 el_c_type = self._cpp_type(field_type_def.element_type)
-                el_size = el_type_def.size
-                el_align = self._get_alignment(el_type_def)
                 c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
                 c.append("_size += sizeof(messgen::size_type);")
                 if el_align > 1:
@@ -958,24 +956,45 @@ class CppGenerator:
                     c.append("_size += _field_size * %d;" % el_size)
 
         elif type_class == TypeClass.map:
-            c.append("{")
-            c.append(
-                _indent("size_t _map_size%d = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);" % level_n))
-            c.append(_indent("_size += sizeof(messgen::size_type);"))
             key_c_type = self._cpp_type(field_type_def.key_type)
             key_type_def = self._types.get(field_type_def.key_type)
             value_c_type = self._cpp_type(field_type_def.value_type)
             value_type_def = self._types.get(field_type_def.value_type)
-            c.append(
-                _indent("for (size_t _i%d = 0; _i%d < _map_size%d; ++_i%d) {" % (level_n, level_n, level_n, level_n)))
-            c.append(_indent(_indent("%s _key%d;" % (key_c_type, level_n))))
-            c.append(_indent(_indent("%s _value%d;" % (value_c_type, level_n))))
-            c.append("")
-            c.extend(_indent(_indent(self._deserialize_field("_key%d" % level_n, key_type_def, level_n + 1))))
-            c.extend(_indent(_indent(self._deserialize_field("_value%d" % level_n, value_type_def, level_n + 1))))
-            c.append(_indent(_indent("%s[_key%d] = _value%d;" % (field_name, level_n, level_n))))
-            c.append(_indent("}"))
-            c.append("}")
+            if mode == "stl":
+                c.append("{")
+                c.append(
+                    _indent("size_t _map_size%d = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);" % level_n))
+                c.append(_indent("_size += sizeof(messgen::size_type);"))
+                c.append(
+                    _indent("for (size_t _i%d = 0; _i%d < _map_size%d; ++_i%d) {" % (level_n, level_n, level_n, level_n)))
+                c.append(_indent(_indent("%s _key%d;" % (key_c_type, level_n))))
+                c.append(_indent(_indent("%s _value%d;" % (value_c_type, level_n))))
+                c.append("")
+                c.extend(_indent(_indent(self._deserialize_field("_key%d" % level_n, key_type_def, level_n + 1))))
+                c.extend(_indent(_indent(self._deserialize_field("_value%d" % level_n, value_type_def, level_n + 1))))
+                c.append(_indent(_indent("%s.insert({_key%d, _value%d});" % (field_name, level_n, level_n))))
+                c.append(_indent("}"))
+                c.append("}")
+            elif mode == "nostl":
+                el_align = max(self._get_alignment(key_type_def), self._get_alignment(value_type_def))
+                c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
+                c.append("_size += sizeof(messgen::size_type);")
+                # if el_align > 1:
+                # Allocate memory and copy data to recover alignment
+                c.append(f"{field_name} = {{_alloc.alloc<decltype({field_name})::value_type>(_field_size), _field_size}};")
+                if key_type_def.size == 0 and value_type_def.size == 0:
+                    pass
+                # TODO optimization for flat items
+                else:
+                    # Vector or array of variable size elements
+                    c.append(f"for (auto &_i{level_n}: {field_name}) {{")
+                    c.extend(_indent(self._deserialize_field(f"_i{level_n}.first", key_type_def, level_n + 1)))
+                    c.extend(_indent(self._deserialize_field(f"_i{level_n}.second", value_type_def, level_n + 1)))
+                    c.append("}")
+                # else:
+                #     # For alignment == 1 simply point to data in source buffer
+                #     c.append(f"{field_name} = {{reinterpret_cast<const {el_c_type} *>(&_buf[_size]), _field_size}};")
+                #     c.append("_size += _field_size * %d;" % el_size)
 
         elif type_class == TypeClass.string:
             c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
