@@ -56,6 +56,32 @@ On Windows:
 make check
 ```
 
+## Types and Protocols
+
+
+
+`messgen-generate.py` can be used to validate types and/or protocols if used without `--lang` argument.
+
+To validate types only:
+
+```bash
+python3 messgen-generate.py --types <types_dir>
+```
+
+To validate protocols only (doesn't check if types exists):
+
+```bash
+python3 messgen-generate.py --protocol <protocol_dir:protocol_name>
+```
+
+To deeply validate protocols (check if all used types are valid):
+
+```bash
+python3 messgen-generate.py --types <types_dir> --protocol <protocol_dir:protocol_name>
+```
+
+Multiple types base directories and protocols can be used in the same time, by passing multiple `--types` or `--protocol` arguments.
+
 ## Generating Types and Protocols
 
 All data types should be placed in one directory. Each protocol can be placed in any arbitrary directory.
@@ -67,7 +93,7 @@ All data types should be placed in one directory. Each protocol can be placed in
 Message generator usage:
 
 ```bash
-python3 messgen-generate.py --types <types_dir> --protocol <protocol> --lang <lang> --outdir <out_dir> [--options key1=value1,key2=value2,...]
+python3 messgen-generate.py --types <types_dir> --protocol <protocol_dir:protocol_name> --lang <lang> --outdir <out_dir> [--options key1=value1,key2=value2,...]
 ```
 
 Generated messages are placed in the `out_dir` directory.
@@ -115,51 +141,40 @@ Before selecting messgen keep in mind:
 - Optimized for embedded systems: systems where non-aligned access to float/int is forbidden, systems without heap
 - Optimized for cross-platform compatibility (gives the same result on CPUs with different paddings, from 8bit microcontrollers to AMD64)
 - Optimized for serialization/deserialization speed on C++ port, allows zero-copy in some cases
-- Serialization level only, i.e. information about the type and size of the message must be added in separate header (examples provided)
+- Hashes for types and protocols for compatibility checks
+- Serialization level only, information about the type and size of the message must be added in separate header
 - No optional fields in structs and messages
-- No messages versioning
 
-Type and protocol descriptions are stored as `.yaml` files following the structure demonstrated below.
+During numbers serialization **little endian** format is used.
 
-```
-protocol_dir/
-├── some_proto_namespace
-│   ├── protocol_one.yaml
-│   └── protocol_two.yaml
-└── another_proto_namespace
-    └── ...
-```
-
-```
-types_dir/
-├── some_type_namespace
-│   ├── type1.yaml
-│   └── type1.yaml
-└── another_type_namespace
-    └── ...
-```
-
-Naming style for all identifiers in yaml is strictly: `snake_case`.
-In generated files identifiers will be converted to style that is specific for each port.
-
-#### Type
+#### Types
 
 The lowest level of hierarchy is **type**. It can be:
 
 - Scalar: e.g. `int32`, `float32`, `uint8`, `bool`
-- Enum: enumeration type, described in yaml file
-- Bitset: named bits set type, described in yaml file
+- Enum: enumeration type, described in schema
+- Bitset: named bits set type, described in schema
 - Array: fixed size `element_type[<size>]`, e.g. `int32[4]`, `my_struct[3]`
 - Vector: dynamic size array `element_type[]`, e.g. `int32[]`, `my_struct[]`
 - Map: ordered map `value_type{key_type}`, e.g. `string{int32}`, `my_struct{int32}{string}`
-- String: vector of `uint8`, representing string, `string`
-- Bytes: vector of `uint8`, representing bytes buffer, `bytes`
-- Struct: list of fields, described in yaml file
+- String: `string`
+- Bytes: bytes buffer, `bytes`
+- Struct: list of fields, described in schema
 - External: user-defined types, user must provide serialization/deserialization methods for each port that is used (TODO)
 
-#### Enum
+##### Struct
 
-Enum contains constants enumeration.
+Example struct definition file (`baro_report.yaml`):
+```yaml
+type_class: struct
+comment: "Barometer report"
+fields:
+  - { name: "timestamp", type: "uint64", comment: "[ns] Timestamp of the measurement" }
+  - { name: "temp", type: "float32", comment: "[deg C] Temperature" }
+  - { name: "pres", type: "float32", comment: "[Pa] Pressure" }
+```
+
+##### Enum
 
 Example enum definition file (`simple_enum.yaml`):
 ```yaml
@@ -171,9 +186,7 @@ values:
   - { name: "another_value", value: 1, comment: "Another example value" }
 ```
 
-#### Bitset
-
-Bitset is set of named bits.
+##### Bitset
 
 Example bitset definition file (`simple_bitset.yaml`):
 ```yaml
@@ -186,34 +199,47 @@ bits:
   - { name: "error", offset: 2, comment: "Error flag" }
 ```
 
-#### Struct
+#### Types Schema
 
-**Structs** are the most important part of the serialization.
-Each struct defined in separate file.
+Schema for **struct**, **enum**, **bitset** and **external** types can be described in yaml files, in tree structure, directories are interpreted as namespaces for the types.
 
-Example struct definition file (`baro_report.yaml`):
-```yaml
-type_class: struct
-comment: "Barometer report"
-fields:
-  - { name: "timestamp", type: "uint64", comment: "[ns] Timestamp of the measurement" }
-  - { name: "temp", type: "float32", comment: "[deg C] Temperature" }
-  - { name: "pres", type: "float32", comment: "[Pa] Pressure" }
+Example file structure for types:
+```
+tests/msg/types
+└── mynamespace
+    └── types
+        ├── simple_bitset.yaml
+        ├── simple_enum.yaml
+        ├── simple_struct.yaml
+        ├── subspace
+        │   └── complex_struct.yaml
+        └── var_size_struct.yaml
 ```
 
-Struct itself don't have any type identifier that is serialized in the message.
-Type ids can be assigned to structs in `weather_station.yaml` file (see below).
+Here `tests/msg/types` is the base directory, and all subdirectories are parts of namespace, so final type name is e.g. `mynamespace/types/subspace/complex_struct`.
 
-#### Protocol
+Naming style for all files and identifiers in yaml files is strictly: `snake_case`.
+In generated files identifiers will be converted to style that is specific for each language.
 
-**Protocol** defines the protocol ID and message IDs for structs that will be used
-as messages. Message ID used during serialization/deserialization to identify the
-message type. Multiple protocols may be used in one system, e.g.
-`my_namespace/bootloader` and `my_namespace/application`. Parser can check the
-protocol by protocol ID, that can be serialized in message header.
+#### Protocols Schema
+
+**Protocol** is set of **messages**, with associated message name and type, described in yaml files.
+Every protocol and message has ID, that can be used to identify the message during deserialization.
+Protocols are decoupled from types, and can be even generated independently, without passing types directory (`--types` argument), but full validation is not possible in this case.
+
+Example file structure for protocols description:
+```
+tests/msg/protocols/
+└── mynamespace
+    └── proto
+        ├── subspace
+        │   └── another_proto.yaml
+        └── test_proto.yaml
+```
+
+Similar to types, here `tests/msg/protocols` is the base directory, and all subdirectories are parts of namespace, so final protocol name is e.g. `mynamespace/proto/test_proto`.
 
 Example protocol definition (`weather_station.yaml`):
-
 ```yaml
 comment: "Weather station application protocol"
 messages:
@@ -222,3 +248,6 @@ messages:
   2: { name: "system_command", type: "system/command", comment: "System command message" }
   3: { name: "baro_report", type: "measurement/baro_report", comment: "Barometer report message" }
 ```
+
+Naming style for all files and identifiers in yaml files is strictly: `snake_case`.
+In generated files identifiers will be converted to style that is specific for each language.
