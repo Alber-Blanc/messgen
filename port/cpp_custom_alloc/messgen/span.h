@@ -1,56 +1,50 @@
 #pragma once
 
 #include <cstddef>
-#include <vector>
 
 namespace messgen {
 
 template <class T>
-struct vector {
+class span {
+public:
     using value_type = T;
 
     T *_ptr = nullptr;
     size_t _size = 0;
 
-    vector() = default;
+    span() = default;
 
-    vector(const vector<T> &other) {
+    span(const span<T> &other) {
         _ptr = other._ptr;
         _size = other._size;
     }
 
-    vector(T *ptr, size_t size)
+    span(T *ptr, size_t size)
         : _ptr(ptr),
           _size(size) {
     }
 
-    vector(const T *ptr, size_t size)
+    span(const T *ptr, size_t size)
         : _ptr(const_cast<T *>(ptr)),
           _size(size) {
     }
 
     template <class InputIterator, typename = std::enable_if_t<std::is_pointer<InputIterator>::value>>
-    vector(InputIterator &begin, InputIterator &end)
+    span(InputIterator &begin, InputIterator &end)
         : _ptr(begin),
           _size(end - begin) {
     }
 
     template <class V>
-    vector(V &v)
+    span(V &v)
         : _ptr(v.data()),
           _size(v.size()) {
     }
 
-    vector &operator=(const vector &other) {
+    span &operator=(const span &other) {
         _ptr = other._ptr;
         _size = other._size;
         return *this;
-    }
-
-    template <class InputIt>
-    void assign(const InputIt first, const InputIt last) {
-        _ptr = const_cast<T *>(first);
-        _size = last - first;
     }
 
     size_t size() const {
@@ -73,7 +67,7 @@ struct vector {
         return _ptr + _size;
     }
 
-    bool operator==(const vector<T> &other) const {
+    bool operator==(const span &other) const {
         if (_size != other._size) {
             return false;
         }
@@ -87,7 +81,7 @@ struct vector {
         return true;
     }
 
-    bool operator!=(const vector<T> &other) const {
+    bool operator!=(const span<T> &other) const {
         return !(*this == other);
     }
 

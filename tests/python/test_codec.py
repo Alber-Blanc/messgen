@@ -131,7 +131,7 @@ def test_protocol_info(codec):
         ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="struct_with_enum_msg").message_hash()
         ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="empty_struct_msg").message_hash()
         ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct_with_empty_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct_nostl_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct_custom_alloc_msg").message_hash()
         ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="flat_struct_msg").message_hash()
     )
 
@@ -368,7 +368,7 @@ def test_codec_types(codec):
         "int32",
         "int64",
         "int8",
-        "mynamespace/types/subspace/complex_struct_nostl",
+        "mynamespace/types/subspace/complex_struct_custom_alloc",
         "mynamespace/types/subspace/complex_struct_with_empty",
         "mynamespace/types/subspace/complex_struct",
         "mynamespace/types/empty_struct",

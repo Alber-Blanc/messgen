@@ -5,7 +5,7 @@
 
 #include <gtest/gtest.h>
 
-class Cpp17StlTest : public ::testing::Test {
+class Cpp17AutoAllocTest : public ::testing::Test {
 protected:
     std::vector<uint8_t> _buf;
 
@@ -44,7 +44,7 @@ protected:
     }
 };
 
-TEST_F(Cpp17StlTest, VarSizeStruct) {
+TEST_F(Cpp17AutoAllocTest, VarSizeStruct) {
     mynamespace::types::var_size_struct s{};
     std::vector<int64_t> v;
     v.resize(2);
@@ -57,7 +57,7 @@ TEST_F(Cpp17StlTest, VarSizeStruct) {
     test_serialization(s);
 }
 
-TEST_F(Cpp17StlTest, ComplexStruct) {
+TEST_F(Cpp17AutoAllocTest, ComplexStruct) {
     mynamespace::types::subspace::complex_struct s{};
 
     s.f0 = 255;
@@ -89,7 +89,7 @@ TEST_F(Cpp17StlTest, ComplexStruct) {
     test_serialization(s);
 }
 
-TEST_F(Cpp17StlTest, ComplexStructWithEmpty) {
+TEST_F(Cpp17AutoAllocTest, ComplexStructWithEmpty) {
     mynamespace::types::subspace::complex_struct_with_empty s{};
     test_serialization(s);
 }
@@ -99,7 +99,7 @@ constexpr void for_each(std::tuple<T...> &&obj, Func &&func) {
     std::apply([&]<class... M>(M &&...members) { (func(members), ...); }, obj);
 }
 
-TEST_F(Cpp17StlTest, MessageReflectionFieldTypes) {
+TEST_F(Cpp17AutoAllocTest, MessageReflectionFieldTypes) {
     using namespace messgen;
 
     auto s = mynamespace::types::subspace::complex_struct{};
@@ -131,7 +131,7 @@ TEST_F(Cpp17StlTest, MessageReflectionFieldTypes) {
     EXPECT_EQ(expected_types, types);
 }
 
-TEST_F(Cpp17StlTest, DispatchMessage) {
+TEST_F(Cpp17AutoAllocTest, DispatchMessage) {
     using namespace messgen;
 
     auto expected = mynamespace::types::simple_struct{

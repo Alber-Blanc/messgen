@@ -87,9 +87,9 @@ if __name__ == "__main__":
     print("Successfully generated serialized data to tests/data/serialized/bin/complex_struct_with_empty.bin")
 
 
-    # complex_struct_nostl
+    # complex_struct_custom_alloc
 
-    t = codec.type_converter("mynamespace/types/subspace/complex_struct_nostl")
+    t = codec.type_converter("mynamespace/types/subspace/complex_struct_custom_alloc")
     simple_struct = {
         "f0": 0x1234567890abcdef,
         "f1": 0x1234567890abcdef,
@@ -124,9 +124,9 @@ if __name__ == "__main__":
         "bits0": 0b101
     }
     b = t.serialize(msg1)
-    with open('tests/data/serialized/bin/complex_struct_nostl.bin', 'wb') as f:
+    with open('tests/data/serialized/bin/complex_struct_custom_alloc.bin', 'wb') as f:
         f.write(b)
-    print("Successfully generated serialized data to tests/data/serialized/bin/complex_struct_nostl.bin")
+    print("Successfully generated serialized data to tests/data/serialized/bin/complex_struct_custom_alloc.bin")
 
 
     # complex_struct

@@ -8,7 +8,7 @@ export enum Message {
   STRUCT_WITH_ENUM_MSG = 3,
   EMPTY_STRUCT_MSG = 4,
   COMPLEX_STRUCT_WITH_EMPTY_MSG = 5,
-  COMPLEX_STRUCT_NOSTL_MSG = 6,
+  COMPLEX_STRUCT_CUSTOM_ALLOC_MSG = 6,
   FLAT_STRUCT_MSG = 9,
 }
 
@@ -22,7 +22,7 @@ export interface Proto {
     [Message.STRUCT_WITH_ENUM_MSG]: MynamespaceTypes.StructWithEnum;
     [Message.EMPTY_STRUCT_MSG]: MynamespaceTypes.EmptyStruct;
     [Message.COMPLEX_STRUCT_WITH_EMPTY_MSG]: MynamespaceTypesSubspace.ComplexStructWithEmpty;
-    [Message.COMPLEX_STRUCT_NOSTL_MSG]: MynamespaceTypesSubspace.ComplexStructNostl;
+    [Message.COMPLEX_STRUCT_CUSTOM_ALLOC_MSG]: MynamespaceTypesSubspace.ComplexStructCustomAlloc;
     [Message.FLAT_STRUCT_MSG]: MynamespaceTypes.FlatStruct;
   }
 }

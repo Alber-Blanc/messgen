@@ -1,11 +1,11 @@
 #include <messgen/messgen.h>
-#include <mynamespace/types/subspace/complex_struct_nostl.h>
+#include <mynamespace/types/subspace/complex_struct_custom_alloc.h>
 #include <mynamespace/types/struct_with_enum.h>
 #include <mynamespace/types/var_size_struct.h>
 #include <mynamespace/types/empty_struct.h>
 #include <gtest/gtest.h>
 
-class Cpp17NostlTest : public ::testing::Test {
+class Cpp17CustomAllocTest : public ::testing::Test {
 protected:
     std::vector<uint8_t> _buf;
     uint8_t _alloc_buf[1024 * 1024] = {};
@@ -39,7 +39,7 @@ protected:
     }
 };
 
-TEST_F(Cpp17NostlTest, SimpleStruct) {
+TEST_F(Cpp17CustomAllocTest, SimpleStruct) {
     mynamespace::types::simple_struct s{};
     s.f0 = 1;
     s.f1 = 2;
@@ -53,7 +53,7 @@ TEST_F(Cpp17NostlTest, SimpleStruct) {
     test_serialization(s);
 }
 
-TEST_F(Cpp17NostlTest, StructWithEnum) {
+TEST_F(Cpp17CustomAllocTest, StructWithEnum) {
     mynamespace::types::struct_with_enum s{};
     s.f0 = 1;
     s.f1 = 2;
@@ -62,7 +62,7 @@ TEST_F(Cpp17NostlTest, StructWithEnum) {
     test_serialization(s);
 }
 
-TEST_F(Cpp17NostlTest, VarSizeStruct) {
+TEST_F(Cpp17CustomAllocTest, VarSizeStruct) {
     mynamespace::types::var_size_struct s{};
     std::vector<int64_t> v;
     v.resize(2);
@@ -75,10 +75,10 @@ TEST_F(Cpp17NostlTest, VarSizeStruct) {
     test_serialization(s);
 }
 
-TEST_F(Cpp17NostlTest, ComplexStructNostl) {
+TEST_F(Cpp17CustomAllocTest, ComplexStructCustomAlloc) {
     using namespace std::string_view_literals;
 
-    mynamespace::types::subspace::complex_struct_nostl s{};
+    mynamespace::types::subspace::complex_struct_custom_alloc s{};
     s.f0 = 255;
     std::vector<double> f2_vec;
     f2_vec.push_back(45.787);
@@ -91,14 +91,14 @@ TEST_F(Cpp17NostlTest, ComplexStructNostl) {
     v_vec0_0_0.emplace_back(777);
     std::vector<mynamespace::types::var_size_struct> v_vec0_0;
     v_vec0_0.push_back(mynamespace::types::var_size_struct{234, v_vec0_0_0, ""sv});
-    std::vector<messgen::vector<mynamespace::types::var_size_struct>> v_vec0;
+    std::vector<messgen::span<mynamespace::types::var_size_struct>> v_vec0;
     v_vec0.emplace_back(v_vec0_0);
     s.v_vec0 = v_vec0;
 
     test_serialization(s);
 }
 
-TEST_F(Cpp17NostlTest, EmptyStruct) {
+TEST_F(Cpp17CustomAllocTest, EmptyStruct) {
     mynamespace::types::empty_struct s{};
     ASSERT_TRUE(s.IS_FLAT);
     ASSERT_EQ(s.FLAT_SIZE, 0);

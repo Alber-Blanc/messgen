@@ -146,7 +146,7 @@ class CppGenerator:
             write_file_if_diff(file_name, self._generate_proto_file(proto_name, proto_def))
 
     def _get_mode(self):
-        return self._options.get("mode", "stl")
+        return self._options.get("mode", "auto_alloc")
 
     def _get_cpp_standard(self):
         return int(self._options.get("cpp_standard", "20"))
@@ -283,7 +283,7 @@ class CppGenerator:
         return code
 
     def _generate_dispatcher_decl(self) -> list[str]:
-        if self._get_mode() == "nostl":
+        if self._get_mode() == "custom_alloc":
             out = """
             template <class Fn>
             static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, uint8_t *dynamic_buf = nullptr, size_t dynamic_buf_size = 0);
@@ -296,7 +296,7 @@ class CppGenerator:
         return textwrap.indent(textwrap.dedent(out), "    ").splitlines()
 
     def _generate_dispatcher(self, class_name: str) -> list[str]:
-        if self._get_mode() == "nostl":
+        if self._get_mode() == "custom_alloc":
             out = f"""
             template <class Fn>
             constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, uint8_t *dynamic_buf, size_t dynamic_buf_size) {{
@@ -493,7 +493,7 @@ class CppGenerator:
             code.append(_indent("static constexpr size_t FLAT_SIZE = %d;" % (0 if is_empty else groups[0].size)))
             is_flat_str = "true"
         code.append(_indent(f"static constexpr bool IS_FLAT = {is_flat_str};"))
-        if self._get_mode() == "nostl":
+        if self._get_mode() == "custom_alloc":
             need_alloc_str = "false"
             if self._need_alloc(type_name):
                 need_alloc_str = "true"
@@ -509,7 +509,7 @@ class CppGenerator:
             code.append(_indent(f"{field_c_type} {field.name}; {_inline_comment(field)}"))
 
         need_alloc = False
-        if self._get_mode() == "nostl":
+        if self._get_mode() == "custom_alloc":
             for field in type_def.fields:
                 need_alloc = need_alloc or self._need_alloc(field.type)
 
@@ -698,21 +698,21 @@ class CppGenerator:
                 return self._CPP_TYPES_MAP[type_name]
 
             elif type_def.type_class == TypeClass.string:
-                if mode == "stl":
+                if mode == "auto_alloc":
                     self._add_include("string")
                     return "std::string"
-                elif mode == "nostl":
+                elif mode == "custom_alloc":
                     self._add_include("string_view")
                     return "std::string_view"
                 else:
                     raise RuntimeError("Unsupported mode for string: %s" % mode)
 
             elif type_def.type_class == TypeClass.bytes:
-                if mode == "stl":
+                if mode == "auto_alloc":
                     self._add_include("vector")
                     return "std::vector<uint8_t>"
-                elif mode == "nostl":
-                    return "messgen::vector<uint8_t>"
+                elif mode == "custom_alloc":
+                    return "messgen::span<uint8_t>"
                 else:
                     raise RuntimeError("Unsupported mode for bytes: %s" % mode)
 
@@ -727,21 +727,21 @@ class CppGenerator:
 
         elif isinstance(type_def, VectorType):
             el_c_type = self._cpp_type(type_def.element_type)
-            if mode == "stl":
+            if mode == "auto_alloc":
                 self._add_include("vector")
                 return "std::vector<%s>" % el_c_type
-            elif mode == "nostl":
-                return "messgen::vector<%s>" % el_c_type
+            elif mode == "custom_alloc":
+                return "messgen::span<%s>" % el_c_type
             else:
                 raise RuntimeError("Unsupported mode for vector: %s" % mode)
 
         elif isinstance(type_def, MapType):
             key_c_type = self._cpp_type(type_def.key_type)
             value_c_type = self._cpp_type(type_def.value_type)
-            if mode == "stl":
+            if mode == "auto_alloc":
                 self._add_include("map")
                 return "std::map<%s, %s>" % (key_c_type, value_c_type)
-            elif mode == "nostl":
+            elif mode == "custom_alloc":
                 self._add_include("span")
                 return "messgen::map<%s, %s>" % (key_c_type, value_c_type)
             else:
@@ -892,7 +892,7 @@ class CppGenerator:
 
         elif type_class in [TypeClass.struct, TypeClass.external]:
             alloc = ""
-            if mode == "nostl" and self._need_alloc(field_type_def.type):
+            if mode == "custom_alloc" and self._need_alloc(field_type_def.type):
                 alloc = ", _alloc"
             c.append("_size += %s.deserialize(&_buf[_size]%s);" % (field_name, alloc))
 
@@ -917,7 +917,7 @@ class CppGenerator:
             el_size = el_type_def.size
             el_align = self._get_alignment(el_type_def)
 
-            if mode == "stl":
+            if mode == "auto_alloc":
                 c.append("%s.resize(*reinterpret_cast<const messgen::size_type *>(&_buf[_size]));" % field_name)
                 c.append("_size += sizeof(messgen::size_type);")
                 if el_size == 0:
@@ -931,7 +931,7 @@ class CppGenerator:
                     c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
                     c.extend(_indent(self._deserialize_field("_i%d" % level_n, el_type_def, level_n + 1)))
                     c.append("}")
-            elif mode == "nostl":
+            elif mode == "custom_alloc":
                 el_c_type = self._cpp_type(field_type_def.element_type)
                 c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
                 c.append("_size += sizeof(messgen::size_type);")
@@ -952,7 +952,7 @@ class CppGenerator:
                         c.append("}")
                 else:
                     # For alignment == 1 simply point to data in source buffer
-                    c.append(f"{field_name} = {{reinterpret_cast<const {el_c_type} *>(&_buf[_size]), _field_size}};")
+                    c.append(f"{field_name} = {{const_cast<{el_c_type} *>(reinterpret_cast<const {el_c_type} *>(&_buf[_size])), _field_size}};")
                     c.append("_size += _field_size * %d;" % el_size)
 
         elif type_class == TypeClass.map:
@@ -960,7 +960,7 @@ class CppGenerator:
             key_type_def = self._types.get(field_type_def.key_type)
             value_c_type = self._cpp_type(field_type_def.value_type)
             value_type_def = self._types.get(field_type_def.value_type)
-            if mode == "stl":
+            if mode == "auto_alloc":
                 c.append("{")
                 c.append(
                     _indent("size_t _map_size%d = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);" % level_n))
@@ -975,7 +975,7 @@ class CppGenerator:
                 c.append(_indent(_indent("%s.insert({_key%d, _value%d});" % (field_name, level_n, level_n))))
                 c.append(_indent("}"))
                 c.append("}")
-            elif mode == "nostl":
+            elif mode == "custom_alloc":
                 el_align = max(self._get_alignment(key_type_def), self._get_alignment(value_type_def))
                 c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
                 c.append("_size += sizeof(messgen::size_type);")
@@ -1005,7 +1005,11 @@ class CppGenerator:
         elif type_class == TypeClass.bytes:
             c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
             c.append("_size += sizeof(messgen::size_type);")
-            c.append("%s.assign(&_buf[_size], &_buf[_size + _field_size]);" % field_name)
+            if mode == "auto_alloc":
+                c.append("%s.resize(_field_size);" % field_name)
+                c.append("%s.assign(&_buf[_size], &_buf[_size + _field_size]);" % field_name)
+            elif mode == "custom_alloc":
+                c.append("%s = {&_buf[_size], _field_size};" % field_name)
             c.append("_size += _field_size;")
 
         else:

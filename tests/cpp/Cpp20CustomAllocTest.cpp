@@ -4,9 +4,9 @@
 #include <mynamespace/types/var_size_struct.h>
 #include <gtest/gtest.h>
 
-class Cpp20NostlTest : public ::testing::Test {};
+class Cpp20CustomAllocTest : public ::testing::Test {};
 
-TEST_F(Cpp20NostlTest, TypeConcept) {
+TEST_F(Cpp20CustomAllocTest, TypeConcept) {
     using namespace messgen;
 
     struct not_a_message {};
@@ -16,7 +16,7 @@ TEST_F(Cpp20NostlTest, TypeConcept) {
     EXPECT_FALSE(type<int>);
 }
 
-TEST_F(Cpp20NostlTest, FlatTypeConcept) {
+TEST_F(Cpp20CustomAllocTest, FlatTypeConcept) {
     using namespace messgen;
 
     EXPECT_TRUE(flat_type<mynamespace::types::flat_struct>);

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vector.h"
+#include "span.h"
 
 #include <messgen/reflection_common.h>
 

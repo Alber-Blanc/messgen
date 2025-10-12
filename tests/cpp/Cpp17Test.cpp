@@ -293,8 +293,8 @@ TEST_F(Cpp17Test, ProtoHash) {
                          mynamespace::proto::test_proto::struct_with_enum_msg::HASH ^          //
                          mynamespace::proto::test_proto::empty_struct_msg::HASH ^              //
                          mynamespace::proto::test_proto::complex_struct_with_empty_msg::HASH ^ //
-                         mynamespace::proto::test_proto::complex_struct_nostl_msg::HASH ^      //
+                         mynamespace::proto::test_proto::complex_struct_custom_alloc_msg::HASH ^      //
                          mynamespace::proto::test_proto::flat_struct_msg::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
-    EXPECT_EQ(17049879361460499161U, hash_test_proto);
+    EXPECT_EQ(14416702850100313809U, hash_test_proto);
 }

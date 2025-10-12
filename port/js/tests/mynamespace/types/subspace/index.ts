@@ -27,7 +27,7 @@ export interface ComplexStruct {
   map_vec_by_str: Map<string, Int32Array>;
 }
 /** Simple struct example */
-export interface ComplexStructNostl {
+export interface ComplexStructCustomAlloc {
   /** Some integer field */
   f0: bigint;
   /** Some integer field */
@@ -61,12 +61,12 @@ export interface ComplexStructWithEmpty {
 }
 export enum Types {
   COMPLEX_STRUCT = 'mynamespace/types/subspace/complex_struct',
-  COMPLEX_STRUCT_NOSTL = 'mynamespace/types/subspace/complex_struct_nostl',
+  COMPLEX_STRUCT_CUSTOM_ALLOC = 'mynamespace/types/subspace/complex_struct_custom_alloc',
   COMPLEX_STRUCT_WITH_EMPTY = 'mynamespace/types/subspace/complex_struct_with_empty',
 }
 
 export type TypeMap = {
   [Types.COMPLEX_STRUCT]: ComplexStruct;
-  [Types.COMPLEX_STRUCT_NOSTL]: ComplexStructNostl;
+  [Types.COMPLEX_STRUCT_CUSTOM_ALLOC]: ComplexStructCustomAlloc;
   [Types.COMPLEX_STRUCT_WITH_EMPTY]: ComplexStructWithEmpty;
 };

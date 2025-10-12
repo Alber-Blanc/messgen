@@ -138,7 +138,7 @@ describe('integration', () => {
     )));
   });
 
-  it('should be parse complex_struct_nostl', () => {
+  it('should be parse complex_struct_custom_alloc', () => {
     const simpleStruct = {
       f0: bigint,
       f1: bigint,
@@ -184,12 +184,12 @@ describe('integration', () => {
       str_vec: ['string1', 'string2', 'string3'],
       bits0: SimpleBitset.ONE | SimpleBitset.ERROR,
     };
-    const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct_nostl.bin');
+    const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct_custom_alloc.bin');
 
-    const buffer = codec.serialize(Protocol.PROTO_ID, Protocol.Message.COMPLEX_STRUCT_NOSTL_MSG, rawData);
+    const buffer = codec.serialize(Protocol.PROTO_ID, Protocol.Message.COMPLEX_STRUCT_CUSTOM_ALLOC_MSG, rawData);
     const result = codec.deserialize(
       Protocol.PROTO_ID,
-      Protocol.Message.COMPLEX_STRUCT_NOSTL_MSG,
+      Protocol.Message.COMPLEX_STRUCT_CUSTOM_ALLOC_MSG,
       new Uint8Array(rawDataBit).buffer,
     );
 
