@@ -246,6 +246,19 @@ private:
     value_type _value;
 };
 
+[[nodiscard]] constexpr inline double decimal64::pow10_dbl(int exp) {
+    constexpr auto offset = int(detail::POW10<double, detail::DEC_MIN_EXPONENT, detail::DEC_MAX_EXPONENT>.size()) / 2;
+
+    assert(exp <= offset);
+    assert(exp >= -offset);
+
+    return detail::POW10<double, detail::DEC_MIN_EXPONENT, detail::DEC_MAX_EXPONENT>[exp + offset];
+}
+
+[[nodiscard]] constexpr inline uint64_t decimal64::pow10_int(int exp) {
+    return detail::POW10<uint64_t, 0, detail::DEC_MAX_EXPONENT>[exp];
+}
+
 [[nodiscard]] inline decimal64 decimal64::from_double(double value, decimal64 tick, round_mode round_mode) noexcept {
     assert(!tick.is_nan());
     assert(!tick.is_infinite());
@@ -309,18 +322,24 @@ private:
         str.remove_prefix(1);
     }
 
-    // parse integral part
     auto coeff = uint64_t{};
+    auto exp = 0;
+
+    // parse integral part
+    constexpr auto max_pow_ten = pow10_int(detail::DEC_MAX_EXPONENT - 1);
     while (!str.empty() && str[0] != '.' && str[0] != 'e') {
         if (!std::isdigit(str[0])) {
             return std::nullopt;
         }
-        coeff = coeff * 10 + (str[0] - '0');
+        if (coeff < max_pow_ten) {
+            coeff = coeff * 10 + (str[0] - '0');
+        } else {
+            ++exp;
+        }
         str.remove_prefix(1);
     }
 
     // parse frac part
-    auto exp = 0;
     if (!str.empty() && str[0] == '.') {
         str.remove_prefix(1);
         while (!str.empty() && str[0] != 'e') {
@@ -576,19 +595,6 @@ constexpr inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coef
         (is_v1 * coeff_1) + (!is_v1 * coeff_2),
         (is_v1 * exponent_1) + (!is_v1 * exponent_2),
     };
-}
-
-[[nodiscard]] constexpr inline double decimal64::pow10_dbl(int exp) {
-    constexpr auto offset = int(detail::POW10<double, detail::DEC_MIN_EXPONENT, detail::DEC_MAX_EXPONENT>.size()) / 2;
-
-    assert(exp <= offset);
-    assert(exp >= -offset);
-
-    return detail::POW10<double, detail::DEC_MIN_EXPONENT, detail::DEC_MAX_EXPONENT>[exp + offset];
-}
-
-[[nodiscard]] constexpr inline uint64_t decimal64::pow10_int(int exp) {
-    return detail::POW10<uint64_t, 0, detail::DEC_MAX_EXPONENT>[exp];
 }
 
 [[nodiscard]] inline decimal64 operator+(decimal64 lhs, decimal64 rhs) noexcept {
