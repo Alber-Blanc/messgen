@@ -483,6 +483,8 @@ inline decimal64 &decimal64::operator*=(int64_t other) noexcept {
 }
 
 inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept {
+    constexpr auto exponent_bias = int16_t{398};
+
     if (coeff > detail::DEC_MAX_COEFFICIENT || exponent < detail::DEC_MIN_EXPONENT || exponent > detail::DEC_MAX_EXPONENT) [[unlikely]] {
         std::tie(coeff, exponent) = normalize(coeff, exponent);
     }
@@ -513,7 +515,7 @@ inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexc
 
     // Apply exponent bias
     _value <<= 10;
-    _value |= exponent - detail::DEC_MIN_EXPONENT;
+    _value |= exponent + exponent_bias;
 
     // Apply the coefficient
     _value <<= coefficient_bits;
@@ -557,15 +559,15 @@ inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coeff, int exp
 [[nodiscard]] inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const noexcept {
     assert(!is_nan());
 
-    constexpr auto exponent_bias = detail::DEC_MIN_EXPONENT;
+    constexpr auto exponent_bias = int16_t{398};
     constexpr auto exponent_mask = (int16_t{1} << 10) - 1;
 
     auto sign = (_value >> 63) * -2 + 1;
 
-    auto exponent_1 = (_value >> 51 & exponent_mask) + exponent_bias;
+    auto exponent_1 = (_value >> 51 & exponent_mask) - exponent_bias;
     auto coeff_1 = (_value & ((uint64_t{1} << 51) - 1)) | uint64_t{1} << 53;
 
-    auto exponent_2 = (_value >> 53 & exponent_mask) + exponent_bias;
+    auto exponent_2 = (_value >> 53 & exponent_mask) - exponent_bias;
     auto coeff_2 = _value & ((uint64_t{1} << 53) - 1);
 
     auto is_v1 = bool((_value >> 62) & 1);
