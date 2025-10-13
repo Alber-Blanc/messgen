@@ -44,38 +44,6 @@ protected:
     }
 };
 
-TEST_F(Cpp17AutoAllocTest, ComplexStruct) {
-    mynamespace::types::subspace::complex_struct s{};
-
-    s.f0 = 255;
-    s.f2_vec.push_back(45.787);
-    s.e_vec.push_back(mynamespace::types::simple_enum::another_value);
-    s.s_arr[0].f3 = 3;
-    s.s_arr[1].f3 = 5;
-    s.v_vec0.resize(1);
-    s.v_vec0[0].resize(2);
-    s.v_vec0[0][0].f1_vec.resize(3);
-    s.v_vec0[0][0].f1_vec[2] = 3242;
-    s.v_vec2.resize(2);
-    s.v_vec2[1][0].resize(3);
-    s.v_vec2[1][0][2] = 5;
-    s.str = "Hello messgen!";
-    s.bs.assign({1, 2, 3, 4, 5});
-    s.str_vec.push_back("spam");
-    s.str_vec.push_back("eggs");
-    s.str_vec.push_back("sticks");
-    s.map_str_by_int[23] = "ping";
-    s.map_str_by_int[777] = "pong";
-    s.map_vec_by_str["cat"].push_back(1);
-    s.map_vec_by_str["cat"].push_back(2);
-    s.map_vec_by_str["cat"].push_back(3);
-    s.map_vec_by_str["dog"].push_back(30);
-    s.map_vec_by_str["dog"].push_back(40);
-    s.bits0 |= mynamespace::types::simple_bitset::error;
-
-    test_serialization(s);
-}
-
 TEST_F(Cpp17AutoAllocTest, ComplexStructWithEmpty) {
     mynamespace::types::subspace::complex_struct_with_empty s{};
     test_serialization(s);
@@ -93,27 +61,24 @@ TEST_F(Cpp17AutoAllocTest, MessageReflectionFieldTypes) {
 
     auto types = std::vector<std::string_view>{};
     for_each(members_of(reflect_object(s)), [&](auto &&param) { types.push_back(name_of(type_of(param))); });
-    EXPECT_EQ(types.size(), 18);
+    EXPECT_EQ(types.size(), 15);
 
     auto expected_types = std::vector<std::string_view>{
-        "uint64_t",
-        "uint32_t",
-        "uint64_t",
         "mynamespace::types::simple_bitset",
-        "array<mynamespace::types::simple_struct, 2>",
-        "array<int64_t, 4>",
-        "array<mynamespace::types::var_size_struct, 2>",
-        "vector<double>",
-        "vector<mynamespace::types::simple_enum>",
-        "vector<mynamespace::types::simple_struct>",
-        "vector<vector<mynamespace::types::var_size_struct>>",
-        "array<vector<mynamespace::types::var_size_struct>, 4>",
-        "vector<array<vector<int16_t>, 4>>",
+        "mynamespace::types::simple_struct[2]",
+        "int64[4]",
+        "mynamespace::types::var_size_struct[2]",
+        "float64[]",
+        "mynamespace::types::simple_enum[]",
+        "mynamespace::types::simple_struct[]",
+        "mynamespace::types::var_size_struct[][]",
+        "mynamespace::types::var_size_struct[][4]",
+        "int16[][4][]",
         "string",
-        "vector<uint8_t>",
-        "vector<string>",
-        "map<int32_t, string>",
-        "map<string, vector<int32_t>>",
+        "bytes",
+        "string[]",
+        "string{int32}",
+        "int32[]{string}",
     };
     EXPECT_EQ(expected_types, types);
 }

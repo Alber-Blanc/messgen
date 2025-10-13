@@ -99,43 +99,75 @@ template <class T>
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<uint8_t>) noexcept {
-    return "uint8_t";
+    return "uint8";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<int8_t>) noexcept {
-    return "int8_t";
+    return "int8";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<uint16_t>) noexcept {
-    return "uint16_t";
+    return "uint16";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<int16_t>) noexcept {
-    return "int16_t";
+    return "int16";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<uint32_t>) noexcept {
-    return "uint32_t";
+    return "uint32";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<int32_t>) noexcept {
-    return "int32_t";
+    return "int32";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<uint64_t>) noexcept {
-    return "uint64_t";
+    return "uint64";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<int64_t>) noexcept {
-    return "int64_t";
+    return "int64";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<float>) noexcept {
-    return "float";
+    return "float32";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<double>) noexcept {
-    return "double";
+    return "float64";
+}
+
+class bytes;
+
+[[nodiscard]] constexpr std::string_view name_of(reflect_t<messgen::bytes>) noexcept {
+    return "bytes";
+}
+
+template <class Protocol>
+constexpr auto members_of() -> std::enable_if_t<is_protocol_v<Protocol>, decltype(members_of(reflect_type<Protocol>))> {
+    constexpr auto members = members_of(reflect_type<Protocol>);
+    return members;
+}
+
+template <class Message>
+constexpr auto hash_of(reflect_t<Message>) -> std::enable_if_t<is_message_v<Message>, uint64_t> {
+    constexpr auto hash = Message::HASH;
+    return hash;
+}
+
+template <class Protocol>
+constexpr auto hash_of(reflect_t<Protocol>) -> std::enable_if_t<is_protocol_v<Protocol>, uint64_t> {
+    auto hash = uint64_t{0};
+    auto combine = [&hash](auto... members) { hash = (hash_of(type_of(members)) ^ ...); };
+    std::apply(combine, members_of(reflect_type<Protocol>));
+    return hash;
+}
+
+template <class T>
+constexpr auto hash_of() -> std::enable_if_t<is_protocol_v<T> || is_message_v<T>, uint64_t> {
+    constexpr auto hash = hash_of(reflect_type<T>);
+    return hash;
 }
 
 } // namespace messgen

@@ -1,6 +1,5 @@
 #include <messgen/messgen.h>
 #include <mynamespace/types/subspace/complex_struct_custom_alloc.h>
-#include <mynamespace/types/struct_with_enum.h>
 #include <mynamespace/types/var_size_struct.h>
 #include <mynamespace/types/empty_struct.h>
 #include <gtest/gtest.h>

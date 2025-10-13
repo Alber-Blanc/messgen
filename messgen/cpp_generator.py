@@ -469,9 +469,10 @@ class CppGenerator:
     def _generate_type_struct(self, type_name: str, type_def: StructType, types: dict[str, MessgenType]):
         fields = type_def.fields
 
+        self._add_include("messgen/messgen.h")
         self._add_include("cstddef")
         self._add_include("cstring")
-        self._add_include("messgen/messgen.h")
+        self._add_include("string_view")
 
         unqual_name = _unqual_name(type_name)
 
@@ -520,6 +521,7 @@ class CppGenerator:
             [
                 "size_t _size = 0;",
                 "[[maybe_unused]] size_t _field_size;",
+                "[[maybe_unused]] messgen::size_type *_size_ptr;",
                 "",
             ]
         )
@@ -708,13 +710,8 @@ class CppGenerator:
                     raise RuntimeError("Unsupported mode for string: %s" % mode)
 
             elif type_def.type_class == TypeClass.bytes:
-                if mode == "auto_alloc":
-                    self._add_include("vector")
-                    return "std::vector<uint8_t>"
-                elif mode == "custom_alloc":
-                    return "messgen::bytes"
-                else:
-                    raise RuntimeError("Unsupported mode for bytes: %s" % mode)
+                self._add_include("messgen/bytes.h")
+                return "messgen::bytes"
 
         elif isinstance(type_def, DecimalType):
             self._add_include("messgen/decimal.h")
@@ -867,9 +864,10 @@ class CppGenerator:
             c.append("_size += %s.size();" % field_name)
 
         elif type_class == TypeClass.bytes:
-            c.append(f"*reinterpret_cast<messgen::size_type *>(&_buf[_size]) = {field_name}.serialized_size();")
+            c.append("_size_ptr = reinterpret_cast<messgen::size_type *>(&_buf[_size]);")
             c.append("_size += sizeof(messgen::size_type);")
-            c.append(f"_size += {field_name}.serialize(&_buf[_size]);")
+            c.append(f"*_size_ptr = {field_name}.serialize(&_buf[_size]);")
+            c.append("_size += *_size_ptr;")
 
         else:
             raise RuntimeError("Unsupported type_class in _serialize_field: %s" % type_class)
@@ -951,7 +949,8 @@ class CppGenerator:
                         c.append("}")
                 else:
                     # For alignment == 1 simply point to data in source buffer
-                    c.append(f"{field_name} = {{const_cast<{el_c_type} *>(reinterpret_cast<const {el_c_type} *>(&_buf[_size])), _field_size}};")
+                    c.append(
+                        f"{field_name} = {{const_cast<{el_c_type} *>(reinterpret_cast<const {el_c_type} *>(&_buf[_size])), _field_size}};")
                     c.append("_size += _field_size * %d;" % el_size)
 
         elif type_class == TypeClass.map:
@@ -962,10 +961,12 @@ class CppGenerator:
             if mode == "auto_alloc":
                 c.append("{")
                 c.append(
-                    _indent("size_t _map_size%d = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);" % level_n))
+                    _indent(
+                        "size_t _map_size%d = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);" % level_n))
                 c.append(_indent("_size += sizeof(messgen::size_type);"))
                 c.append(
-                    _indent("for (size_t _i%d = 0; _i%d < _map_size%d; ++_i%d) {" % (level_n, level_n, level_n, level_n)))
+                    _indent(
+                        "for (size_t _i%d = 0; _i%d < _map_size%d; ++_i%d) {" % (level_n, level_n, level_n, level_n)))
                 c.append(_indent(_indent("%s _key%d;" % (key_c_type, level_n))))
                 c.append(_indent(_indent("%s _value%d;" % (value_c_type, level_n))))
                 c.append("")
@@ -980,7 +981,8 @@ class CppGenerator:
                 c.append("_size += sizeof(messgen::size_type);")
                 # if el_align > 1:
                 # Allocate memory and copy data to recover alignment
-                c.append(f"{field_name} = {{_alloc.alloc<decltype({field_name})::value_type>(_field_size), _field_size}};")
+                c.append(
+                    f"{field_name} = {{_alloc.alloc<decltype({field_name})::value_type>(_field_size), _field_size}};")
                 if key_type_def.size == 0 and value_type_def.size == 0:
                     pass
                 # TODO optimization for flat items
@@ -1004,11 +1006,7 @@ class CppGenerator:
         elif type_class == TypeClass.bytes:
             c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
             c.append("_size += sizeof(messgen::size_type);")
-            if mode == "auto_alloc":
-                c.append("%s.resize(_field_size);" % field_name)
-                c.append("%s.assign(&_buf[_size], &_buf[_size + _field_size]);" % field_name)
-            elif mode == "custom_alloc":
-                c.append("%s = {&_buf[_size], _field_size};" % field_name)
+            c.append("%s = {&_buf[_size], _field_size};" % field_name)
             c.append("_size += _field_size;")
 
         else:

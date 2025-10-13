@@ -168,9 +168,9 @@ TEST_F(Cpp17Test, VarSizeStruct) {
 TEST_F(Cpp17Test, ComplexStruct) {
     mynamespace::types::subspace::complex_struct s{};
 
-    std::array<decltype(s.f2_vec)::value_type, 1> f2_vec_data = {45.787};
+    std::vector<decltype(s.f2_vec)::value_type> f2_vec_data = {45.787};
     s.f2_vec = f2_vec_data;
-    std::array<decltype(s.e_vec)::value_type, 1> e_vec_data = {mynamespace::types::simple_enum::another_value};
+    std::vector<decltype(s.e_vec)::value_type> e_vec_data = {mynamespace::types::simple_enum::another_value};
     s.e_vec = e_vec_data;
     s.s_arr[0].f3 = 3;
     s.s_arr[1].f3 = 5;
@@ -353,20 +353,19 @@ TEST_F(Cpp17Test, ProtoHash) {
     auto expected_hash = mynamespace::proto::test_proto::simple_struct_msg::HASH ^               //
                          mynamespace::proto::test_proto::complex_struct_msg::HASH ^              //
                          mynamespace::proto::test_proto::var_size_struct_msg::HASH ^             //
-                         mynamespace::proto::test_proto::struct_with_enum_msg::HASH ^            //
                          mynamespace::proto::test_proto::empty_struct_msg::HASH ^                //
                          mynamespace::proto::test_proto::complex_struct_with_empty_msg::HASH ^   //
                          mynamespace::proto::test_proto::complex_struct_custom_alloc_msg::HASH ^ //
                          mynamespace::proto::test_proto::flat_struct_msg::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
-    EXPECT_EQ(8049847705001068174, hash_test_proto);
+    EXPECT_EQ(5364352269789356129U, hash_test_proto);
 }
 
 TEST_F(Cpp17Test, BytesPlain) {
     std::array<uint8_t, 2> buf{1, 2};
     messgen::bytes bs{buf};
-    EXPECT_EQ(1, bs[0]);
-    EXPECT_EQ(2, bs[1]);
+    EXPECT_EQ(1, bs.data()[0]);
+    EXPECT_EQ(2, bs.data()[1]);
 }
 
 TEST_F(Cpp17Test, BytesSerializable) {

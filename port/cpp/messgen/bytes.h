@@ -1,6 +1,7 @@
 #pragma once
 
-#include "messgen/traits.h"
+#include "messgen_common.h"
+#include "traits.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -9,35 +10,28 @@
 
 namespace messgen {
 
-
 class bytes {
 public:
-    using serialize_function = size_t (*)(void *, uint8_t *);
-    using serialized_size_function = size_t (*)(void *);
-
-    void *_ptr = nullptr;
-    size_t _size = 0;
-    serialize_function _f_serialize = nullptr;
-    serialized_size_function _f_serialized_size = nullptr;
-
-    bytes() = default;
+    bytes()
+        : _f_serialize(+[](const void *, messgen::size_type, uint8_t *) -> size_t { return 0; }) {
+    }
 
     bytes(const bytes &other) {
         _ptr = other._ptr;
         _size = other._size;
+        _f_serialize = other._f_serialize;
     }
 
-    bytes(void *ptr, size_t size)
+    bytes(const uint8_t *ptr, size_t size)
         : _ptr(ptr),
-          _size(size) {
+          _size(size),
+          _f_serialize(+[](const void *obj, messgen::size_type size, uint8_t *buf) {
+              ::memcpy(buf, obj, size);
+              return size_t(size);
+          }) {
     }
 
-    bytes(const void *ptr, size_t size)
-        : _ptr(const_cast<void *>(ptr)),
-          _size(size) {
-    }
-
-    template <class ITER, typename = std::enable_if_t<std::is_pointer<ITER>::value>>
+    template <class ITER, typename = std::enable_if_t<std::is_same_v<typename std::iterator_traits<ITER>::iterator_category, std::random_access_iterator_tag>>>
     bytes(ITER &begin, ITER &end)
         : _ptr(begin),
           _size(end - begin) {
@@ -59,8 +53,8 @@ public:
     template <class S, typename = std::enable_if_t<messgen::has_serialize_method_v<S>>>
     bytes(const S &s)
         : _ptr(const_cast<void *>(reinterpret_cast<const void *>(&s))),
-          _f_serialize([](void *obj, uint8_t *buf) { return static_cast<S *>(obj)->serialize(buf); }),
-          _f_serialized_size([](void *obj) { return static_cast<S *>(obj)->serialized_size(); }) {
+          _f_serialize(+[](const void *obj, messgen::size_type, uint8_t *buf) { return static_cast<const S *>(obj)->serialize(buf); }),
+          _size(s.serialized_size()) {
     }
 
     bytes &operator=(const bytes &other) {
@@ -85,36 +79,24 @@ public:
         return !(*this == other);
     }
 
-    uint8_t &operator[](size_t idx) {
-        return reinterpret_cast<uint8_t *>(_ptr)[idx];
-    }
-
-    const uint8_t &operator[](size_t idx) const {
-        return reinterpret_cast<uint8_t *>(_ptr)[idx];
-    }
-
-    uint8_t *data() {
-        return reinterpret_cast<uint8_t *>(_ptr);
-    }
-
     const uint8_t *data() const {
         return reinterpret_cast<const uint8_t *>(_ptr);
     }
 
     size_t serialize(uint8_t *buf) const {
-        if (_f_serialize != nullptr) {
-            return _f_serialize(_ptr, buf);
-        }
-        ::memcpy(buf, _ptr, _size);
-        return _size;
+        return _f_serialize(_ptr, _size, buf);
     }
 
     size_t serialized_size() const {
-        if (_f_serialized_size != nullptr) {
-            return _f_serialized_size(_ptr);
-        }
         return _size;
     }
+
+private:
+    using serialize_function = size_t (*)(const void *, messgen::size_type, uint8_t *);
+
+    messgen::size_type _size = 0;
+    const void *_ptr = nullptr;
+    serialize_function _f_serialize = nullptr;
 };
 
 } // namespace messgen
