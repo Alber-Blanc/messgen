@@ -1,11 +1,10 @@
 #pragma once
 
-#include <decimal/decimal>
-
 #include <array>
 #include <cassert>
 #include <charconv>
 #include <cmath>
+#include <compare>
 #include <cstdint>
 #include <ios>
 #include <istream>
@@ -16,29 +15,26 @@
 namespace messgen {
 namespace detail {
 
+constexpr auto DEC_NAN_MASK = 0b11111ULL << 58;
 constexpr auto DEC_INF_MASK = 0b11110ULL << 58;
-constexpr auto DEC_MAX_EXPONENT = 369;
-constexpr auto DEC_MIN_EXPONENT = -398;
-constexpr auto DEC_MAX_COEFFICIENT = [] {
-    uint64_t pow = 1;
-    for (int i = 1; i <= 16; ++i) {
-        pow *= 10;
-    }
-    return pow - 1;
-}();
+constexpr auto DEC_SIGN_MASK = 0b1ULL << 63;
+constexpr auto DEC_MAX_EXPONENT = 19;
+constexpr auto DEC_MIN_EXPONENT = -19;
+constexpr auto DEC_MAX_COEFFICIENT = (1ULL << 54) - 1;
 
-static constexpr auto TICK_POW10 = []() {
-    constexpr int exponent_max = 16;
-    constexpr int exponent_min = -exponent_max;
-    constexpr auto size = exponent_max - exponent_min + 1;
+template <typename T, int MIN, int MAX>
+inline constexpr auto POW10 = []() {
+    constexpr auto size = MAX - MIN + 1;
 
-    auto res = std::array<double, size>{1.0};
+    auto res = std::array<T, size>{};
+    res.fill(T{} + 1);
+
     uint64_t pow10 = 1;
-    for (int i = exponent_max; i < size; ++i) {
-        res[i] = double(pow10);
+    for (int i = -MIN; i < size; ++i) {
+        res[i] = T(pow10);
         pow10 *= 10; // NOLINT
     }
-    for (int i = 0; i < exponent_max; ++i) {
+    for (int i = 0; i < -MIN; ++i) {
         res[i] /= res[size - i - 1];
     }
     return res;
@@ -67,7 +63,9 @@ enum class round_mode {
 struct decimal64 {
 
     /// @brief Default constructor initializing to zero
-    constexpr decimal64() = default;
+    decimal64()
+        : decimal64(1, 0, 0) {
+    }
 
     /// @brief Creates a decimal64 from a double value according to specified tick size and rounding mode
     ///
@@ -124,6 +122,8 @@ struct decimal64 {
     /// @return bool True if the value is NaN, false otherwise
     [[nodiscard]] bool is_nan() const noexcept;
 
+    [[nodiscard]] bool is_negative() const noexcept;
+
     /// @brief Adds another decimal64 to this one
     ///
     /// @param other The value to add
@@ -145,7 +145,7 @@ struct decimal64 {
     /// @brief Returns the negation of this value
     ///
     /// @return decimal64 The negated value
-    decimal64 operator-() const noexcept;
+    decimal64 operator-() noexcept;
 
     /// @brief Adds two decimal64 values
     ///
@@ -173,7 +173,7 @@ struct decimal64 {
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
     /// @return std::strong_ordering The ordering relation between the operands
-    friend std::strong_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept;
+    friend std::partial_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept;
 
     /// @brief Tests equality between two decimal64 values
     ///
@@ -196,28 +196,22 @@ struct decimal64 {
     /// @return std::istream& Reference to the input stream
     friend std::istream &operator>>(std::istream &, decimal64 &);
 
-private:
-    using value_type = std::decimal::decimal64;
-    using integral_type = uint64_t;
+    constexpr static decimal64 infinity() noexcept;
 
-    union decimal_cast {
-        integral_type integer = 0;
-        value_type decimal;
-    };
+private:
+    using value_type = uint64_t;
 
     template <char... C>
     friend decimal64 operator""_dd();
 
     explicit decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept;
     explicit decimal64(long long coeff, int exponent) noexcept;
-    explicit decimal64(double value) noexcept;
     explicit decimal64(value_type value) noexcept;
 
     /// @brief Decomposes the decimal into its components
     ///
     /// @return A tuple containing (sign, coefficient, exponent)
-    [[gnu::noinline, clang::noinline, nodiscard]]
-    std::pair<uint64_t, int16_t> normalize(uint64_t coeff, int16_t exponent) const noexcept;
+    [[nodiscard]] std::pair<uint64_t, int16_t> normalize(uint64_t coeff, int exponent) const noexcept;
 
     /// @brief Decomposes the decimal into its components
     ///
@@ -231,12 +225,23 @@ private:
     /// double precision.
     ///
     /// @param exp The exponent value to raise 10 to
-    /// @pre exp must be in the range [-16, 16]
+    /// @pre exp must be in the range [-63, 63]
     /// @return The value of 10^exp as a double
-    [[nodiscard]] static double tick_pow10(int exp);
+    [[nodiscard]] constexpr static double pow10_dbl(int exp);
+
+    /// @brief Computes 10 raised to the specified power efficiently.
+    ///
+    /// This function calculates the value of 10^exp at compile time.
+    /// The result is guaranteed to be accurate within the limits of
+    /// double precision.
+    ///
+    /// @param exp The exponent value to raise 10 to
+    /// @pre exp must be in the range [0, 19]
+    /// @return The value of 10^exp as a double
+    [[nodiscard]] constexpr static uint64_t pow10_int(int exp);
 
     /// The internal decimal value
-    value_type _value = 0;
+    value_type _value;
 };
 
 [[nodiscard]] inline decimal64 decimal64::from_double(double value, decimal64 tick, round_mode round_mode) noexcept {
@@ -246,9 +251,8 @@ private:
     assert(std::isfinite(value));
 
     auto [tick_sign, tick_coeff, tick_exp] = tick.decompose();
-    value *= tick_pow10(-tick_exp);
+    value *= pow10_dbl(-tick_exp);
     switch (round_mode) {
-
         case round_mode::down:
             return decimal64{static_cast<long long>(std::floor(value / tick_coeff) * tick_coeff), tick_exp};
         case round_mode::mid:
@@ -263,11 +267,11 @@ private:
 }
 
 [[nodiscard]] inline decimal64 decimal64::from_integer(std::unsigned_integral auto integer) noexcept {
-    return decimal64{std::decimal::make_decimal64(static_cast<unsigned long long>(integer), 0)};
+    return decimal64{static_cast<unsigned long long>(integer), 0};
 }
 
 [[nodiscard]] inline decimal64 decimal64::from_integer(std::integral auto integer) noexcept {
-    return decimal64{std::decimal::make_decimal64(static_cast<long long>(integer), 0)};
+    return decimal64{static_cast<long long>(integer), 0};
 }
 
 [[nodiscard]] inline std::optional<decimal64> decimal64::from_string(std::string_view str) {
@@ -276,15 +280,15 @@ private:
     }
 
     if (str == "inf") {
-        return decimal64{detail::DEC_MAX_COEFFICIENT, detail::DEC_MAX_EXPONENT + 1}; // NOLINT
+        return infinity();
     }
 
     if (str == "-inf") {
-        return decimal64{-1, detail::DEC_MAX_COEFFICIENT, detail::DEC_MAX_EXPONENT + 1}; // NOLINT
+        return -infinity();
     }
 
     if (str == "nan") {
-        return decimal64{std::nan("1")};
+        return decimal64{detail::DEC_NAN_MASK};
     }
 
     // remove leading whitespace
@@ -297,14 +301,14 @@ private:
         str.remove_suffix(1);
     }
 
-    auto sign = 1;
+    int8_t sign = 1;
     if (str[0] == '-') {
         sign = -1;
         str.remove_prefix(1);
     }
 
     // parse integral part
-    auto coeff = int64_t{};
+    auto coeff = uint64_t{};
     while (!str.empty() && str[0] != '.' && str[0] != 'e') {
         if (!std::isdigit(str[0])) {
             return std::nullopt;
@@ -314,7 +318,7 @@ private:
     }
 
     // parse frac part
-    auto exponent = 0;
+    auto exp = 0;
     if (!str.empty() && str[0] == '.') {
         str.remove_prefix(1);
         while (!str.empty() && str[0] != 'e') {
@@ -322,7 +326,7 @@ private:
                 return std::nullopt;
             }
             coeff = coeff * 10 + (str[0] - '0');
-            --exponent;
+            --exp;
             str.remove_prefix(1);
         }
     }
@@ -330,23 +334,40 @@ private:
     // parse exponent part
     if (!str.empty() && str[0] == 'e') {
         str.remove_prefix(1);
-        auto exponent_part = 0;
-        auto result = std::from_chars(str.data(), str.data() + str.size(), exponent_part);
+        auto exp_part = 0;
+        auto result = std::from_chars(str.data(), str.data() + str.size(), exp_part);
         if (result.ec != std::errc{}) {
             return std::nullopt;
         }
-        exponent += exponent_part;
+        exp += exp_part;
     }
 
-    return decimal64{sign * coeff, exponent};
+    return decimal64{sign, coeff, int16_t(exp)};
 }
 
 [[nodiscard]] inline double decimal64::to_double() const noexcept {
-    return std::decimal::decimal64_to_double(_value);
+    if (is_nan()) [[unlikely]] {
+        return std::nan("");
+    }
+    if (is_infinite()) [[unlikely]] {
+        auto [sign, coeff, exp] = decompose();
+        return sign * std::numeric_limits<double>::infinity();
+    }
+
+    auto [sign, coeff, exp] = decompose();
+    return sign * static_cast<double>(coeff) * pow10_dbl(exp);
 }
 
 [[nodiscard]] inline int64_t decimal64::to_integer() const noexcept {
-    return std::decimal::decimal_to_long_long(_value);
+    if (is_nan() || is_infinite()) [[unlikely]] {
+        return 0;
+    }
+
+    auto [sign, coeff, exp] = decompose();
+    if (exp < 0) {
+        return sign * static_cast<int64_t>(coeff / pow10_int(-exp));
+    }
+    return sign * static_cast<int64_t>(coeff * pow10_int(exp));
 }
 
 [[nodiscard]] inline std::string decimal64::to_string() const {
@@ -358,12 +379,12 @@ private:
         return "nan";
     }
 
-    auto [sign, coeff, exponent] = decompose();
+    auto [sign, coeff, exp] = decompose();
 
     // normalize exponent
-    while (coeff % 10 == 0 && exponent != 0) {
+    while (coeff % 10 == 0 && exp != 0) {
         coeff /= 10;
-        ++exponent;
+        ++exp;
     }
 
     // fractional part till leading zeros
@@ -372,17 +393,17 @@ private:
     auto print_exp = 0;
     auto print_int = int64_t{0};
 
-    while (exponent < 0 && coeff) {
+    while (exp < 0 && coeff) {
         print_frac += mul * (coeff % 10);
         coeff /= 10;
         mul *= 10;
-        exponent += 1;
+        exp += 1;
     }
 
     // leading zeros of fractional part
-    while (exponent < 0) {
+    while (exp < 0) {
         print_exp -= 1;
-        exponent += 1;
+        exp += 1;
     }
 
     // integral part
@@ -393,9 +414,9 @@ private:
         mul *= 10;
     };
 
-    while (exponent > 0) {
+    while (exp > 0) {
         print_int *= 10;
-        --exponent;
+        --exp;
     }
 
     print_int *= sign;
@@ -414,30 +435,49 @@ private:
 }
 
 [[nodiscard]] inline bool decimal64::is_infinite() const noexcept {
-    return (decimal_cast{.decimal = _value}.integer & detail::DEC_INF_MASK) == detail::DEC_INF_MASK && !is_nan();
+    return (_value & detail::DEC_INF_MASK) == detail::DEC_INF_MASK && !is_nan();
 }
 
 [[nodiscard]] inline bool decimal64::is_nan() const noexcept {
-    return _value != _value;
+    return (_value & detail::DEC_NAN_MASK) == detail::DEC_NAN_MASK;
+}
+
+[[nodiscard]] bool decimal64::is_negative() const noexcept {
+    return (_value & detail::DEC_SIGN_MASK) > 1;
 }
 
 inline decimal64 &decimal64::operator+=(decimal64 other) noexcept {
-    _value += other._value;
+    auto [lhs_sign, lhs_coeff, lhs_exp] = decompose();
+    auto [rhs_sign, rhs_coeff, rhs_exp] = other.decompose();
+
+    auto exp_diff = lhs_exp - rhs_exp;
+    auto lhs_adjustment = exp_diff * (exp_diff > 0);
+    auto rhs_adjustment = -exp_diff * (exp_diff <= 0);
+
+    lhs_coeff *= pow10_int(lhs_adjustment);
+    rhs_coeff *= pow10_int(rhs_adjustment);
+
+    auto res_exp = (rhs_exp * (exp_diff > 0)) + (lhs_exp * (exp_diff <= 0));
+    auto res_coeff = lhs_sign * int64_t(lhs_coeff) + rhs_sign * int64_t(rhs_coeff);
+
+    _value = decimal64{res_coeff, res_exp}._value;
+
     return *this;
 }
 
 inline decimal64 &decimal64::operator-=(decimal64 other) noexcept {
-    _value -= other._value;
-    return *this;
+    return *this += (-other);
 }
 
 inline decimal64 &decimal64::operator*=(int64_t other) noexcept {
-    _value *= other;
+    auto [sign, coeff, exp] = decompose();
+    _value = decimal64{sign * int64_t(coeff) * other, exp}._value;
     return *this;
 }
 
-[[nodiscard]] inline decimal64 decimal64::operator-() const noexcept {
-    return decimal64(-_value);
+[[nodiscard]] inline decimal64 decimal64::operator-() noexcept {
+    _value ^= detail::DEC_SIGN_MASK;
+    return *this;
 }
 
 inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept {
@@ -446,86 +486,81 @@ inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexc
     }
 
     // Check if dec64 is inifity
-    auto sign_bit = uint64_t{sign < 0};
-    if ((sign_bit == 0 and coeff > detail::DEC_MAX_COEFFICIENT) or exponent > detail::DEC_MAX_EXPONENT) [[unlikely]] {
-        _value = decimal_cast((sign_bit << 63) | detail::DEC_INF_MASK).decimal;
+    auto sign_bit = value_type{sign < 0};
+    if (coeff > detail::DEC_MAX_COEFFICIENT || exponent > detail::DEC_MAX_EXPONENT) [[unlikely]] {
+        _value = (sign_bit << 63) | infinity()._value;
         return;
     }
 
     // Check if dec64 trimms to zero
-    if (coeff > detail::DEC_MAX_COEFFICIENT or exponent < detail::DEC_MIN_EXPONENT) [[unlikely]] {
-        _value = decimal_cast(int64_t(sign_bit) << 63).decimal;
+    if (exponent < detail::DEC_MIN_EXPONENT) [[unlikely]] {
+        _value = (sign_bit << 63);
         return;
     }
 
     // Store the sign
-    auto bits = sign_bit;
+    _value = sign_bit;
     auto coefficient_bits = 0;
-    if (coeff > ((integral_type{1} << 53) - 1)) {
+    if (coeff > ((value_type{1} << 53) - 1)) {
         coefficient_bits = 51;
-        bits <<= 2;
-        bits |= 0b11; // Top 2 bits of combination field
+        _value <<= 2;
+        _value |= 0b11; // Top 2 bits of combination field
     } else {
         coefficient_bits = 53;
     }
 
     // Apply exponent bias
-    bits <<= 10;
-    bits |= exponent - detail::DEC_MIN_EXPONENT;
+    _value <<= 10;
+    _value |= exponent - detail::DEC_MIN_EXPONENT;
 
     // Apply the coefficient
-    bits <<= coefficient_bits;
-    bits |= coeff & ((integral_type{1} << coefficient_bits) - 1);
-
-    _value = decimal_cast(bits).decimal;
+    _value <<= coefficient_bits;
+    _value |= coeff & ((value_type{1} << coefficient_bits) - 1);
 }
 
 inline decimal64::decimal64(long long coeff, int exponent) noexcept
-    : decimal64(int8_t((coeff > 0) * 2 - 1), std::abs(coeff), int16_t(exponent)) {
-}
-
-inline decimal64::decimal64(double value) noexcept
-    : _value(value) {
+    : decimal64(int8_t((coeff >= 0) * 2 - 1), std::abs(coeff), int16_t(exponent)) {
 }
 
 inline decimal64::decimal64(value_type value) noexcept
     : _value(value) {
 }
 
-[[gnu::noinline, clang::noinline, nodiscard]]
-inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coeff, int16_t exponent) const noexcept {
+constexpr decimal64 decimal64::infinity() noexcept {
+    return decimal64{detail::DEC_INF_MASK | detail::DEC_MAX_COEFFICIENT};
+}
+
+inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coeff, int exponent) const noexcept {
     // Normalize the coefficient
-    while (coeff != 0 and coeff % 10 == 0 and exponent < detail::DEC_MAX_EXPONENT) {
+    while (coeff != 0 && coeff % 10 == 0 && exponent < detail::DEC_MAX_EXPONENT) {
         coeff /= 10;
         exponent += 1;
     }
 
     // Normalize the exponent
-    while (exponent > detail::DEC_MAX_EXPONENT and coeff * 10 <= detail::DEC_MAX_COEFFICIENT) {
+    while ((exponent > detail::DEC_MAX_EXPONENT || exponent < detail::DEC_MIN_EXPONENT) && coeff * 10 <= detail::DEC_MAX_COEFFICIENT) {
         coeff *= 10;
-        exponent -= 1;
+        exponent += exponent < 0;
     }
 
-    return {coeff, exponent};
+    return {coeff, int16_t(exponent)};
 }
 
 [[nodiscard]] inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const noexcept {
     assert(!is_nan());
-    assert(!is_infinite());
 
     constexpr auto exponent_bias = detail::DEC_MIN_EXPONENT;
     constexpr auto exponent_mask = (int16_t{1} << 10) - 1;
 
-    auto bits = decimal_cast{.decimal = _value}.integer;
-    auto sign = (bits >> 63) * -2 + 1;
+    auto sign = (_value >> 63) * -2 + 1;
 
-    auto exponent_1 = (bits >> 51 & exponent_mask) + exponent_bias;
-    auto coeff_1 = (bits & ((uint64_t{1} << 51) - 1)) | uint64_t{1} << 53;
+    auto exponent_1 = (_value >> 51 & exponent_mask) + exponent_bias;
+    auto coeff_1 = (_value & ((uint64_t{1} << 51) - 1)) | uint64_t{1} << 53;
 
-    auto exponent_2 = (bits >> 53 & exponent_mask) + exponent_bias;
-    auto coeff_2 = bits & ((uint64_t{1} << 53) - 1);
+    auto exponent_2 = (_value >> 53 & exponent_mask) + exponent_bias;
+    auto coeff_2 = _value & ((uint64_t{1} << 53) - 1);
 
-    auto is_v1 = bool((bits >> 62) & 1);
+    auto is_v1 = bool((_value >> 62) & 1);
     return {
         sign,
         (is_v1 * coeff_1) + (!is_v1 * coeff_2),
@@ -533,11 +568,17 @@ inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coeff, int16_t
     };
 }
 
-[[nodiscard]] inline double decimal64::tick_pow10(int exp) {
-    constexpr auto offset = int(detail::TICK_POW10.size()) / 2;
+[[nodiscard]] constexpr inline double decimal64::pow10_dbl(int exp) {
+    constexpr auto offset = int(detail::POW10<double, detail::DEC_MIN_EXPONENT, detail::DEC_MAX_EXPONENT>.size()) / 2;
+
     assert(exp <= offset);
     assert(exp >= -offset);
-    return detail::TICK_POW10[exp + offset];
+
+    return detail::POW10<double, detail::DEC_MIN_EXPONENT, detail::DEC_MAX_EXPONENT>[exp + offset];
+}
+
+[[nodiscard]] constexpr inline uint64_t decimal64::pow10_int(int exp) {
+    return detail::POW10<uint64_t, 0, detail::DEC_MAX_EXPONENT>[exp];
 }
 
 [[nodiscard]] inline decimal64 operator+(decimal64 lhs, decimal64 rhs) noexcept {
@@ -555,16 +596,32 @@ inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coeff, int16_t
     return lhs;
 }
 
-inline std::strong_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept {
-    if (lhs._value < rhs._value)
-        return std::strong_ordering::less;
-    if (lhs._value > rhs._value)
-        return std::strong_ordering::greater;
-    return std::strong_ordering::equal;
+inline std::partial_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept {
+    if (lhs.is_nan() || rhs.is_nan()) [[unlikely]] {
+        return std::partial_ordering::unordered;
+    }
+
+    if (lhs.is_infinite() || rhs.is_infinite()) [[unlikely]] {
+        auto lhs_inf = (!lhs.is_negative() << 1) | lhs.is_infinite();
+        auto rhs_inf = (!rhs.is_negative() << 1) | rhs.is_infinite();
+        return lhs_inf <=> rhs_inf;
+    }
+
+    auto [lhs_sign, lhs_coeff, lhs_exp] = lhs.decompose();
+    auto [rhs_sign, rhs_coeff, rhs_exp] = rhs.decompose();
+
+    auto exp_diff = lhs_exp - rhs_exp;
+    auto lhs_adjustment = exp_diff * (exp_diff > 0);
+    auto rhs_adjustment = -exp_diff * (exp_diff <= 0);
+
+    auto lhs_res = lhs_sign * double(lhs_coeff) * decimal64::pow10_dbl(lhs_adjustment);
+    auto rhs_res = rhs_sign * double(rhs_coeff) * decimal64::pow10_dbl(rhs_adjustment);
+
+    return lhs_res <=> rhs_res;
 }
 
 inline bool operator==(const decimal64 &lhs, const decimal64 &rhs) noexcept {
-    return lhs._value == rhs._value;
+    return lhs <=> rhs == std::partial_ordering::equivalent;
 }
 
 inline std::ostream &operator<<(std::ostream &os, decimal64 dec) {
@@ -647,7 +704,7 @@ consteval std::tuple<int, uint64_t, int> parse() {
 template <char... C>
 [[nodiscard]] decimal64 operator""_dd() {
     auto [sign, coeff, exponent] = detail::parse<C...>();
-    return decimal64{std::decimal::make_decimal64(sign * static_cast<long long>(coeff), exponent)};
+    return decimal64{int8_t(sign), coeff, int16_t(exponent)};
 }
 
 } // namespace messgen

@@ -1,13 +1,11 @@
 #include <messgen/decimal.h>
 #include <messgen/test/flat_struct_with_decimal.h>
 
+#include <decimal/decimal>
 #include <cmath>
-#include <stdlib.h>
-#include <float.h>
-
-#include <iostream>
-#include <iomanip>
 #include <cstring>
+#include <iomanip>
+#include <iostream>
 
 #include <gtest/gtest.h>
 
@@ -300,10 +298,10 @@ TEST_F(CppDecimalTest, FromString) {
     EXPECT_EQ(0.000123_dd, decimal64::from_string("0.123e-3"));
 
     // Extreme values
-    auto very_large = decimal64::from_string("9.99e30");
+    auto very_large = decimal64::from_string("9.99e19");
     EXPECT_GT(very_large, decimal64::from_integer(0));
 
-    auto very_small = decimal64::from_string("9.99e-30");
+    auto very_small = decimal64::from_string("9.99e-19");
     EXPECT_GT(very_small, decimal64::from_integer(0));
 
     // Infinity
