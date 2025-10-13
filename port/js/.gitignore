@@ -4,5 +4,7 @@
 
 tests/protocols.json
 tests/types.json
+tests/types.ts
+tests/protocols.ts
 /tests/mynamespace/
 gen.sh
