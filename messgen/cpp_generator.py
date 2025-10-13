@@ -212,7 +212,7 @@ class CppGenerator:
                 textwrap.indent(
                     textwrap.dedent(f"""
                         struct {message.name} {{
-                            using data_type = {_qual_name(message.type)};
+                            using data_type = ::{_qual_name(message.type)};
                             using protocol_type = {class_name};
 
                             static constexpr int16_t PROTO_ID = protocol_type::PROTO_ID;
@@ -986,7 +986,10 @@ class CppGenerator:
         elif type_class == TypeClass.bytes:
             c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
             c.append("_size += sizeof(messgen::size_type);")
-            c.append("%s.assign(&_buf[_size], &_buf[_size + _field_size]);" % field_name)
+            if mode == "stl":
+                c.append("%s.assign(&_buf[_size], &_buf[_size + _field_size]);" % field_name)
+            elif mode == "nostl":
+                c.append("%s = {&_buf[_size], _field_size};" % field_name)
             c.append("_size += _field_size;")
 
         else:
