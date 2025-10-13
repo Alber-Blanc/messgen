@@ -12,6 +12,9 @@ namespace messgen {
     return "string";
 }
 
+template <class T, auto N>
+[[nodiscard]] std::string_view name_of(reflect_t<std::array<T, N>>);
+
 template <class T>
 [[nodiscard]] std::string_view name_of(reflect_t<std::vector<T>>);
 

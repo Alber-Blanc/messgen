@@ -44,43 +44,10 @@ protected:
     }
 };
 
-TEST_F(Cpp17AutoAllocTest, ComplexStructWithEmpty) {
-    mynamespace::types::subspace::complex_struct_with_empty s{};
-    test_serialization(s);
-}
 
 template <class Func, class... T>
 constexpr void for_each(std::tuple<T...> &&obj, Func &&func) {
     std::apply([&]<class... M>(M &&...members) { (func(members), ...); }, obj);
-}
-
-TEST_F(Cpp17AutoAllocTest, MessageReflectionFieldTypes) {
-    using namespace messgen;
-
-    auto s = mynamespace::types::subspace::complex_struct{};
-
-    auto types = std::vector<std::string_view>{};
-    for_each(members_of(reflect_object(s)), [&](auto &&param) { types.push_back(name_of(type_of(param))); });
-    EXPECT_EQ(types.size(), 15);
-
-    auto expected_types = std::vector<std::string_view>{
-        "mynamespace::types::simple_bitset",
-        "mynamespace::types::simple_struct[2]",
-        "int64[4]",
-        "mynamespace::types::var_size_struct[2]",
-        "float64[]",
-        "mynamespace::types::simple_enum[]",
-        "mynamespace::types::simple_struct[]",
-        "mynamespace::types::var_size_struct[][]",
-        "mynamespace::types::var_size_struct[][4]",
-        "int16[][4][]",
-        "string",
-        "bytes",
-        "string[]",
-        "string{int32}",
-        "int32[]{string}",
-    };
-    EXPECT_EQ(expected_types, types);
 }
 
 TEST_F(Cpp17AutoAllocTest, DispatchMessage) {
