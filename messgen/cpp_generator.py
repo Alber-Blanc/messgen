@@ -212,7 +212,7 @@ class CppGenerator:
                 textwrap.indent(
                     textwrap.dedent(f"""
                         struct {message.name} {{
-                            using data_type = {_qual_name(message.type)};
+                            using data_type = ::{_qual_name(message.type)};
                             using protocol_type = {class_name};
 
                             static constexpr int16_t PROTO_ID = protocol_type::PROTO_ID;
