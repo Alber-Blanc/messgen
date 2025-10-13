@@ -523,22 +523,15 @@ constexpr inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t expon
 
     // Store the sign
     _value = sign_bit;
-    auto coefficient_bits = 0;
-    if (coeff > ((value_type{1} << 53) - 1)) {
-        coefficient_bits = 51;
-        _value <<= 2;
-        _value |= 0b11; // Top 2 bits of combination field
-    } else {
-        coefficient_bits = 53;
-    }
 
     // Apply exponent bias
     _value <<= 10;
     _value |= exponent + exponent_bias;
 
     // Apply the coefficient
-    _value <<= coefficient_bits;
-    _value |= coeff & ((value_type{1} << coefficient_bits) - 1);
+    // Note: we inentionally don't support coefficient > (1 << 54 - 1) for simplicity and performance reasons
+    _value <<= 53;
+    _value |= coeff & detail::DEC_MAX_COEFFICIENT;
 }
 
 constexpr inline decimal64::decimal64(int64_t coeff, int exponent) noexcept
@@ -582,19 +575,10 @@ constexpr inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coef
     constexpr auto exponent_mask = (int16_t{1} << 10) - 1;
 
     auto sign = (_value >> 63) * -2 + 1;
+    auto exp = (_value >> 53 & exponent_mask) - exponent_bias;
+    auto coeff = _value & ((uint64_t{1} << 53) - 1);
 
-    auto exponent_1 = (_value >> 51 & exponent_mask) - exponent_bias;
-    auto coeff_1 = (_value & ((uint64_t{1} << 51) - 1)) | uint64_t{1} << 53;
-
-    auto exponent_2 = (_value >> 53 & exponent_mask) - exponent_bias;
-    auto coeff_2 = _value & ((uint64_t{1} << 53) - 1);
-
-    auto is_v1 = bool((_value >> 62) & 1);
-    return {
-        sign,
-        (is_v1 * coeff_1) + (!is_v1 * coeff_2),
-        (is_v1 * exponent_1) + (!is_v1 * exponent_2),
-    };
+    return {sign, coeff, exp};
 }
 
 [[nodiscard]] inline decimal64 operator+(decimal64 lhs, decimal64 rhs) noexcept {
