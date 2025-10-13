@@ -44,19 +44,6 @@ protected:
     }
 };
 
-TEST_F(Cpp17AutoAllocTest, VarSizeStruct) {
-    mynamespace::types::var_size_struct s{};
-    std::vector<int64_t> v;
-    v.resize(2);
-    v[0] = 3;
-    v[1] = 4;
-
-    s.f0 = 1;
-    s.f1_vec = v;
-
-    test_serialization(s);
-}
-
 TEST_F(Cpp17AutoAllocTest, ComplexStruct) {
     mynamespace::types::subspace::complex_struct s{};
 

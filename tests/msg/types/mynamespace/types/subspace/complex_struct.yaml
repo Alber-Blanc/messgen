@@ -1,9 +1,6 @@
 type_class: struct
 comment: "Simple struct example"
 fields:
-  - { name: "f0", type: "uint64", comment: "Some integer field" }
-  - { name: "f1", type: "uint32", comment: "Some integer field" }
-  - { name: "f2", type: "uint64", comment: "Some integer field" }
   - { name: "bits0", type: "mynamespace/types/simple_bitset", comment: "Some bitset field" }
   - { name: "s_arr", type: "mynamespace/types/simple_struct[2]" }
   - { name: "f1_arr", type: "int64[4]", comment: "Another integer field" }
@@ -11,9 +8,9 @@ fields:
   - { name: "f2_vec", type: "float64[]" }
   - { name: "e_vec", type: "mynamespace/types/simple_enum[]" }
   - { name: "s_vec", type: "mynamespace/types/simple_struct[]" }
-  - { name: "v_vec0", type: "mynamespace/types/var_size_struct[][]" }
-  - { name: "v_vec1", type: "mynamespace/types/var_size_struct[][4]" }
-  - { name: "v_vec2", type: "int16[][4][]" }
+  - { name: "vec_vec_var", type: "mynamespace/types/var_size_struct[][]" }
+  - { name: "arr_vec_var", type: "mynamespace/types/var_size_struct[][4]" }
+  - { name: "vec_arr_vec_int", type: "int16[][4][]" }
   - { name: "str", type: "string" }
   - { name: "bs", type: "bytes" }
   - { name: "str_vec", type: "string[]" }

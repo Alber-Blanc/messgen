@@ -12,3 +12,5 @@ fields:
   - { name: "f7", type: "uint8" }
   - { name: "f8", type: "int8" }
   - { name: "f9", type: "bool" }
+  - { name: "e0", type: "mynamespace/types/simple_enum" }
+  - { name: "b0", type: "mynamespace/types/simple_bitset" }

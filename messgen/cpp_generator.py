@@ -712,7 +712,7 @@ class CppGenerator:
                     self._add_include("vector")
                     return "std::vector<uint8_t>"
                 elif mode == "custom_alloc":
-                    return "messgen::span<uint8_t>"
+                    return "messgen::bytes"
                 else:
                     raise RuntimeError("Unsupported mode for bytes: %s" % mode)
 
@@ -867,10 +867,9 @@ class CppGenerator:
             c.append("_size += %s.size();" % field_name)
 
         elif type_class == TypeClass.bytes:
-            c.append("*reinterpret_cast<messgen::size_type *>(&_buf[_size]) = %s.size();" % field_name)
+            c.append(f"*reinterpret_cast<messgen::size_type *>(&_buf[_size]) = {field_name}.serialized_size();")
             c.append("_size += sizeof(messgen::size_type);")
-            c.append("std::copy(%s.begin(), %s.end(), &_buf[_size]);" % (field_name, field_name))
-            c.append("_size += %s.size();" % field_name)
+            c.append(f"_size += {field_name}.serialize(&_buf[_size]);")
 
         else:
             raise RuntimeError("Unsupported type_class in _serialize_field: %s" % type_class)
