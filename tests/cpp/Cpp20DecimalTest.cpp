@@ -2,6 +2,7 @@
 #include <messgen/test/flat_struct_with_decimal.h>
 
 #include <decimal/decimal>
+
 #include <cmath>
 #include <cstring>
 #include <iomanip>
@@ -115,6 +116,15 @@ TEST_F(CppDecimalTest, Comparison) {
 
     // NaNs are not equal
     EXPECT_NE(decimal64::from_string("nan"), decimal64::from_string("nan"));
+
+    // Inifities
+    EXPECT_EQ(decimal64::infinity(), decimal64::infinity());
+    EXPECT_EQ(-decimal64::infinity(), -decimal64::infinity());
+    EXPECT_LE(-decimal64::infinity(), decimal64::infinity());
+    EXPECT_GT(decimal64::infinity(), -decimal64::infinity());
+    EXPECT_NE(decimal64::infinity(), decimal64::from_integer(0));
+    EXPECT_GT(decimal64::infinity(), decimal64::from_integer(0));
+    EXPECT_LE(-decimal64::infinity(), decimal64::from_integer(0));
 }
 
 TEST_F(CppDecimalTest, Conversions) {

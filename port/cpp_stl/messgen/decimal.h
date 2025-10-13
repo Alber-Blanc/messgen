@@ -196,7 +196,9 @@ struct decimal64 {
     /// @return std::istream& Reference to the input stream
     friend std::istream &operator>>(std::istream &, decimal64 &);
 
-    constexpr static decimal64 infinity() noexcept;
+    constexpr void normalize() noexcept;
+
+    [[nodiscard]] constexpr static decimal64 infinity() noexcept;
 
 private:
     using value_type = uint64_t;
@@ -208,9 +210,9 @@ private:
     explicit decimal64(long long coeff, int exponent) noexcept;
     explicit decimal64(value_type value) noexcept;
 
-    /// @brief Decomposes the decimal into its components
+    /// @brief Normalizes the decimal components to fit in range
     ///
-    /// @return A tuple containing (sign, coefficient, exponent)
+    /// @return A pair containing (coefficient, exponent)
     [[nodiscard]] std::pair<uint64_t, int16_t> normalize(uint64_t coeff, int exponent) const noexcept;
 
     /// @brief Decomposes the decimal into its components
@@ -528,6 +530,12 @@ inline decimal64::decimal64(value_type value) noexcept
 
 constexpr decimal64 decimal64::infinity() noexcept {
     return decimal64{detail::DEC_INF_MASK | detail::DEC_MAX_COEFFICIENT};
+}
+
+constexpr void decimal64::normalize() noexcept {
+    auto [sign, coeff, exp] = decompose();
+    std::tie(coeff, exp) = normalize(coeff, exp);
+    _value = decimal64{sign, coeff, exp}._value;
 }
 
 inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coeff, int exponent) const noexcept {
