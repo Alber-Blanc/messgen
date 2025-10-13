@@ -63,7 +63,7 @@ enum class round_mode {
 struct decimal64 {
 
     /// @brief Default constructor initializing to zero
-    decimal64()
+    constexpr decimal64()
         : decimal64(1, 0, 0) {
     }
 
@@ -206,19 +206,19 @@ private:
     template <char... C>
     friend decimal64 operator""_dd();
 
-    explicit decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept;
-    explicit decimal64(long long coeff, int exponent) noexcept;
-    explicit decimal64(value_type value) noexcept;
+    constexpr explicit decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept;
+    constexpr explicit decimal64(int64_t coeff, int exponent) noexcept;
+    constexpr explicit decimal64(value_type value) noexcept;
 
     /// @brief Normalizes the decimal components to fit in range
     ///
     /// @return A pair containing (coefficient, exponent)
-    [[nodiscard]] std::pair<uint64_t, int16_t> normalize(uint64_t coeff, int exponent) const noexcept;
+    [[nodiscard]] constexpr std::pair<uint64_t, int16_t> normalize(uint64_t coeff, int exponent) const noexcept;
 
     /// @brief Decomposes the decimal into its components
     ///
     /// @return A tuple containing (sign, coefficient, exponent)
-    [[nodiscard]] std::tuple<int8_t, uint64_t, int16_t> decompose() const noexcept;
+    [[nodiscard]] constexpr std::tuple<int8_t, uint64_t, int16_t> decompose() const noexcept;
 
     /// @brief Computes 10 raised to the specified power efficiently.
     ///
@@ -482,7 +482,7 @@ inline decimal64 &decimal64::operator*=(int64_t other) noexcept {
     return *this;
 }
 
-inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept {
+constexpr inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept {
     constexpr auto exponent_bias = int16_t{398};
 
     if (coeff > detail::DEC_MAX_COEFFICIENT || exponent < detail::DEC_MIN_EXPONENT || exponent > detail::DEC_MAX_EXPONENT) [[unlikely]] {
@@ -498,8 +498,8 @@ inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexc
 
     // Check if dec64 trimms to zero
     if (exponent < detail::DEC_MIN_EXPONENT) [[unlikely]] {
-        _value = (sign_bit << 63);
-        return;
+        coeff = 0;
+        exponent = 0;
     }
 
     // Store the sign
@@ -522,16 +522,16 @@ inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexc
     _value |= coeff & ((value_type{1} << coefficient_bits) - 1);
 }
 
-inline decimal64::decimal64(long long coeff, int exponent) noexcept
-    : decimal64(int8_t((coeff >= 0) * 2 - 1), std::abs(coeff), int16_t(exponent)) {
+constexpr inline decimal64::decimal64(int64_t coeff, int exponent) noexcept
+    : decimal64(int8_t((coeff >= 0) * 2 - 1), uint64_t(coeff * (coeff > 0) + (coeff < 0) * -coeff), int16_t(exponent)) {
 }
 
-inline decimal64::decimal64(value_type value) noexcept
+constexpr inline decimal64::decimal64(value_type value) noexcept
     : _value(value) {
 }
 
 constexpr decimal64 decimal64::infinity() noexcept {
-    return decimal64{detail::DEC_INF_MASK | detail::DEC_MAX_COEFFICIENT};
+    return decimal64{detail::DEC_INF_MASK};
 }
 
 constexpr void decimal64::normalize() noexcept {
@@ -540,7 +540,7 @@ constexpr void decimal64::normalize() noexcept {
     _value = decimal64{sign, coeff, exp}._value;
 }
 
-inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coeff, int exponent) const noexcept {
+constexpr inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coeff, int exponent) const noexcept {
     // Normalize the coefficient
     while (coeff != 0 && coeff % 10 == 0 && exponent < detail::DEC_MAX_EXPONENT) {
         coeff /= 10;
@@ -556,7 +556,7 @@ inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coeff, int exp
     return {coeff, int16_t(exponent)};
 }
 
-[[nodiscard]] inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const noexcept {
+[[nodiscard]] constexpr inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const noexcept {
     assert(!is_nan());
 
     constexpr auto exponent_bias = int16_t{398};
