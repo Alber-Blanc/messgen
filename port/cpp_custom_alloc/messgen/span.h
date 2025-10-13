@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <type_traits>
 
 namespace messgen {
 
@@ -8,9 +9,6 @@ template <class T>
 class span {
 public:
     using value_type = T;
-
-    T *_ptr = nullptr;
-    size_t _size = 0;
 
     span() = default;
 
@@ -100,6 +98,10 @@ public:
     const T *data() const {
         return _ptr;
     }
+
+private:
+    T *_ptr = nullptr;
+    size_t _size = 0;
 };
 
 } // namespace messgen

@@ -286,7 +286,10 @@ class CppGenerator:
         if self._get_mode() == "custom_alloc":
             out = """
             template <class Fn>
-            static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, uint8_t *dynamic_buf = nullptr, size_t dynamic_buf_size = 0);
+            static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn);
+
+            template <class Fn>
+            static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, messgen::Allocator &alloc);
             """
         else:
             out = """
@@ -299,14 +302,32 @@ class CppGenerator:
         if self._get_mode() == "custom_alloc":
             out = f"""
             template <class Fn>
-            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, uint8_t *dynamic_buf, size_t dynamic_buf_size) {{
+            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn) {{
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
                     using message_type = messgen::splice_t<R>;
                     if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
                         auto msg = message_type{{}};
-                        messgen::Allocator alloc(dynamic_buf, dynamic_buf_size);
-                        msg.data.deserialize(payload, alloc);
+                        msg.data.deserialize(payload);
+                        std::forward<Fn>(fn).operator()(std::move(msg));
+                        result = true;
+                    }}
+                }});
+                return result;
+            }}
+
+            template <class Fn>
+            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, messgen::Allocator &alloc) {{
+                auto result = false;
+                reflect_message(msg_id, [&]<class R>(R) {{
+                    using message_type = messgen::splice_t<R>;
+                    if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
+                        auto msg = message_type{{}};
+                        if constexpr(message_type::data_type::NEED_ALLOC) {{
+                            msg.data.deserialize(payload, alloc);
+                        }} else {{
+                            msg.data.deserialize(payload);
+                        }}
                         std::forward<Fn>(fn).operator()(std::move(msg));
                         result = true;
                     }}
@@ -728,6 +749,7 @@ class CppGenerator:
                 self._add_include("vector")
                 return "std::vector<%s>" % el_c_type
             elif mode == "custom_alloc":
+                self._add_include("messgen/span.h")
                 return "messgen::span<%s>" % el_c_type
             else:
                 raise RuntimeError("Unsupported mode for vector: %s" % mode)
@@ -739,6 +761,7 @@ class CppGenerator:
                 self._add_include("map")
                 return "std::map<%s, %s>" % (key_c_type, value_c_type)
             elif mode == "custom_alloc":
+                self._add_include("messgen/map.h")
                 self._add_include("span")
                 return "messgen::map<%s, %s>" % (key_c_type, value_c_type)
             else:

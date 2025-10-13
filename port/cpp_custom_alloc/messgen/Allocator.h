@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 
 namespace messgen {
 
@@ -29,38 +28,25 @@ public:
         }
 
         const size_t alloc_size = sizeof(T) * n;
-        if (align(alignof(T), alloc_size, _ptr, _size)) {
-            T *ptr = reinterpret_cast<T *>(_ptr);
-            _ptr = (uint8_t *) _ptr + alloc_size;
-            _size -= alloc_size;
-
-            return ptr;
+        const auto intptr = reinterpret_cast<uintptr_t>(_ptr);
+        const auto aligned = (intptr - 1u + alignof(T)) & -alignof(T);
+        const auto diff = aligned - intptr;
+        if ((alloc_size + diff) > _size) {
+            return nullptr;
         }
+        _size -= diff;
+        _ptr = reinterpret_cast<uint8_t *>(aligned);
 
-        return nullptr;
+        T *ptr = reinterpret_cast<T *>(_ptr);
+        _ptr = _ptr + alloc_size;
+        _size -= alloc_size;
+
+        return ptr;
     }
 
 protected:
-    /**
-     * @brief Aligns pointer to align bytes
-     * @param align   -   alignment
-     * @param size    -   size of object
-     * @param ptr     -   pointer to align
-     * @param space   -   space left
-     * @return aligned pointer
-     */
-    static inline void *align(size_t align, size_t size, void *&ptr, size_t &space) noexcept {
-        const auto intptr = reinterpret_cast<uintptr_t>(ptr);
-        const auto aligned = (intptr - 1u + align) & -align;
-        const auto diff = aligned - intptr;
-        if ((size + diff) > space) {
-            return nullptr;
-        }
-        space -= diff;
-        return ptr = reinterpret_cast<void *>(aligned);
-    }
 
-    void *_ptr = nullptr;
+    uint8_t *_ptr = nullptr;
     size_t _size = 0;
 };
 

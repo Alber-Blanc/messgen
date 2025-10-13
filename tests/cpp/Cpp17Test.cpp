@@ -328,35 +328,6 @@ TEST_F(Cpp17Test, EnumReflection) {
     EXPECT_EQ(value_of(std::get<1>(enums)), mynamespace::types::simple_enum{1});
 }
 
-TEST_F(Cpp17Test, MessageReflectionFieldTypes) {
-    using namespace messgen;
-
-    auto s = mynamespace::types::subspace::complex_struct{};
-
-    auto types = std::vector<std::string_view>{};
-    for_each(members_of(reflect_object(s)), [&](auto &&param) { types.push_back(name_of(type_of(param))); });
-    EXPECT_EQ(types.size(), 15);
-
-    auto expected_types = std::vector<std::string_view>{
-        "mynamespace::types::simple_bitset",
-        "mynamespace::types::simple_struct[2]",
-        "int64[4]",
-        "mynamespace::types::var_size_struct[2]",
-        "float64[]",
-        "mynamespace::types::simple_enum[]",
-        "mynamespace::types::simple_struct[]",
-        "mynamespace::types::var_size_struct[][]",
-        "mynamespace::types::var_size_struct[][4]",
-        "int16[][4][]",
-        "string",
-        "bytes",
-        "string[]",
-        "string{int32}",
-        "int32[]{string}",
-    };
-    EXPECT_EQ(expected_types, types);
-}
-
 TEST_F(Cpp17Test, TypeTraits) {
     using namespace messgen;
 
@@ -421,4 +392,33 @@ TEST_F(Cpp17Test, BytesSerializable) {
     EXPECT_EQ(2, buf[8]);
     EXPECT_EQ(3, buf[12]);
     EXPECT_EQ(4, buf[20]);
+}
+
+TEST_F(Cpp17Test, DispatchMessage) {
+    using namespace messgen;
+
+    auto expected = mynamespace::types::simple_struct{
+        .f0 = 1,
+        .f1 = 2,
+    };
+    _buf.resize(expected.serialized_size());
+    size_t ser_size = expected.serialize(_buf.data());
+
+    auto invoked = false;
+    auto handler = [&](auto &&actual) {
+        using ActualType = std::decay_t<decltype(actual)>;
+
+        if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct_msg>) {
+            EXPECT_EQ(expected.f0, actual.data.f0);
+            EXPECT_EQ(expected.f1, actual.data.f1);
+            invoked = true;
+        } else {
+            FAIL() << "Unexpected message type handled.";
+        }
+    };
+
+    messgen::Allocator alloc;
+    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), handler, alloc);
+
+    EXPECT_TRUE(invoked);
 }

@@ -12,9 +12,6 @@ struct map {
     using mapped_type = T;
     using value_type = std::pair<Key, T>;
 
-    value_type *_ptr = nullptr;
-    size_t _size = 0;
-
     map() = default;
 
     map(const map &other) {
@@ -77,6 +74,10 @@ struct map {
     bool operator!=(const map &other) const {
         return !(*this == other);
     }
+
+private:
+    value_type *_ptr = nullptr;
+    size_t _size = 0;
 };
 
 } // namespace messgen
