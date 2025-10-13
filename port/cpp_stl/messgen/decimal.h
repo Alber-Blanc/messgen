@@ -122,6 +122,9 @@ struct decimal64 {
     /// @return bool True if the value is NaN, false otherwise
     [[nodiscard]] bool is_nan() const noexcept;
 
+    /// @brief Checks if this decimal represents a negative value
+    ///
+    /// @return bool True if the value is negative, false otherwise
     [[nodiscard]] bool is_negative() const noexcept;
 
     /// @brief Adds another decimal64 to this one
@@ -196,8 +199,17 @@ struct decimal64 {
     /// @return std::istream& Reference to the input stream
     friend std::istream &operator>>(std::istream &, decimal64 &);
 
+    /// @brief Normalizes the internal representation of the decimal
+    ///
+    /// This function adjusts the coefficient and exponent to ensure they fall
+    /// within valid ranges while preserving the value. It removes trailing zeros
+    /// from the coefficient and adjusts the exponent accordingly to maintain
+    /// the most compact representation.
     constexpr void normalize() noexcept;
 
+    /// @brief Creates a decimal64 representing positive infinity
+    ///
+    /// @return decimal64 A value representing positive infinity
     [[nodiscard]] constexpr static decimal64 infinity() noexcept;
 
 private:
@@ -223,11 +235,11 @@ private:
     /// @brief Computes 10 raised to the specified power efficiently.
     ///
     /// This function calculates the value of 10^exp at compile time.
-    /// The result is guaranteed to be accurate within the limits of
-    /// double precision.
+    /// The result is guaranteed to be accurate within the range
+    /// [10^-19 - 10^19].
     ///
     /// @param exp The exponent value to raise 10 to
-    /// @pre exp must be in the range [-63, 63]
+    /// @pre exp must be in the range [-19, 19]
     /// @return The value of 10^exp as a double
     [[nodiscard]] constexpr static double pow10_dbl(int exp);
 
@@ -235,7 +247,7 @@ private:
     ///
     /// This function calculates the value of 10^exp at compile time.
     /// The result is guaranteed to be accurate within the limits of
-    /// double precision.
+    /// uint64_t precision.
     ///
     /// @param exp The exponent value to raise 10 to
     /// @pre exp must be in the range [0, 19]
