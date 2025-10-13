@@ -2,7 +2,7 @@
 /node_modules
 /coverage
 
-/tests/another_proto/
 tests/protocols.json
 tests/types.json
+/tests/mynamespace/
 gen.sh
