@@ -183,15 +183,15 @@ constexpr static auto chars_of = [] {
 template <class T>
 constexpr static auto name_storage_of = []() {
     constexpr auto strs = composite_name_of<T>;
-    auto storage = std::array<char, num_chars(strs) + 1>{};
-    auto *ptr = storage.data();
+    auto result = std::array<char, num_chars(strs) + 1>{};
+    auto *ptr = result.data();
     for (auto str : strs) {
         for (char c : str) {
             *ptr++ = c;
         }
     }
     *ptr = '\0';
-    return std::pair{storage, num_chars(strs)};
+    return std::pair{result, num_chars(strs)};
 }();
 
 } // namespace detail
