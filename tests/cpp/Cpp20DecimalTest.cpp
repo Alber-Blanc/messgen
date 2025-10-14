@@ -1,5 +1,5 @@
 #include <messgen/decimal.h>
-#include <messgen/test/flat_struct_with_decimal.h>
+#include <mynamespace/types/flat_struct_with_decimal.h>
 
 #include <cmath>
 #include <stdlib.h>
@@ -470,7 +470,7 @@ TEST_F(CppDecimalTest, MakeDecimal) {
 }
 
 TEST_F(CppDecimalTest, GeneratedFlatType) {
-    using namespace messgen::test;
+    using namespace mynamespace::types;
 
     static_assert(flat_struct_with_decimal::IS_FLAT);
 
