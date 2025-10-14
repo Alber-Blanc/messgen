@@ -139,7 +139,7 @@ template <class T>
 }
 
 template <typename T>
-constexpr std::string_view name_of(reflect_t<std::basic_string_view<T>>) {
+constexpr std::string_view name_of(reflect_t<std::basic_string_view<T>>) noexcept {
     return "string";
 }
 
@@ -148,7 +148,7 @@ namespace detail {
 template <class T>
 constexpr static auto composite_name_of = nullptr;
 
-constexpr size_t num_chars(int num) {
+constexpr size_t num_chars(int num) noexcept {
     size_t count = 0;
     while (num) {
         ++count;
@@ -158,7 +158,7 @@ constexpr size_t num_chars(int num) {
 }
 
 template <size_t N>
-constexpr size_t num_chars(std::array<std::string_view, N> strs) {
+constexpr size_t num_chars(std::array<std::string_view, N> strs) noexcept {
     size_t size = 0;
     for (auto &str : strs) {
         size += str.size();
