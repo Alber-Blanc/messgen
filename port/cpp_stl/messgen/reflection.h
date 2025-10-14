@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <messgen/reflection_common.h>
 
 #include <string_view>

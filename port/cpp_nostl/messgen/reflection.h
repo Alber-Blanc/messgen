@@ -18,11 +18,6 @@ template <class T>
     return std::string_view{arr.data(), size};
 }
 
-template <typename T>
-constexpr std::string_view name_of(reflect_t<std::basic_string_view<T>>) {
-    return "string";
-}
-
 namespace detail {
 
 // clang-format off
