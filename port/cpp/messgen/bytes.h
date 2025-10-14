@@ -6,23 +6,17 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <vector>
+#include <type_traits>
 
 namespace messgen {
 
 class bytes {
 public:
-    bytes()
+    bytes() noexcept
         : _f_serialize(+[](const void *, messgen::size_type, uint8_t *) -> size_t { return 0; }) {
     }
 
-    bytes(const bytes &other) {
-        _ptr = other._ptr;
-        _size = other._size;
-        _f_serialize = other._f_serialize;
-    }
-
-    bytes(const uint8_t *ptr, size_t size)
+    bytes(const uint8_t *ptr, size_t size) noexcept
         : _ptr(ptr),
           _size(size),
           _f_serialize(+[](const void *obj, messgen::size_type size, uint8_t *buf) {
@@ -31,72 +25,53 @@ public:
           }) {
     }
 
-    template <class V, typename = std::enable_if_t<
-                           std::is_same_v<typename std::iterator_traits<typename V::iterator>::iterator_category, std::random_access_iterator_tag>>>
-    bytes(V &v)
-        : _ptr(v.begin()),
-          _size(v.end() - v.begin()) {
+    template <class VIEW>
+    explicit bytes(VIEW *v, std::enable_if_t<is_data_view_v<VIEW>> * = nullptr) noexcept
+        : bytes(v->data(), v->size()) {
     }
 
-    // TODO generic template
-    bytes(std::vector<uint8_t> &v)
-        : _ptr(v.data()),
-          _size(v.size()) {
-    }
-
-    // TODO generic template
-    template <size_t SIZE>
-    bytes(std::array<uint8_t, SIZE> &v)
-        : _ptr(v.data()),
-          _size(v.size()) {
-    }
-
-    template <class S, typename = std::enable_if_t<messgen::has_serialize_method_v<S>>>
-    bytes(const S &s)
-        : _ptr(const_cast<void *>(reinterpret_cast<const void *>(&s))),
+    template <class S, typename = std::enable_if_t<has_serialize_method_v<S>>>
+    explicit bytes(const S *s) noexcept
+        : _ptr(reinterpret_cast<const void *>(s)),
           _f_serialize(+[](const void *obj, messgen::size_type, uint8_t *buf) { return static_cast<const S *>(obj)->serialize(buf); }),
-          _size(s.serialized_size()) {
+          _size(s->serialized_size()) {
     }
 
-    bytes &operator=(const bytes &other) {
-        _ptr = other._ptr;
-        _size = other._size;
-        return *this;
+    bytes(bytes &&other) noexcept = default;
+    bytes(const bytes &other) noexcept = default;
+
+    bytes &operator=(bytes &&other) noexcept = default;
+    bytes &operator=(const bytes &other) noexcept = default;
+
+    [[nodiscard]] bool operator==(const bytes &other) const noexcept {
+        return _size == other._size && _ptr == other._ptr && _f_serialize == other._f_serialize;
     }
 
-    size_t size() const {
-        return _size;
-    }
-
-    bool operator==(const bytes &other) const {
-        if (_size != other._size) {
-            return false;
-        }
-
-        return ::memcmp(_ptr, other._ptr, _size) == 0;
-    }
-
-    bool operator!=(const bytes &other) const {
+    [[nodiscard]] bool operator!=(const bytes &other) const noexcept {
         return !(*this == other);
     }
 
-    const uint8_t *data() const {
+    [[nodiscard]] size_t size() const noexcept {
+        return _size;
+    }
+
+    [[nodiscard]] const uint8_t *data() const noexcept {
         return reinterpret_cast<const uint8_t *>(_ptr);
     }
 
-    const uint8_t *begin() const {
+    [[nodiscard]] const uint8_t *begin() const noexcept {
         return reinterpret_cast<const uint8_t *>(_ptr);
     }
 
-    const uint8_t *end() const {
+    [[nodiscard]] const uint8_t *end() const noexcept {
         return reinterpret_cast<const uint8_t *>(_ptr) + _size;
     }
 
-    size_t serialize(uint8_t *buf) const {
+    size_t serialize(uint8_t *buf) const noexcept {
         return _f_serialize(_ptr, _size, buf);
     }
 
-    size_t serialized_size() const {
+    [[nodiscard]] size_t serialized_size() const {
         return _size;
     }
 

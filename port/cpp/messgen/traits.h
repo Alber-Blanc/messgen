@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 
 namespace messgen {
@@ -73,8 +74,8 @@ struct has_deserialize_alloc_method : std::false_type {};
 class Allocator;
 
 template <typename T>
-struct has_deserialize_alloc_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)(const uint8_t *, Allocator &)>(&T::deserialize))>>
-    : std::true_type {};
+struct has_deserialize_alloc_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)(const uint8_t *, Allocator &)>(&T::deserialize))>> : std::true_type {
+};
 
 template <typename T>
 inline constexpr bool has_deserialize_alloc_method_v = has_deserialize_alloc_method<T>::value;
@@ -181,5 +182,23 @@ struct is_protocol : std::bool_constant<has_proto_id_member_v<remove_cvref_t<T>>
 
 template <class T>
 inline constexpr bool is_protocol_v = messgen::is_protocol<T>::value;
+
+template <typename T, typename = void>
+struct has_data_method : std::false_type {};
+
+template <typename T>
+struct has_data_method<T, std::void_t<decltype(static_cast<typename T::pointer (T::*)()>(&T::data))>> : std::true_type {};
+
+template <typename T, typename = void>
+struct has_size_method : std::false_type {};
+
+template <typename T>
+struct has_size_method<T, std::void_t<decltype(static_cast<size_t (T::*)() const>(&T::size))>> : std::true_type {};
+
+template <class T>
+struct is_data_view : std::bool_constant<has_data_method<remove_cvref_t<T>>::value && has_size_method<remove_cvref_t<T>>::value> {};
+
+template <class T>
+inline constexpr bool is_data_view_v = is_data_view<T>::value;
 
 } // namespace messgen
