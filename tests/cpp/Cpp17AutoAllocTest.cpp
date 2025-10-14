@@ -44,7 +44,6 @@ protected:
     }
 };
 
-
 template <class Func, class... T>
 constexpr void for_each(std::tuple<T...> &&obj, Func &&func) {
     std::apply([&]<class... M>(M &&...members) { (func(members), ...); }, obj);
@@ -68,13 +67,13 @@ TEST_F(Cpp17AutoAllocTest, MessageReflectionFieldTypes) {
         "mynamespace::types::simple_enum[]",
         "mynamespace::types::simple_struct[]",
         "mynamespace::types::var_size_struct[][]",
-        "mynamespace::types::var_size_struct[][4]",
         "int16[][4][]",
         "string",
         "bytes",
         "string[]",
         "string{int32}",
         "int32[]{string}",
+        "int32[0]",
     };
     EXPECT_EQ(expected_types, types);
 }

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "messgen_common.h"
-#include "traits.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -13,30 +12,18 @@ namespace messgen {
 class bytes {
 public:
     using pointer = const uint8_t *;
+    using const_pointer = const uint8_t *;
 
-    bytes() noexcept
-        : _f_serialize(+[](const void *, messgen::size_type, uint8_t *) -> size_t { return 0; }) {
-    }
+    bytes() noexcept = default;
 
     bytes(const uint8_t *ptr, size_t size) noexcept
-        : _ptr(ptr),
-          _size(size),
-          _f_serialize(+[](const void *obj, messgen::size_type size, uint8_t *buf) {
-              ::memcpy(buf, obj, size);
-              return size_t(size);
-          }) {
+        : _ptr(const_cast<uint8_t *>(ptr)),
+          _size(size) {
     }
 
     template <class VIEW>
     explicit bytes(VIEW *v, std::enable_if_t<is_data_view_v<VIEW>> * = nullptr) noexcept
         : bytes(v->data(), v->size()) {
-    }
-
-    template <class S, typename = std::enable_if_t<has_serialize_method_v<S>>>
-    explicit bytes(const S *s) noexcept
-        : _ptr(reinterpret_cast<const void *>(s)),
-          _f_serialize(+[](const void *obj, messgen::size_type, uint8_t *buf) { return static_cast<const S *>(obj)->serialize(buf); }),
-          _size(s->serialized_size()) {
     }
 
     bytes(bytes &&other) noexcept = default;
@@ -46,7 +33,7 @@ public:
     bytes &operator=(const bytes &other) noexcept = default;
 
     [[nodiscard]] bool operator==(const bytes &other) const noexcept {
-        return _size == other._size && _ptr == other._ptr && _f_serialize == other._f_serialize;
+        return _size == other._size and ::memcmp(_ptr, other._ptr, _size) == 0;
     }
 
     [[nodiscard]] bool operator!=(const bytes &other) const noexcept {
@@ -57,32 +44,41 @@ public:
         return _size;
     }
 
-    [[nodiscard]] const uint8_t *data() const noexcept {
-        return reinterpret_cast<const uint8_t *>(_ptr);
+    [[nodiscard]] pointer data() noexcept {
+        return _ptr;
     }
 
-    [[nodiscard]] const uint8_t *begin() const noexcept {
-        return reinterpret_cast<const uint8_t *>(_ptr);
+    [[nodiscard]] const_pointer data() const noexcept {
+        return _ptr;
     }
 
-    [[nodiscard]] const uint8_t *end() const noexcept {
-        return reinterpret_cast<const uint8_t *>(_ptr) + _size;
+    [[nodiscard]] pointer begin() noexcept {
+        return _ptr;
     }
 
-    size_t serialize(uint8_t *buf) const noexcept {
-        return _f_serialize(_ptr, _size, buf);
+    [[nodiscard]] const_pointer begin() const noexcept {
+        return _ptr;
     }
 
-    [[nodiscard]] size_t serialized_size() const {
-        return _size;
+    [[nodiscard]] pointer end() noexcept {
+        return _ptr + _size;
+    }
+
+    [[nodiscard]] const_pointer end() const noexcept {
+        return _ptr + _size;
+    }
+
+    uint8_t &operator[](size_t idx) {
+        return _ptr[idx];
+    }
+
+    const uint8_t &operator[](size_t idx) const {
+        return _ptr[idx];
     }
 
 private:
-    using serialize_function = size_t (*)(const void *, messgen::size_type, uint8_t *);
-
     messgen::size_type _size = 0;
-    const void *_ptr = nullptr;
-    serialize_function _f_serialize = nullptr;
+    uint8_t *_ptr = nullptr;
 };
 
 } // namespace messgen

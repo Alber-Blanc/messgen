@@ -36,7 +36,7 @@ public:
     span &operator=(const span &other) noexcept = default;
 
     [[nodiscard]] bool operator==(const span &other) const noexcept {
-        return _size == other._size && _ptr == other._ptr;
+        return _size == other._size and ::memcmp(_ptr, other._ptr, _size * sizeof(T)) == 0;
     }
 
     [[nodiscard]] bool operator!=(const span &other) const noexcept {

@@ -159,30 +159,85 @@ TEST_F(Cpp17Test, VarSizeStruct) {
     mynamespace::types::var_size_struct s{};
 
     s.f0 = 1;
-    std::vector<decltype(s.f1_vec)::value_type> f1_vec{3, 4};
-    // s.f1_vec = f1_vec;
-
+#ifdef MESSGEN_MODE_CUSTOM_ALLOC
+    std::vector<int64_t> f1_vec{3, 4};
+    s.f1_vec = messgen::span<int64_t>(&f1_vec);
+#else
+    s.f1_vec = {3, 4};
+#endif
     test_serialization(s);
 }
 
 TEST_F(Cpp17Test, ComplexStruct) {
     mynamespace::types::subspace::complex_struct s{};
 
-    std::vector<decltype(s.f2_vec)::value_type> f2_vec_data = {45.787};
-    // qs.f2_vec = f2_vec_data;
-    std::vector<decltype(s.e_vec)::value_type> e_vec_data = {mynamespace::types::simple_enum::another_value};
-    // s.e_vec = e_vec_data;
-    s.s_arr[0].f3 = 3;
-    s.s_arr[1].f3 = 5;
+    s.bitset0 = mynamespace::types::simple_bitset::two;
+    s.arr_simple_struct[0].f3 = 3;
+    s.arr_simple_struct[1].f3 = 5;
+    // s.arr_int[0] = 10;
+    // s.arr_int[1] = 20;
+    // s.arr_int[2] = 30;
+    // s.arr_int[3] = 40;
+    // s.arr_var_size_struct[0].f0 = 3;
+    // s.arr_var_size_struct[1].f0 = 5;
+    // s.str = "Hello messgen!";
+    //
+    // std::vector<int64_t> f1_vec_data0 = {12345, 23456};
+    // std::vector<int64_t> f1_vec_data1 = {1234, 2345};
+    // std::vector<double> vec_float_data = {1.2345, 2.3456};
 
-    std::vector<decltype(s.vec_vec_var)::value_type> vec_vec_var;
-    std::vector<decltype(s.vec_vec_var)::value_type::value_type> vec_vec_var_0;
-    vec_vec_var_0.push_back({});
-    vec_vec_var_0[0].f0 = 234;
-    std::vector<decltype(s.vec_vec_var[0][0].f1_vec)::value_type> vec_vec_var_0_f1_vec = {777};
-    // vec_vec_var_0[0].f1_vec = vec_vec_var_0_f1_vec;
-    vec_vec_var.push_back(vec_vec_var_0);
-    s.vec_vec_var = vec_vec_var;
+#ifdef MESSGEN_MODE_CUSTOM_ALLOC
+    // s.arr_var_size_struct[0].f1_vec = messgen::span<int64_t>(&f1_vec_data0);
+    // s.arr_var_size_struct[1].f1_vec = messgen::span<int64_t>(&f1_vec_data1);
+    //
+    // s.vec_float = messgen::span<double>(&vec_float_data);
+    //
+    //
+    // std::vector<decltype(s.vec_float)::value_type> vec_float_data = {45.787};
+    // s.vec_float = vec_float_data;
+    // std::vector<decltype(s.vec_enum)::value_type> vec_enum_data = {mynamespace::types::simple_enum::another_value};
+    // // s.vec_enum = vec_enum_data;
+    //
+    // std::vector<decltype(s.vec_vec_var_size_struct)::value_type> vec_vec_var_size_struct;
+    // std::vector<decltype(s.vec_vec_var_size_struct)::value_type::value_type> vec_vec_var_size_struct_0;
+    // vec_vec_var_size_struct_0.push_back({});
+    // vec_vec_var_size_struct_0[0].f0 = 234;
+    // std::vector<decltype(s.vec_vec_var_size_struct[0][0].f1_vec)::value_type> vec_vec_var_size_struct_0_f1_vec = {777};
+    // // vec_vec_var_size_struct_0[0].f1_vec = vec_vec_var_size_struct_0_f1_vec;
+    // vec_vec_var_size_struct.push_back(vec_vec_var_size_struct_0);
+    // s.vec_vec_var_size_struct = vec_vec_var_size_struct;
+
+    // s.vec_arr_vec_int.resize(1);
+    // s.v_vec2[1][0].resize(3);
+    // s.v_vec2[1][0][2] = 5;
+    // s.bs.assign({1, 2, 3, 4, 5});
+    // s.str_vec.push_back("spam");
+    // s.str_vec.push_back("eggs");
+    // s.str_vec.push_back("sticks");
+    // s.map_str_by_int[23] = "ping";
+    // s.map_str_by_int[777] = "pong";
+    // s.map_vec_by_str["cat"].push_back(1);
+    // s.map_vec_by_str["cat"].push_back(2);
+    // s.map_vec_by_str["cat"].push_back(3);
+    // s.map_vec_by_str["dog"].push_back(30);
+    // s.map_vec_by_str["dog"].push_back(40);
+    s.bitset0 |= mynamespace::types::simple_bitset::error;
+#else
+    std::vector<decltype(s.vec_float)::value_type> vec_float_data = {45.787};
+    // qs.vec_float = vec_float_data;
+    std::vector<decltype(s.vec_enum)::value_type> vec_enum_data = {mynamespace::types::simple_enum::another_value};
+    // s.vec_enum = vec_enum_data;
+    s.arr_simple_struct[0].f3 = 3;
+    s.arr_simple_struct[1].f3 = 5;
+
+    std::vector<decltype(s.vec_vec_var_size_struct)::value_type> vec_vec_var_size_struct;
+    std::vector<decltype(s.vec_vec_var_size_struct)::value_type::value_type> vec_vec_var_size_struct_0;
+    vec_vec_var_size_struct_0.push_back({});
+    vec_vec_var_size_struct_0[0].f0 = 234;
+    std::vector<decltype(s.vec_vec_var_size_struct[0][0].f1_vec)::value_type> vec_vec_var_size_struct_0_f1_vec = {777};
+    // vec_vec_var_size_struct_0[0].f1_vec = vec_vec_var_size_struct_0_f1_vec;
+    vec_vec_var_size_struct.push_back(vec_vec_var_size_struct_0);
+    s.vec_vec_var_size_struct = vec_vec_var_size_struct;
 
     // s.vec_arr_vec_int.resize(1);
     // s.v_vec2[1][0].resize(3);
@@ -199,7 +254,8 @@ TEST_F(Cpp17Test, ComplexStruct) {
     // s.map_vec_by_str["cat"].push_back(3);
     // s.map_vec_by_str["dog"].push_back(30);
     // s.map_vec_by_str["dog"].push_back(40);
-    s.bits0 |= mynamespace::types::simple_bitset::error;
+    s.bitset0 |= mynamespace::types::simple_bitset::error;
+#endif
 
     test_serialization(s);
 }
@@ -293,9 +349,21 @@ TEST_F(Cpp17Test, MessageReflectionFieldNames) {
     for_each(members_of(reflect_object(s)), [&](auto &&param) { names.push_back(name_of(param)); });
     EXPECT_EQ(names.size(), 15);
 
-    auto expected_names =
-        std::vector<std::string_view>{"bits0",       "s_arr",           "f1_arr", "v_arr", "f2_vec",  "e_vec",          "s_vec",         "vec_vec_var",
-                                      "arr_vec_var", "vec_arr_vec_int", "str",    "bs",    "str_vec", "map_str_by_int", "map_vec_by_str"};
+    auto expected_names = std::vector<std::string_view>{"bitset0",
+                                                        "arr_simple_struct",
+                                                        "arr_int",
+                                                        "arr_var_size_struct",
+                                                        "vec_float",
+                                                        "vec_enum",
+                                                        "vec_simple_struct",
+                                                        "vec_vec_var_size_struct",
+                                                        "vec_arr_vec_int",
+                                                        "str",
+                                                        "bs",
+                                                        "str_vec",
+                                                        "map_str_by_int",
+                                                        "map_vec_by_str",
+                                                        "array_of_size_zero"};
     EXPECT_EQ(expected_names, names);
 }
 
@@ -363,7 +431,7 @@ TEST_F(Cpp17Test, ProtoHash) {
                          mynamespace::proto::test_proto::complex_struct_custom_alloc_msg::HASH ^ //
                          mynamespace::proto::test_proto::flat_struct_msg::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
-    EXPECT_EQ(5364352269789356129U, hash_test_proto);
+    EXPECT_EQ(14917833515515611505U, hash_test_proto);
 }
 
 TEST_F(Cpp17Test, BytesPlain) {
@@ -371,27 +439,6 @@ TEST_F(Cpp17Test, BytesPlain) {
     messgen::bytes bs{&buf};
     EXPECT_EQ(1, bs.data()[0]);
     EXPECT_EQ(2, bs.data()[1]);
-}
-
-TEST_F(Cpp17Test, BytesSerializable) {
-    // Create serializable variable-size object
-    mynamespace::types::var_size_struct s{};
-    s.f0 = 1;
-    std::vector<decltype(s.f1_vec)::value_type> f1_vec{3, 4};
-    s.f1_vec = f1_vec;
-
-    // Construct `bytes` from serializable object, `bytes` stores object pointer and serialize method
-    messgen::bytes bs{&s};
-
-    // Serialize `bytes` into buffer, this invokes s.serialize()
-    std::array<uint8_t, 256> buf;
-    size_t n = bs.serialize(buf.data());
-
-    EXPECT_EQ(32, n);
-    EXPECT_EQ(1, buf[0]);
-    EXPECT_EQ(2, buf[8]);
-    EXPECT_EQ(3, buf[12]);
-    EXPECT_EQ(4, buf[20]);
 }
 
 TEST_F(Cpp17Test, DispatchMessage) {

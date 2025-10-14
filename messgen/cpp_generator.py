@@ -889,8 +889,8 @@ class CppGenerator:
         elif type_class == TypeClass.bytes:
             c.append("_size_ptr = reinterpret_cast<messgen::size_type *>(&_buf[_size]);")
             c.append("_size += sizeof(messgen::size_type);")
-            c.append(f"*_size_ptr = {field_name}.serialize(&_buf[_size]);")
-            c.append("_size += *_size_ptr;")
+            c.append(f"_field_size = {field_name}.size();")
+            c.extend(self._memcpy_to_buf(f"{field_name}.data()", "_field_size"))
 
         else:
             raise RuntimeError("Unsupported type_class in _serialize_field: %s" % type_class)
