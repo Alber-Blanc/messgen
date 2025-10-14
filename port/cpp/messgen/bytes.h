@@ -89,7 +89,7 @@ public:
     }
 
     const uint8_t *end() const {
-        return reinterpret_cast<const uint8_t *>(_ptr + _size);
+        return reinterpret_cast<const uint8_t *>(_ptr) + _size;
     }
 
     size_t serialize(uint8_t *buf) const {
