@@ -52,115 +52,115 @@ struct decimal64 {
     /// @pre tick must be finite and greater than zero
     /// @pre value must be finite
     /// @return decimal64 The resulting decimal value
-    [[nodiscard]] static decimal64 from_double(double value, decimal64 tick, round_mode) noexcept;
+    [[nodiscard]] constexpr static decimal64 from_double(double value, decimal64 tick, round_mode) noexcept;
 
     /// @brief Creates a decimal64 from an unsigned integer value
     ///
     /// @tparam T Unsigned integral type
     /// @param value The unsigned integer value
     /// @return decimal64 The resulting decimal value
-    [[nodiscard]] static decimal64 from_integer(std::unsigned_integral auto value) noexcept;
+    [[nodiscard]] constexpr static decimal64 from_integer(std::unsigned_integral auto value) noexcept;
 
     /// @brief Creates a decimal64 from a signed integer value
     ///
     /// @tparam T Signed integral type
     /// @param value The signed integer value
     /// @return decimal64 The resulting decimal value
-    [[nodiscard]] static decimal64 from_integer(std::integral auto value) noexcept;
+    [[nodiscard]] constexpr static decimal64 from_integer(std::integral auto value) noexcept;
 
     /// @brief Creates a decimal64 from a string representation
     ///
     /// @param value The string to parse
     /// @return std::optional<decimal64> The resulting decimal value, or any empty optional if parsing fails
-    [[nodiscard]] static std::optional<decimal64> from_string(std::string_view value);
+    [[nodiscard]] constexpr static std::optional<decimal64> from_string(std::string_view value);
 
     /// @brief Converts to double representation
     ///
     /// @return double The value as a double
-    [[nodiscard]] double to_double() const noexcept;
+    [[nodiscard]] constexpr double to_double() const noexcept;
 
     /// @brief Converts to integer representation
     ///
     /// @return int64_t The value as an integer
-    [[nodiscard]] int64_t to_integer() const noexcept;
+    [[nodiscard]] constexpr int64_t to_integer() const noexcept;
 
     /// @brief Converts to string representation
     ///
     /// @return std::string The value as a string
-    [[nodiscard]] std::string to_string() const;
+    [[nodiscard]] constexpr std::string to_string() const;
 
     /// @brief Checks if this decimal represents infinity
     ///
     /// @return bool True if the value is positive or negative infinity, false otherwise
-    [[nodiscard]] bool is_infinite() const noexcept;
+    [[nodiscard]] constexpr bool is_infinite() const noexcept;
 
     /// @brief Checks if this decimal represents NaN (Not a Number)
     ///
     /// @return bool True if the value is NaN, false otherwise
-    [[nodiscard]] bool is_nan() const noexcept;
+    [[nodiscard]] constexpr bool is_nan() const noexcept;
 
     /// @brief Checks if this decimal represents a negative value
     ///
     /// @return bool True if the value is negative, false otherwise
-    [[nodiscard]] bool is_negative() const noexcept;
+    [[nodiscard]] constexpr bool is_negative() const noexcept;
 
     /// @brief Adds another decimal64 to this one
     ///
     /// @param other The value to add
     /// @return decimal64& Reference to this object
-    decimal64 &operator+=(decimal64 other) noexcept;
+    constexpr decimal64 &operator+=(decimal64 other) noexcept;
 
     /// @brief Subtracts another decimal64 from this one
     ///
     /// @param other The value to subtract
     /// @return decimal64& Reference to this object
-    decimal64 &operator-=(decimal64 other) noexcept;
+    constexpr decimal64 &operator-=(decimal64 other) noexcept;
 
     /// @brief Multiplies this value by an integer
     ///
     /// @param factor The integer multiplier
     /// @return decimal64& Reference to this object
-    decimal64 &operator*=(int64_t factor) noexcept;
+    constexpr decimal64 &operator*=(int64_t factor) noexcept;
 
     /// @brief Returns the negation of this value
     ///
     /// @return decimal64 The negated value
-    decimal64 operator-() noexcept;
+    constexpr decimal64 operator-() noexcept;
 
     /// @brief Adds two decimal64 values
     ///
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
     /// @return decimal64 The sum of the operands
-    friend decimal64 operator+(decimal64 lhs, decimal64 rhs) noexcept;
+    friend constexpr decimal64 operator+(decimal64 lhs, decimal64 rhs) noexcept;
 
     /// @brief Subtracts one decimal64 from another
     ///
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
     /// @return decimal64 The difference between the operands
-    friend decimal64 operator-(decimal64 lhs, decimal64 rhs) noexcept;
+    friend constexpr decimal64 operator-(decimal64 lhs, decimal64 rhs) noexcept;
 
     /// @brief Multiplies a decimal64 by an integer
     ///
     /// @param decimal The decimal value
     /// @param factor The integer multiplier
     /// @return decimal64 The product
-    friend decimal64 operator*(decimal64 decimal, int64_t factor) noexcept;
+    friend constexpr decimal64 operator*(decimal64 decimal, int64_t factor) noexcept;
 
     /// @brief Compares two decimal64 values
     ///
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
     /// @return std::strong_ordering The ordering relation between the operands
-    friend std::partial_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept;
+    friend constexpr std::partial_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept;
 
     /// @brief Tests equality between two decimal64 values
     ///
     /// @param lhs The left-hand operand
     /// @param rhs The right-hand operand
     /// @return bool True if the operands are equal, false otherwise
-    friend bool operator==(const decimal64 &lhs, const decimal64 &rhs) noexcept;
+    friend constexpr bool operator==(const decimal64 &lhs, const decimal64 &rhs) noexcept;
 
     /// @brief Writes a decimal64 to an output stream
     ///
@@ -277,7 +277,7 @@ private:
     return POW10<uint64_t, 0, DEC_MAX_EXPONENT>[exp];
 }
 
-[[nodiscard]] inline decimal64 decimal64::from_double(double value, decimal64 tick, round_mode round_mode) noexcept {
+[[nodiscard]] constexpr inline decimal64 decimal64::from_double(double value, decimal64 tick, round_mode round_mode) noexcept {
     assert(!tick.is_nan());
     assert(!tick.is_infinite());
     assert(tick > decimal64::from_integer(0));
@@ -299,15 +299,15 @@ private:
     return decimal64{0, 0};
 }
 
-[[nodiscard]] inline decimal64 decimal64::from_integer(std::unsigned_integral auto integer) noexcept {
+[[nodiscard]] constexpr inline decimal64 decimal64::from_integer(std::unsigned_integral auto integer) noexcept {
     return decimal64{static_cast<unsigned long long>(integer), 0};
 }
 
-[[nodiscard]] inline decimal64 decimal64::from_integer(std::integral auto integer) noexcept {
+[[nodiscard]] constexpr inline decimal64 decimal64::from_integer(std::integral auto integer) noexcept {
     return decimal64{static_cast<long long>(integer), 0};
 }
 
-[[nodiscard]] inline std::optional<decimal64> decimal64::from_string(std::string_view str) {
+[[nodiscard]] constexpr inline std::optional<decimal64> decimal64::from_string(std::string_view str) {
     if (str.empty()) {
         return std::nullopt;
     }
@@ -384,7 +384,7 @@ private:
     return decimal64{sign, coeff, int16_t(exp)};
 }
 
-[[nodiscard]] inline double decimal64::to_double() const noexcept {
+[[nodiscard]] constexpr inline double decimal64::to_double() const noexcept {
     if (is_nan()) [[unlikely]] {
         return std::nan("");
     }
@@ -397,7 +397,7 @@ private:
     return sign * static_cast<double>(coeff) * pow10_dbl(exp);
 }
 
-[[nodiscard]] inline int64_t decimal64::to_integer() const noexcept {
+[[nodiscard]] constexpr inline int64_t decimal64::to_integer() const noexcept {
     if (is_nan() || is_infinite()) [[unlikely]] {
         return 0;
     }
@@ -410,7 +410,7 @@ private:
     return sign * static_cast<int64_t>(coeff * pow10_int(exp));
 }
 
-[[nodiscard]] inline std::string decimal64::to_string() const {
+[[nodiscard]] constexpr inline std::string decimal64::to_string() const {
     if (is_infinite()) [[unlikely]] {
         return *this < decimal64::from_integer(0) ? "-inf" : "inf";
     }
@@ -474,19 +474,19 @@ private:
     return buff;
 }
 
-[[nodiscard]] inline bool decimal64::is_infinite() const noexcept {
+[[nodiscard]] constexpr inline bool decimal64::is_infinite() const noexcept {
     return (_value & DEC_INF_MASK) == DEC_INF_MASK && !is_nan();
 }
 
-[[nodiscard]] inline bool decimal64::is_nan() const noexcept {
+[[nodiscard]] constexpr inline bool decimal64::is_nan() const noexcept {
     return (_value & DEC_NAN_MASK) == DEC_NAN_MASK;
 }
 
-[[nodiscard]] bool decimal64::is_negative() const noexcept {
+[[nodiscard]] constexpr inline bool decimal64::is_negative() const noexcept {
     return (_value & DEC_SIGN_MASK) > 1;
 }
 
-inline decimal64 &decimal64::operator+=(decimal64 other) noexcept {
+constexpr inline decimal64 &decimal64::operator+=(decimal64 other) noexcept {
     auto [lhs_sign, lhs_coeff, lhs_exp] = decompose();
     auto [rhs_sign, rhs_coeff, rhs_exp] = other.decompose();
 
@@ -504,17 +504,17 @@ inline decimal64 &decimal64::operator+=(decimal64 other) noexcept {
     return *this;
 }
 
-inline decimal64 &decimal64::operator-=(decimal64 other) noexcept {
+constexpr inline decimal64 &decimal64::operator-=(decimal64 other) noexcept {
     return *this += (-other);
 }
 
-inline decimal64 &decimal64::operator*=(int64_t other) noexcept {
+constexpr inline decimal64 &decimal64::operator*=(int64_t other) noexcept {
     auto [sign, coeff, exp] = decompose();
     _value = decimal64{sign * int64_t(coeff) * other, exp}._value;
     return *this;
 }
 
-[[nodiscard]] inline decimal64 decimal64::operator-() noexcept {
+[[nodiscard]] constexpr inline decimal64 decimal64::operator-() noexcept {
     _value ^= DEC_SIGN_MASK;
     return *this;
 }
@@ -594,22 +594,22 @@ constexpr inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coef
     return {sign, coeff, exp};
 }
 
-[[nodiscard]] inline decimal64 operator+(decimal64 lhs, decimal64 rhs) noexcept {
+[[nodiscard]] constexpr inline decimal64 operator+(decimal64 lhs, decimal64 rhs) noexcept {
     lhs += rhs;
     return lhs;
 }
 
-[[nodiscard]] inline decimal64 operator-(decimal64 lhs, decimal64 rhs) noexcept {
+[[nodiscard]] constexpr inline decimal64 operator-(decimal64 lhs, decimal64 rhs) noexcept {
     lhs -= rhs;
     return lhs;
 }
 
-[[nodiscard]] inline decimal64 operator*(decimal64 lhs, int64_t rhs) noexcept {
+[[nodiscard]] constexpr inline decimal64 operator*(decimal64 lhs, int64_t rhs) noexcept {
     lhs *= rhs;
     return lhs;
 }
 
-inline std::partial_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept {
+[[nodiscard]] constexpr inline std::partial_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept {
     if (lhs.is_nan() || rhs.is_nan()) [[unlikely]] {
         return std::partial_ordering::unordered;
     }
@@ -633,7 +633,7 @@ inline std::partial_ordering operator<=>(const decimal64 &lhs, const decimal64 &
     return lhs_res <=> rhs_res;
 }
 
-inline bool operator==(const decimal64 &lhs, const decimal64 &rhs) noexcept {
+[[nodiscard]] constexpr inline bool operator==(const decimal64 &lhs, const decimal64 &rhs) noexcept {
     return lhs <=> rhs == std::partial_ordering::equivalent;
 }
 
