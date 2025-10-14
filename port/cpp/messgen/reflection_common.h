@@ -2,10 +2,9 @@
 
 #include "traits_common.h"
 
-#include <string>
-#include <string_view>
 #include <array>
 #include <cstdint>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
