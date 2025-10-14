@@ -2,10 +2,10 @@
 
 #include "traits_common.h"
 
-#include <string>
-#include <string_view>
 #include <array>
 #include <cstdint>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 
 namespace messgen {
@@ -18,7 +18,7 @@ template <class T>
 using splice_t = std::remove_pointer_t<T>;
 
 template <class T>
-constexpr reflect_t<T> reflect_type = {};
+constexpr reflect_t<remove_cvref_t<T>> reflect_type = {};
 
 template <class T>
 constexpr reflect_t<remove_cvref_t<T>> reflect_object(T &&t) {
@@ -99,43 +99,100 @@ template <class T>
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<uint8_t>) noexcept {
-    return "uint8_t";
+    return "uint8";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<int8_t>) noexcept {
-    return "int8_t";
+    return "int8";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<uint16_t>) noexcept {
-    return "uint16_t";
+    return "uint16";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<int16_t>) noexcept {
-    return "int16_t";
+    return "int16";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<uint32_t>) noexcept {
-    return "uint32_t";
+    return "uint32";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<int32_t>) noexcept {
-    return "int32_t";
+    return "int32";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<uint64_t>) noexcept {
-    return "uint64_t";
+    return "uint64";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<int64_t>) noexcept {
-    return "int64_t";
+    return "int64";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<float>) noexcept {
-    return "float";
+    return "float32";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<double>) noexcept {
-    return "double";
+    return "float64";
 }
+
+template <typename T>
+constexpr std::string_view name_of(reflect_t<std::basic_string_view<T>>) noexcept {
+    return "string";
+}
+
+namespace detail {
+
+template <class T>
+constexpr static auto composite_name_of = nullptr;
+
+constexpr size_t num_chars(int num) noexcept {
+    size_t count = 0;
+    while (num) {
+        ++count;
+        num /= 10;
+    }
+    return count;
+}
+
+template <size_t N>
+constexpr size_t num_chars(std::array<std::string_view, N> strs) noexcept {
+    size_t size = 0;
+    for (auto &str : strs) {
+        size += str.size();
+    }
+    return size;
+}
+
+template <size_t N>
+constexpr static auto chars_of = [] {
+    auto result = std::array<char, num_chars(N) + 1>{};
+    auto *ptr = result.data();
+    auto num = N;
+    while (num) {
+        *ptr++ = char('0' + num % 10);
+        num /= 10;
+    }
+    *ptr = '\0';
+    return std::pair{result, num_chars(N)};
+}();
+
+template <class T>
+constexpr static auto name_storage_of = []() {
+    constexpr auto strs = composite_name_of<T>;
+    auto result = std::array<char, num_chars(strs) + 1>{};
+    auto *ptr = result.data();
+    for (auto str : strs) {
+        for (char c : str) {
+            *ptr++ = c;
+        }
+    }
+    *ptr = '\0';
+    return std::pair{result, num_chars(strs)};
+}();
+
+} // namespace detail
 
 } // namespace messgen
