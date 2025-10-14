@@ -9,78 +9,66 @@ template <class T>
 class span {
 public:
     using value_type = T;
+    using pointer = T *;
+    using const_pointer = const T *;
 
-    span() = default;
+    span() noexcept = default;
 
-    span(const span<T> &other) {
-        _ptr = other._ptr;
-        _size = other._size;
-    }
-
-    span(T *ptr, size_t size)
+    span(pointer ptr, size_t size)
         : _ptr(ptr),
           _size(size) {
     }
 
-    span(const T *ptr, size_t size)
+    span(const_pointer ptr, size_t size)
         : _ptr(const_cast<T *>(ptr)),
           _size(size) {
     }
 
-    template <class InputIterator, typename = std::enable_if_t<std::is_pointer<InputIterator>::value>>
-    span(InputIterator &begin, InputIterator &end)
-        : _ptr(begin),
-          _size(end - begin) {
+    template <class VIEW>
+    explicit span(VIEW *v, std::enable_if_t<is_data_view_v<VIEW>> * = nullptr) noexcept
+        : span(v->data(), v->size()) {
     }
 
-    template <class V>
-    span(V &v)
-        : _ptr(v.begin()),
-          _size(v.end() - v.begin()) {
+    span(span &&other) noexcept = default;
+    span(const span &other) noexcept = default;
+
+    span &operator=(span &&other) noexcept = default;
+    span &operator=(const span &other) noexcept = default;
+
+    [[nodiscard]] bool operator==(const span &other) const noexcept {
+        return _size == other._size && _ptr == other._ptr;
     }
 
-    span &operator=(const span &other) {
-        _ptr = other._ptr;
-        _size = other._size;
-        return *this;
+    [[nodiscard]] bool operator!=(const span &other) const noexcept {
+        return !(*this == other);
     }
 
-    size_t size() const {
+    [[nodiscard]] size_t size() const noexcept {
         return _size;
     }
 
-    T *begin() {
+    [[nodiscard]] pointer data() noexcept {
         return _ptr;
     }
 
-    const T *begin() const {
+    [[nodiscard]] const_pointer data() const noexcept {
         return _ptr;
     }
 
-    T *end() {
+    [[nodiscard]] pointer begin() noexcept {
+        return _ptr;
+    }
+
+    [[nodiscard]] const_pointer begin() const noexcept {
+        return _ptr;
+    }
+
+    [[nodiscard]] pointer end() noexcept {
         return _ptr + _size;
     }
 
-    const T *end() const {
+    [[nodiscard]] const_pointer end() const noexcept {
         return _ptr + _size;
-    }
-
-    bool operator==(const span &other) const {
-        if (_size != other._size) {
-            return false;
-        }
-
-        for (size_t i = 0; i < _size; ++i) {
-            if (_ptr[i] != other._ptr[i]) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    bool operator!=(const span<T> &other) const {
-        return !(*this == other);
     }
 
     T &operator[](size_t idx) {
@@ -89,14 +77,6 @@ public:
 
     const T &operator[](size_t idx) const {
         return _ptr[idx];
-    }
-
-    T *data() {
-        return _ptr;
-    }
-
-    const T *data() const {
-        return _ptr;
     }
 
 private:

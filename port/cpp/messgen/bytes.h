@@ -12,6 +12,8 @@ namespace messgen {
 
 class bytes {
 public:
+    using pointer = const uint8_t *;
+
     bytes() noexcept
         : _f_serialize(+[](const void *, messgen::size_type, uint8_t *) -> size_t { return 0; }) {
     }
