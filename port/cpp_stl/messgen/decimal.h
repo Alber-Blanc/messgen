@@ -67,7 +67,7 @@ enum class round_mode {
 struct decimal64 {
 
     /// @brief Default constructor initializing to zero
-    constexpr decimal64()
+    constexpr decimal64() noexcept
         : decimal64(1, 0, 0) {
     }
 
@@ -203,6 +203,11 @@ struct decimal64 {
     /// @return std::istream& Reference to the input stream
     friend std::istream &operator>>(std::istream &, decimal64 &);
 
+    /// @brief Creates a decimal64 representing positive infinity
+    ///
+    /// @return decimal64 A value representing positive infinity
+    [[nodiscard]] constexpr static decimal64 infinity() noexcept;
+
     /// @brief Normalizes the internal representation of the decimal
     ///
     /// This function adjusts the coefficient and exponent to ensure they fall
@@ -210,11 +215,6 @@ struct decimal64 {
     /// from the coefficient and adjusts the exponent accordingly to maintain
     /// the most compact representation.
     constexpr void normalize() noexcept;
-
-    /// @brief Creates a decimal64 representing positive infinity
-    ///
-    /// @return decimal64 A value representing positive infinity
-    [[nodiscard]] constexpr static decimal64 infinity() noexcept;
 
 private:
     using value_type = uint64_t;
@@ -386,12 +386,12 @@ private:
     if (is_nan()) [[unlikely]] {
         return std::nan("");
     }
+
+    auto [sign, coeff, exp] = decompose();
     if (is_infinite()) [[unlikely]] {
-        auto [sign, coeff, exp] = decompose();
         return sign * std::numeric_limits<double>::infinity();
     }
 
-    auto [sign, coeff, exp] = decompose();
     return sign * static_cast<double>(coeff) * pow10_dbl(exp);
 }
 
@@ -404,15 +404,16 @@ private:
     if (exp < 0) {
         return sign * static_cast<int64_t>(coeff / pow10_int(-exp));
     }
+
     return sign * static_cast<int64_t>(coeff * pow10_int(exp));
 }
 
 [[nodiscard]] inline std::string decimal64::to_string() const {
-    if (is_infinite()) {
+    if (is_infinite()) [[unlikely]] {
         return *this < decimal64::from_integer(0) ? "-inf" : "inf";
     }
 
-    if (is_nan()) {
+    if (is_nan()) [[unlikely]] {
         return "nan";
     }
 
