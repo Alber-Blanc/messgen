@@ -7,13 +7,13 @@
 namespace messgen {
 
 template <class T, auto N>
-[[nodiscard]] constexpr std::string_view name_of(reflect_t<std::array<T, N>>) {
+[[nodiscard]] constexpr std::string_view name_of(reflect_t<std::array<T, N>>) noexcept {
     auto &[arr, size] = detail::name_storage_of<std::array<T, N>>;
     return std::string_view{arr.data(), size};
 }
 
 template <class T>
-[[nodiscard]] constexpr std::string_view name_of(reflect_t<vector<T>>) {
+[[nodiscard]] constexpr std::string_view name_of(reflect_t<vector<T>>) noexcept {
     auto &[arr, size] = detail::name_storage_of<vector<T>>;
     return std::string_view{arr.data(), size};
 }
