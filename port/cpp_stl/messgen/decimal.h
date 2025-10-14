@@ -15,12 +15,16 @@
 namespace messgen {
 namespace detail {
 
+constexpr auto DEC_SIGN_SHIFT = 63;
+constexpr auto DEC_EXPONENT_SHIFT = 53;
 constexpr auto DEC_NAN_MASK = 0b11111ULL << 58;
 constexpr auto DEC_INF_MASK = 0b11110ULL << 58;
-constexpr auto DEC_SIGN_MASK = 0b1ULL << 63;
+constexpr auto DEC_SIGN_MASK = 0b1ULL << DEC_SIGN_SHIFT;
 constexpr auto DEC_MAX_EXPONENT = 19;
 constexpr auto DEC_MIN_EXPONENT = -19;
-constexpr auto DEC_MAX_COEFFICIENT = (1ULL << 54) - 1;
+constexpr auto DEC_MAX_COEFFICIENT = (1ULL << 53) - 1;
+constexpr auto DEC_EXPONENT_BIAS = int16_t{398};
+constexpr auto DEC_EXPONENT_MASK = (int16_t{1} << 10) - 1;
 
 template <typename T, int MIN, int MAX>
 inline constexpr auto POW10 = []() {
@@ -484,15 +488,14 @@ inline decimal64 &decimal64::operator+=(decimal64 other) noexcept {
     auto [rhs_sign, rhs_coeff, rhs_exp] = other.decompose();
 
     auto exp_diff = lhs_exp - rhs_exp;
-    auto lhs_adjustment = exp_diff * (exp_diff > 0);
-    auto rhs_adjustment = -exp_diff * (exp_diff <= 0);
+    auto align_lhs = exp_diff > 0;
+    auto align_rhs = exp_diff < 0;
 
-    lhs_coeff *= pow10_int(lhs_adjustment);
-    rhs_coeff *= pow10_int(rhs_adjustment);
+    lhs_coeff *= pow10_int(exp_diff * align_lhs);
+    rhs_coeff *= pow10_int(-exp_diff * align_rhs);
 
-    auto res_exp = (rhs_exp * (exp_diff > 0)) + (lhs_exp * (exp_diff <= 0));
+    auto res_exp = lhs_exp * (!align_lhs) + rhs_exp * align_lhs;
     auto res_coeff = lhs_sign * int64_t(lhs_coeff) + rhs_sign * int64_t(rhs_coeff);
-
     _value = decimal64{res_coeff, res_exp}._value;
 
     return *this;
@@ -514,8 +517,6 @@ inline decimal64 &decimal64::operator*=(int64_t other) noexcept {
 }
 
 constexpr inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept {
-    constexpr auto exponent_bias = int16_t{398};
-
     if (coeff > detail::DEC_MAX_COEFFICIENT || exponent < detail::DEC_MIN_EXPONENT || exponent > detail::DEC_MAX_EXPONENT) [[unlikely]] {
         std::tie(coeff, exponent) = normalize(coeff, exponent);
     }
@@ -523,7 +524,7 @@ constexpr inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t expon
     // Check if dec64 is inifity
     auto sign_bit = value_type{sign < 0};
     if (coeff > detail::DEC_MAX_COEFFICIENT || exponent > detail::DEC_MAX_EXPONENT) [[unlikely]] {
-        _value = (sign_bit << 63) | infinity()._value;
+        _value = (sign_bit << detail::DEC_SIGN_SHIFT) | infinity()._value;
         return;
     }
 
@@ -538,7 +539,7 @@ constexpr inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t expon
 
     // Apply exponent bias
     _value <<= 10;
-    _value |= exponent + exponent_bias;
+    _value |= exponent + detail::DEC_EXPONENT_BIAS;
 
     // Apply the coefficient
     // Note: we inentionally don't support coefficient > (1 << 54 - 1) for simplicity and performance reasons
@@ -583,12 +584,9 @@ constexpr inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coef
 [[nodiscard]] constexpr inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const noexcept {
     assert(!is_nan());
 
-    constexpr auto exponent_bias = int16_t{398};
-    constexpr auto exponent_mask = (int16_t{1} << 10) - 1;
-
-    auto sign = (_value >> 63) * -2 + 1;
-    auto exp = (_value >> 53 & exponent_mask) - exponent_bias;
-    auto coeff = _value & ((uint64_t{1} << 53) - 1);
+    auto sign = int8_t((_value >> detail::DEC_SIGN_SHIFT) * -2 + 1);
+    auto exp = int16_t((_value >> detail::DEC_EXPONENT_SHIFT) & detail::DEC_EXPONENT_MASK) - detail::DEC_EXPONENT_BIAS;
+    auto coeff = _value & detail::DEC_MAX_COEFFICIENT;
 
     return {sign, coeff, exp};
 }
