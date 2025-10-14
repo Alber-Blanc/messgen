@@ -149,7 +149,7 @@ namespace detail {
 template <class T>
 constexpr static auto composite_name_of = nullptr;
 
-constexpr size_t num_chars(auto num) {
+constexpr size_t num_chars(int num) {
     size_t count = 0;
     while (num) {
         ++count;
