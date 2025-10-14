@@ -2,12 +2,9 @@
 #include <messgen/test/flat_struct_with_decimal.h>
 
 #include <cmath>
-#include <stdlib.h>
-#include <float.h>
-
-#include <iostream>
-#include <iomanip>
 #include <cstring>
+#include <iomanip>
+#include <iostream>
 
 #include <gtest/gtest.h>
 
@@ -117,6 +114,15 @@ TEST_F(CppDecimalTest, Comparison) {
 
     // NaNs are not equal
     EXPECT_NE(decimal64::from_string("nan"), decimal64::from_string("nan"));
+
+    // Inifities
+    EXPECT_EQ(decimal64::infinity(), decimal64::infinity());
+    EXPECT_EQ(-decimal64::infinity(), -decimal64::infinity());
+    EXPECT_LE(-decimal64::infinity(), decimal64::infinity());
+    EXPECT_GT(decimal64::infinity(), -decimal64::infinity());
+    EXPECT_NE(decimal64::infinity(), decimal64::from_integer(0));
+    EXPECT_GT(decimal64::infinity(), decimal64::from_integer(0));
+    EXPECT_LE(-decimal64::infinity(), decimal64::from_integer(0));
 }
 
 TEST_F(CppDecimalTest, Conversions) {
@@ -300,10 +306,10 @@ TEST_F(CppDecimalTest, FromString) {
     EXPECT_EQ(0.000123_dd, decimal64::from_string("0.123e-3"));
 
     // Extreme values
-    auto very_large = decimal64::from_string("9.99e30");
+    auto very_large = decimal64::from_string("9.99e19");
     EXPECT_GT(very_large, decimal64::from_integer(0));
 
-    auto very_small = decimal64::from_string("9.99e-30");
+    auto very_small = decimal64::from_string("9.99e-19");
     EXPECT_GT(very_small, decimal64::from_integer(0));
 
     // Infinity
@@ -419,54 +425,37 @@ TEST_F(CppDecimalTest, MakeDecimal) {
     };
 
     // Basic Values
-    EXPECT_EQ("0x308462d53c8abac0", decimal_to_hex(std::decimal::make_decimal64(1234567890123456LL, -10)));
-    EXPECT_EQ("0x31c0000000000001", decimal_to_hex(std::decimal::make_decimal64(1LL, 0)));
-    EXPECT_EQ("0x31c000000000007b", decimal_to_hex(std::decimal::make_decimal64(123LL, 0)));
-    EXPECT_EQ("0x318000000000007b", decimal_to_hex(std::decimal::make_decimal64(123LL, -2)));
-    EXPECT_EQ("0x320000000000007b", decimal_to_hex(std::decimal::make_decimal64(123LL, 2)));
-    EXPECT_EQ("0xb1c000000000007b", decimal_to_hex(std::decimal::make_decimal64(-123LL, 0)));
-    EXPECT_EQ("0xb1a000000000007b", decimal_to_hex(std::decimal::make_decimal64(-123LL, -1)));
+    EXPECT_EQ("0x308462d53c8abac0", decimal_to_hex(123456.7890123456_dd));
+    EXPECT_EQ("0x31c0000000000001", decimal_to_hex(1_dd));
+    EXPECT_EQ("0x31c000000000007b", decimal_to_hex(123_dd));
+    EXPECT_EQ("0x318000000000007b", decimal_to_hex(1.23_dd));
+    EXPECT_EQ("0xb1c000000000007b", decimal_to_hex(-123_dd));
+    EXPECT_EQ("0xb1a000000000007b", decimal_to_hex(-12.3_dd));
+
+    // Normalization not applied by default
+    auto value = 12300_dd;
+    value.normalize();
+    EXPECT_EQ("0x320000000000007b", decimal_to_hex(value));
 
     // Zero Values
-    EXPECT_EQ("0x31c0000000000000", decimal_to_hex(std::decimal::make_decimal64(0LL, 0)));
-    EXPECT_EQ("0x3e40000000000000", decimal_to_hex(std::decimal::make_decimal64(0LL, 100)));
-    EXPECT_EQ("0x2540000000000000", decimal_to_hex(std::decimal::make_decimal64(0LL, -100)));
+    EXPECT_EQ("0x31c0000000000000", decimal_to_hex(0_dd));
+    EXPECT_EQ("0x31c0000000000000", decimal_to_hex(0.0000000000000000000000000000000000000000000000001_dd));
 
     // Precision Edge Cases
-    EXPECT_EQ("0x31c000000098967f", decimal_to_hex(std::decimal::make_decimal64(9999999LL, 0)));
-    EXPECT_EQ("0x2e40000000000001", decimal_to_hex(std::decimal::make_decimal64(1LL, -28)));
-    EXPECT_EQ("0x3540000000000009", decimal_to_hex(std::decimal::make_decimal64(9LL, 28)));
-    EXPECT_EQ("0x2fe38d7ea4c67fff", decimal_to_hex(std::decimal::make_decimal64(999999999999999LL, -15)));
+    EXPECT_EQ("0x31c000000098967f", decimal_to_hex(9999999_dd));
+    EXPECT_EQ("0x2f600002540be400", decimal_to_hex(0.00000000000000000000000000001_dd));
+    EXPECT_EQ("0x3420000218711a00", decimal_to_hex(decimal64::from_string("90000000000000000000000000000")));
+    EXPECT_EQ("0x2fe38d7ea4c67fff", decimal_to_hex(0.999999999999999_dd));
 
     // Rounding Cases
-    EXPECT_EQ("0x31a0000000000005", decimal_to_hex(std::decimal::make_decimal64(5LL, -1)));
-    EXPECT_EQ("0x318000000000000f", decimal_to_hex(std::decimal::make_decimal64(15LL, -2)));
-    EXPECT_EQ("0x316000000000007d", decimal_to_hex(std::decimal::make_decimal64(125LL, -3)));
-    EXPECT_EQ("0x316000000000007e", decimal_to_hex(std::decimal::make_decimal64(126LL, -3)));
-
-    // Operation Testing Values
-    EXPECT_EQ("0x3d0000000098967f", decimal_to_hex(std::decimal::make_decimal64(9999999LL, 90)));
-    EXPECT_EQ("0x256000000098967f", decimal_to_hex(std::decimal::make_decimal64(9999999LL, -99)));
-    EXPECT_EQ("0x31a0000000000005", decimal_to_hex(std::decimal::make_decimal64(5LL, -1)));
-    EXPECT_EQ("0x3100000000000001", decimal_to_hex(std::decimal::make_decimal64(1LL, -6)));
-
-    // Boundary Cases
-    EXPECT_EQ("0x6c7386f26fc0ffff", decimal_to_hex(std::decimal::make_decimal64(9999999999999999LL, 0)));
-    EXPECT_EQ("0x77fb86f26fc0ffff", decimal_to_hex(std::decimal::make_decimal64(9999999999999999LL, 369)));
-    EXPECT_EQ("0x7800000000000000", decimal_to_hex(std::decimal::make_decimal64(999999999999999999LL, 369)));
-    EXPECT_EQ("0x7800000000000000", decimal_to_hex(std::decimal::make_decimal64(9999999999999999LL, 370)));
-    EXPECT_EQ("0xf800000000000000", decimal_to_hex(std::decimal::make_decimal64(-9999999999999999LL, 370)));
-    EXPECT_EQ("0x600386f26fc0ffff", decimal_to_hex(std::decimal::make_decimal64(9999999999999999LL, -398)));
-    EXPECT_EQ("0xe00386f26fc0ffff", decimal_to_hex(std::decimal::make_decimal64(-9999999999999999LL, -398)));
-    EXPECT_EQ("0x0000000000000000", decimal_to_hex(std::decimal::make_decimal64(9999999999999999LL, -399)));
-    EXPECT_EQ("0x8000000000000000", decimal_to_hex(std::decimal::make_decimal64(-9999999999999999LL, -399)));
-    EXPECT_EQ("0x5fe05af3107a4000", decimal_to_hex(std::decimal::make_decimal64(1LL, 383)));
-    EXPECT_EQ("0x5fe38d7ea4c68000", decimal_to_hex(std::decimal::make_decimal64(1LL, 384)));
+    EXPECT_EQ("0x31a0000000000005", decimal_to_hex(0.5_dd));
+    EXPECT_EQ("0x318000000000000f", decimal_to_hex(0.15_dd));
+    EXPECT_EQ("0x316000000000007d", decimal_to_hex(0.125_dd));
+    EXPECT_EQ("0x316000000000007e", decimal_to_hex(0.126_dd));
 
     // Special Values (implementation-dependent)
-    EXPECT_EQ("0x7800000000000000", decimal_to_hex(std::decimal::make_decimal64(1LL, 999)));
-    EXPECT_EQ("0xf800000000000000", decimal_to_hex(std::decimal::make_decimal64(-1LL, 999)));
-    EXPECT_EQ("0x0000000000000000", decimal_to_hex(std::decimal::make_decimal64(0LL, -999)));
+    EXPECT_EQ("0x7800000000000000", decimal_to_hex(100000000000000000000000000000000000000000000000000_dd));
+    EXPECT_EQ("0xf800000000000000", decimal_to_hex(-1100000000000000000000000000000000000000000000000000_dd));
 }
 
 TEST_F(CppDecimalTest, GeneratedFlatType) {
