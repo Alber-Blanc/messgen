@@ -6,6 +6,7 @@
 #include <string_view>
 #include <array>
 #include <cstdint>
+#include <type_traits>
 #include <utility>
 
 namespace messgen {
@@ -18,7 +19,7 @@ template <class T>
 using splice_t = std::remove_pointer_t<T>;
 
 template <class T>
-constexpr reflect_t<T> reflect_type = {};
+constexpr reflect_t<remove_cvref_t<T>> reflect_type = {};
 
 template <class T>
 constexpr reflect_t<remove_cvref_t<T>> reflect_object(T &&t) {

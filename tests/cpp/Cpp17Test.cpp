@@ -205,8 +205,8 @@ TEST_F(CppTest17, MessageReflectionFieldNames) {
     EXPECT_EQ(names.size(), 18);
 
     auto expected_names = std::vector<std::string_view>{
-            "f0",    "f1",     "f2",     "bits0",  "s_arr", "f1_arr", "v_arr",   "f2_vec",         "e_vec",
-            "s_vec", "v_vec0", "v_vec1", "v_vec2", "str",   "bs",     "str_vec", "map_str_by_int", "map_vec_by_str",
+        "f0",    "f1",     "f2",     "bits0",  "s_arr", "f1_arr", "v_arr",   "f2_vec",         "e_vec",
+        "s_vec", "v_vec0", "v_vec1", "v_vec2", "str",   "bs",     "str_vec", "map_str_by_int", "map_vec_by_str",
     };
     EXPECT_EQ(expected_names, names);
 }
@@ -270,6 +270,13 @@ TEST_F(CppTest17, EnumReflection) {
 
     EXPECT_EQ(name_of(std::get<1>(enums)), "another_value"sv);
     EXPECT_EQ(value_of(std::get<1>(enums)), mynamespace::types::simple_enum{1});
+}
+
+TEST_F(CppTest17, ConstexprNameReflection) {
+    using namespace messgen;
+
+    constexpr auto name = name_of(reflect_type<std::map<std::string, std::array<std::vector<mynamespace::types::var_size_struct>, 4>>>);
+    EXPECT_EQ("map<string, array<vector<mynamespace::types::var_size_struct>, 4>>", name);
 }
 
 TEST_F(CppTest17, DispatchMessage) {
@@ -379,9 +386,9 @@ TEST_F(CppTest17, BitsetOperations) {
     test_bits = test_bits ^ mynamespace::types::simple_bitset::error;
     EXPECT_EQ(test_bits.to_underlying(), 7);
 
-    uint8_t flags = ((test_bits & mynamespace::types::simple_bitset::one) |
-                     (test_bits & mynamespace::types::simple_bitset::two) |
-                     (test_bits & mynamespace::types::simple_bitset::error)).to_underlying();
+    uint8_t flags = ((test_bits & mynamespace::types::simple_bitset::one) | (test_bits & mynamespace::types::simple_bitset::two) |
+                     (test_bits & mynamespace::types::simple_bitset::error))
+                        .to_underlying();
     EXPECT_EQ(flags, 7);
 
     // Clear 'error' bit
