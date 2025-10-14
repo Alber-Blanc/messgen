@@ -221,24 +221,24 @@ TEST_F(CppTest17, MessageReflectionFieldTypes) {
     EXPECT_EQ(types.size(), 18);
 
     auto expected_types = std::vector<std::string_view>{
-        "uint64_t",
-        "uint32_t",
-        "uint64_t",
+        "uint64",
+        "uint32",
+        "uint64",
         "mynamespace::types::simple_bitset",
-        "array<mynamespace::types::simple_struct, 2>",
-        "array<int64_t, 4>",
-        "array<mynamespace::types::var_size_struct, 2>",
-        "vector<double>",
-        "vector<mynamespace::types::simple_enum>",
-        "vector<mynamespace::types::simple_struct>",
-        "vector<vector<mynamespace::types::var_size_struct>>",
-        "array<vector<mynamespace::types::var_size_struct>, 4>",
-        "vector<array<vector<int16_t>, 4>>",
+        "mynamespace::types::simple_struct[2]",
+        "int64[4]",
+        "mynamespace::types::var_size_struct[2]",
+        "float64[]",
+        "mynamespace::types::simple_enum[]",
+        "mynamespace::types::simple_struct[]",
+        "mynamespace::types::var_size_struct[][]",
+        "mynamespace::types::var_size_struct[][4]",
+        "int16[][4][]",
         "string",
-        "vector<uint8_t>",
-        "vector<string>",
-        "map<int32_t, string>",
-        "map<string, vector<int32_t>>",
+        "uint8[]",
+        "string[]",
+        "string{int32}",
+        "int32[]{string}",
     };
     EXPECT_EQ(expected_types, types);
 }
@@ -276,7 +276,7 @@ TEST_F(CppTest17, ConstexprNameReflection) {
     using namespace messgen;
 
     constexpr auto name = name_of(reflect_type<std::map<std::string, std::array<std::vector<mynamespace::types::var_size_struct>, 4>>>);
-    EXPECT_EQ("map<string, array<vector<mynamespace::types::var_size_struct>, 4>>", name);
+    EXPECT_EQ("mynamespace::types::var_size_struct[][4]{string}", name);
 }
 
 TEST_F(CppTest17, DispatchMessage) {

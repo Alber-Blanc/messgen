@@ -100,43 +100,43 @@ template <class T>
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<uint8_t>) noexcept {
-    return "uint8_t";
+    return "uint8";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<int8_t>) noexcept {
-    return "int8_t";
+    return "int8";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<uint16_t>) noexcept {
-    return "uint16_t";
+    return "uint16";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<int16_t>) noexcept {
-    return "int16_t";
+    return "int16";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<uint32_t>) noexcept {
-    return "uint32_t";
+    return "uint32";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<int32_t>) noexcept {
-    return "int32_t";
+    return "int32";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<uint64_t>) noexcept {
-    return "uint64_t";
+    return "uint64";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<int64_t>) noexcept {
-    return "int64_t";
+    return "int64";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<float>) noexcept {
-    return "float";
+    return "float32";
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<double>) noexcept {
-    return "double";
+    return "float64";
 }
 
 namespace detail {
@@ -176,7 +176,7 @@ constexpr static auto chars_of = [] {
 }();
 
 template <class T>
-constexpr static auto storage_of = []() {
+constexpr static auto name_storage_of = []() {
     constexpr auto strs = composite_name_of<T>;
     auto storage = std::array<char, num_chars(strs) + 1>{};
     auto *ptr = storage.data();
