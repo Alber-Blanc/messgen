@@ -142,7 +142,7 @@ template <class T>
 namespace detail {
 
 template <class T>
-constexpr static auto name_components_of = nullptr;
+constexpr static auto composite_name_of = nullptr;
 
 constexpr size_t num_chars(auto num) {
     size_t count = 0;
@@ -177,7 +177,7 @@ constexpr static auto chars_of = [] {
 
 template <class T>
 constexpr static auto storage_of = []() {
-    constexpr auto strs = name_components_of<T>;
+    constexpr auto strs = composite_name_of<T>;
     auto storage = std::array<char, num_chars(strs) + 1>{};
     auto *ptr = storage.data();
     for (auto str : strs) {

@@ -35,7 +35,7 @@ namespace detail {
 
 // clang-format off
 template <class T, auto N>
-constexpr static auto name_components_of<std::array<T, N>> = std::array{
+constexpr static auto composite_name_of<std::array<T, N>> = std::array{
     std::string_view{"array<"},
     name_of(reflect_type<T>),
     std::string_view{", "},
@@ -43,14 +43,14 @@ constexpr static auto name_components_of<std::array<T, N>> = std::array{
 };
 
 template <class T>
-constexpr static auto name_components_of<std::vector<T>> = std::array{
+constexpr static auto composite_name_of<std::vector<T>> = std::array{
     std::string_view{"vector<"},
     name_of(reflect_type<T>),
     std::string_view{">"}
 };
 
 template <class K, class V>
-constexpr static auto name_components_of<std::map<K, V>> = std::array{
+constexpr static auto composite_name_of<std::map<K, V>> = std::array{
     std::string_view{"map<"},
     name_of(reflect_type<K>),
     std::string_view{", "},
