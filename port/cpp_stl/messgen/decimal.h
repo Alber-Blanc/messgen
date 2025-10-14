@@ -12,39 +12,12 @@
 #include <optional>
 #include <string>
 
+#ifndef MESSGEN_DEC_FP
+#define MESSGEN_DEC_FP
+#endif
+
 namespace messgen {
-namespace detail {
-
-constexpr auto DEC_SIGN_SHIFT = 63;
-constexpr auto DEC_EXPONENT_SHIFT = 53;
-constexpr auto DEC_NAN_MASK = 0b11111ULL << 58;
-constexpr auto DEC_INF_MASK = 0b11110ULL << 58;
-constexpr auto DEC_SIGN_MASK = 0b1ULL << DEC_SIGN_SHIFT;
-constexpr auto DEC_MAX_EXPONENT = 19;
-constexpr auto DEC_MIN_EXPONENT = -19;
-constexpr auto DEC_MAX_COEFFICIENT = (1ULL << 53) - 1;
-constexpr auto DEC_EXPONENT_BIAS = int16_t{398};
-constexpr auto DEC_EXPONENT_MASK = (int16_t{1} << 10) - 1;
-
-template <typename T, int MIN, int MAX>
-inline constexpr auto POW10 = []() {
-    constexpr auto size = MAX - MIN + 1;
-
-    auto res = std::array<T, size>{};
-    res.fill(T{} + 1);
-
-    uint64_t pow10 = 1;
-    for (int i = -MIN; i < size; ++i) {
-        res[i] = T(pow10);
-        pow10 *= 10; // NOLINT
-    }
-    for (int i = 0; i < -MIN; ++i) {
-        res[i] /= res[size - i - 1];
-    }
-    return res;
-}();
-
-} // namespace detail
+namespace detail {} // namespace detail
 
 enum class round_mode {
     down = -1,
@@ -219,6 +192,35 @@ struct decimal64 {
 private:
     using value_type = uint64_t;
 
+    constexpr static auto DEC_SIGN_SHIFT = 63;
+    constexpr static auto DEC_EXPONENT_SHIFT = 53;
+    constexpr static auto DEC_NAN_MASK = 0b11111ULL << 58;
+    constexpr static auto DEC_INF_MASK = 0b11110ULL << 58;
+    constexpr static auto DEC_SIGN_MASK = 0b1ULL << DEC_SIGN_SHIFT;
+    constexpr static auto DEC_MAX_EXPONENT = 19;
+    constexpr static auto DEC_MIN_EXPONENT = -19;
+    constexpr static auto DEC_MAX_COEFFICIENT = (1ULL << 53) - 1;
+    constexpr static auto DEC_EXPONENT_BIAS = int16_t{398};
+    constexpr static auto DEC_EXPONENT_MASK = (int16_t{1} << 10) - 1;
+
+    template <typename T, int MIN, int MAX>
+    constexpr static auto POW10 = []() {
+        constexpr auto size = MAX - MIN + 1;
+
+        auto res = std::array<T, size>{};
+        res.fill(T{} + 1);
+
+        uint64_t pow10 = 1;
+        for (int i = -MIN; i < size; ++i) {
+            res[i] = T(pow10);
+            pow10 *= 10; // NOLINT
+        }
+        for (int i = 0; i < -MIN; ++i) {
+            res[i] /= res[size - i - 1];
+        }
+        return res;
+    }();
+
     template <char... C>
     friend decimal64 operator""_dd();
 
@@ -263,16 +265,16 @@ private:
 };
 
 [[nodiscard]] constexpr inline double decimal64::pow10_dbl(int exp) {
-    constexpr auto offset = int(detail::POW10<double, detail::DEC_MIN_EXPONENT, detail::DEC_MAX_EXPONENT>.size()) / 2;
+    constexpr auto offset = int(POW10<double, DEC_MIN_EXPONENT, DEC_MAX_EXPONENT>.size()) / 2;
 
     assert(exp <= offset);
     assert(exp >= -offset);
 
-    return detail::POW10<double, detail::DEC_MIN_EXPONENT, detail::DEC_MAX_EXPONENT>[exp + offset];
+    return POW10<double, DEC_MIN_EXPONENT, DEC_MAX_EXPONENT>[exp + offset];
 }
 
 [[nodiscard]] constexpr inline uint64_t decimal64::pow10_int(int exp) {
-    return detail::POW10<uint64_t, 0, detail::DEC_MAX_EXPONENT>[exp];
+    return POW10<uint64_t, 0, DEC_MAX_EXPONENT>[exp];
 }
 
 [[nodiscard]] inline decimal64 decimal64::from_double(double value, decimal64 tick, round_mode round_mode) noexcept {
@@ -319,7 +321,7 @@ private:
     }
 
     if (str == "nan") {
-        return decimal64{detail::DEC_NAN_MASK};
+        return decimal64{DEC_NAN_MASK};
     }
 
     // remove leading whitespace
@@ -342,7 +344,7 @@ private:
     auto exp = 0;
 
     // parse integral part
-    constexpr auto max_pow_ten = pow10_int(detail::DEC_MAX_EXPONENT - 1);
+    constexpr auto max_pow_ten = pow10_int(DEC_MAX_EXPONENT - 1);
     while (!str.empty() && str[0] != '.' && str[0] != 'e') {
         if (!std::isdigit(str[0])) {
             return std::nullopt;
@@ -473,15 +475,15 @@ private:
 }
 
 [[nodiscard]] inline bool decimal64::is_infinite() const noexcept {
-    return (_value & detail::DEC_INF_MASK) == detail::DEC_INF_MASK && !is_nan();
+    return (_value & DEC_INF_MASK) == DEC_INF_MASK && !is_nan();
 }
 
 [[nodiscard]] inline bool decimal64::is_nan() const noexcept {
-    return (_value & detail::DEC_NAN_MASK) == detail::DEC_NAN_MASK;
+    return (_value & DEC_NAN_MASK) == DEC_NAN_MASK;
 }
 
 [[nodiscard]] bool decimal64::is_negative() const noexcept {
-    return (_value & detail::DEC_SIGN_MASK) > 1;
+    return (_value & DEC_SIGN_MASK) > 1;
 }
 
 inline decimal64 &decimal64::operator+=(decimal64 other) noexcept {
@@ -513,24 +515,24 @@ inline decimal64 &decimal64::operator*=(int64_t other) noexcept {
 }
 
 [[nodiscard]] inline decimal64 decimal64::operator-() noexcept {
-    _value ^= detail::DEC_SIGN_MASK;
+    _value ^= DEC_SIGN_MASK;
     return *this;
 }
 
 constexpr inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept {
-    if (coeff > detail::DEC_MAX_COEFFICIENT || exponent < detail::DEC_MIN_EXPONENT || exponent > detail::DEC_MAX_EXPONENT) [[unlikely]] {
+    if (coeff > DEC_MAX_COEFFICIENT || exponent < DEC_MIN_EXPONENT || exponent > DEC_MAX_EXPONENT) [[unlikely]] {
         std::tie(coeff, exponent) = normalize(coeff, exponent);
     }
 
     // Check if dec64 is inifity
     auto sign_bit = value_type{sign < 0};
-    if (coeff > detail::DEC_MAX_COEFFICIENT || exponent > detail::DEC_MAX_EXPONENT) [[unlikely]] {
-        _value = (sign_bit << detail::DEC_SIGN_SHIFT) | infinity()._value;
+    if (coeff > DEC_MAX_COEFFICIENT || exponent > DEC_MAX_EXPONENT) [[unlikely]] {
+        _value = (sign_bit << DEC_SIGN_SHIFT) | infinity()._value;
         return;
     }
 
     // Check if dec64 trimms to zero
-    if (exponent < detail::DEC_MIN_EXPONENT) [[unlikely]] {
+    if (exponent < DEC_MIN_EXPONENT) [[unlikely]] {
         coeff = 0;
         exponent = 0;
     }
@@ -540,12 +542,12 @@ constexpr inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t expon
 
     // Apply exponent bias
     _value <<= 10;
-    _value |= exponent + detail::DEC_EXPONENT_BIAS;
+    _value |= exponent + DEC_EXPONENT_BIAS;
 
     // Apply the coefficient
     // Note: we inentionally don't support coefficient > (1 << 54 - 1) for simplicity and performance reasons
     _value <<= 53;
-    _value |= coeff & detail::DEC_MAX_COEFFICIENT;
+    _value |= coeff & DEC_MAX_COEFFICIENT;
 }
 
 constexpr inline decimal64::decimal64(int64_t coeff, int exponent) noexcept
@@ -557,7 +559,7 @@ constexpr inline decimal64::decimal64(value_type value) noexcept
 }
 
 constexpr decimal64 decimal64::infinity() noexcept {
-    return decimal64{detail::DEC_INF_MASK};
+    return decimal64{DEC_INF_MASK};
 }
 
 constexpr void decimal64::normalize() noexcept {
@@ -568,13 +570,13 @@ constexpr void decimal64::normalize() noexcept {
 
 constexpr inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coeff, int exponent) const noexcept {
     // Normalize the coefficient
-    while (coeff != 0 && coeff % 10 == 0 && exponent < detail::DEC_MAX_EXPONENT) {
+    while (coeff != 0 && coeff % 10 == 0 && exponent < DEC_MAX_EXPONENT) {
         coeff /= 10;
         exponent += 1;
     }
 
     // Normalize the exponent
-    while ((exponent > detail::DEC_MAX_EXPONENT || exponent < detail::DEC_MIN_EXPONENT) && coeff * 10 <= detail::DEC_MAX_COEFFICIENT) {
+    while ((exponent > DEC_MAX_EXPONENT || exponent < DEC_MIN_EXPONENT) && coeff * 10 <= DEC_MAX_COEFFICIENT) {
         coeff *= 10;
         exponent += exponent < 0;
     }
@@ -585,9 +587,9 @@ constexpr inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coef
 [[nodiscard]] constexpr inline std::tuple<int8_t, uint64_t, int16_t> decimal64::decompose() const noexcept {
     assert(!is_nan());
 
-    auto sign = int8_t((_value >> detail::DEC_SIGN_SHIFT) * -2 + 1);
-    auto exp = int16_t((_value >> detail::DEC_EXPONENT_SHIFT) & detail::DEC_EXPONENT_MASK) - detail::DEC_EXPONENT_BIAS;
-    auto coeff = _value & detail::DEC_MAX_COEFFICIENT;
+    auto sign = int8_t((_value >> DEC_SIGN_SHIFT) * -2 + 1);
+    auto exp = int16_t((_value >> DEC_EXPONENT_SHIFT) & DEC_EXPONENT_MASK) - DEC_EXPONENT_BIAS;
+    auto coeff = _value & DEC_MAX_COEFFICIENT;
 
     return {sign, coeff, exp};
 }
