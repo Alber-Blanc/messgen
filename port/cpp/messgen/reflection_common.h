@@ -139,4 +139,56 @@ template <class T>
     return "double";
 }
 
+namespace detail {
+
+template <class T>
+constexpr static auto name_components_of = nullptr;
+
+constexpr size_t num_chars(auto num) {
+    size_t count = 0;
+    while (num) {
+        ++count;
+        num /= 10;
+    }
+    return count;
+}
+
+template <size_t N>
+constexpr size_t num_chars(std::array<std::string_view, N> strs) {
+    size_t size = 0;
+    for (auto &str : strs) {
+        size += str.size();
+    }
+    return size;
+}
+
+template <size_t N>
+constexpr static auto chars_of = [] {
+    auto result = std::array<char, num_chars(N) + 1>{};
+    auto *ptr = result.data();
+    auto num = N;
+    while (num) {
+        *ptr++ = char('0' + num % 10);
+        num /= 10;
+    }
+    *ptr = '\0';
+    return std::pair{result, num_chars(N)};
+}();
+
+template <class T>
+constexpr static auto storage_of = []() {
+    constexpr auto strs = name_components_of<T>;
+    auto storage = std::array<char, num_chars(strs) + 1>{};
+    auto *ptr = storage.data();
+    for (auto str : strs) {
+        for (char c : str) {
+            *ptr++ = c;
+        }
+    }
+    *ptr = '\0';
+    return std::pair{storage, num_chars(strs)};
+}();
+
+} // namespace detail
+
 } // namespace messgen
