@@ -417,8 +417,12 @@ TEST_F(Cpp17Test, DispatchMessage) {
         }
     };
 
+#ifdef MESSGEN_MODE_CUSTOM_ALLOC
     messgen::Allocator alloc;
     mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), handler, alloc);
+#else
+    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), handler);
+#endif
 
     EXPECT_TRUE(invoked);
 }

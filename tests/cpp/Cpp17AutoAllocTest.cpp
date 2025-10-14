@@ -78,31 +78,3 @@ TEST_F(Cpp17AutoAllocTest, MessageReflectionFieldTypes) {
     };
     EXPECT_EQ(expected_types, types);
 }
-
-TEST_F(Cpp17AutoAllocTest, DispatchMessage) {
-    using namespace messgen;
-
-    auto expected = mynamespace::types::simple_struct{
-        .f0 = 1,
-        .f1 = 2,
-    };
-    _buf.resize(expected.serialized_size());
-    size_t ser_size = expected.serialize(_buf.data());
-
-    auto invoked = false;
-    auto handler = [&](auto &&actual) {
-        using ActualType = std::decay_t<decltype(actual)>;
-
-        if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct_msg>) {
-            EXPECT_EQ(expected.f0, actual.data.f0);
-            EXPECT_EQ(expected.f1, actual.data.f1);
-            invoked = true;
-        } else {
-            FAIL() << "Unexpected message type handled.";
-        }
-    };
-
-    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), handler);
-
-    EXPECT_TRUE(invoked);
-}
