@@ -31,10 +31,11 @@ public:
           }) {
     }
 
-    template <class ITER, typename = std::enable_if_t<std::is_same_v<typename std::iterator_traits<ITER>::iterator_category, std::random_access_iterator_tag>>>
-    bytes(ITER &begin, ITER &end)
-        : _ptr(begin),
-          _size(end - begin) {
+    template <class V, typename = std::enable_if_t<
+                           std::is_same_v<typename std::iterator_traits<typename V::iterator>::iterator_category, std::random_access_iterator_tag>>>
+    bytes(V &v)
+        : _ptr(v.begin()),
+          _size(v.end() - v.begin()) {
     }
 
     // TODO generic template
@@ -81,6 +82,14 @@ public:
 
     const uint8_t *data() const {
         return reinterpret_cast<const uint8_t *>(_ptr);
+    }
+
+    const uint8_t *begin() const {
+        return reinterpret_cast<const uint8_t *>(_ptr);
+    }
+
+    const uint8_t *end() const {
+        return reinterpret_cast<const uint8_t *>(_ptr + _size);
     }
 
     size_t serialize(uint8_t *buf) const {

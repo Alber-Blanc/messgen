@@ -35,8 +35,8 @@ public:
 
     template <class V>
     span(V &v)
-        : _ptr(v.data()),
-          _size(v.size()) {
+        : _ptr(v.begin()),
+          _size(v.end() - v.begin()) {
     }
 
     span &operator=(const span &other) {

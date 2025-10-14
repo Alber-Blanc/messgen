@@ -7,6 +7,7 @@
 #include <array>
 #include <cstdint>
 #include <utility>
+#include <tuple>
 
 namespace messgen {
 
