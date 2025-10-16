@@ -63,14 +63,14 @@ class TSWriter:
             self.line(f"/** {text} */")
 
     @contextmanager
-    def block(self, header: str):
+    def block(self, header: str, end: str = ""):
         self.line(f"{header} {{")
         self._ind += 1
         try:
             yield
         finally:
             self._ind -= 1
-            self.line("}")
+            self.line(f"}}{end}")
 
     def emit(self) -> str:
         return "\n".join(self._buf).rstrip() + "\n"
@@ -331,7 +331,7 @@ class TypeScriptGenerator:
         w = TSWriter()
         w.line(f"export const PROTO_ID = {proto.proto_id};")
         w.blank()
-        with w.block("export interface Proto"):
+        with w.block("export type Proto =", end=";"):
             with w.block("[PROTO_ID]:"):
                 for m in messages:
                     tf = _type_folder_of(m.type)
