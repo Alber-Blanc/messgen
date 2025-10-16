@@ -354,7 +354,7 @@ class TypeScriptGenerator:
     def _emit_struct(self, name: str, struct: StructType, types: Dict[str, MessgenType]) -> str:
         w = TSWriter()
         w.jsdoc(struct.comment or '', f"Size: {struct.size}" if struct.size is not None else '')
-        with w.block(f"export interface {normalize(name)}"):
+        with w.block(f"export type {normalize(name)} =", end=";"):
             for f in struct.fields or []:
                 w.jsdoc(f.comment or '')
                 w.line(f"{f.name}: {TypeScriptTypes.resolve(f.type)};")
