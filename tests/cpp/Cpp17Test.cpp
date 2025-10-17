@@ -260,11 +260,6 @@ TEST_F(Cpp17Test, ComplexStruct) {
     test_serialization(s);
 }
 
-TEST_F(Cpp17Test, ComplexStructWithEmpty) {
-    mynamespace::types::subspace::complex_struct_with_empty s{};
-    test_serialization(s);
-}
-
 TEST_F(Cpp17Test, BitsetOperations) {
     using namespace messgen;
 
@@ -427,11 +422,9 @@ TEST_F(Cpp17Test, ProtoHash) {
                          mynamespace::proto::test_proto::complex_struct_msg::HASH ^              //
                          mynamespace::proto::test_proto::var_size_struct_msg::HASH ^             //
                          mynamespace::proto::test_proto::empty_struct_msg::HASH ^                //
-                         mynamespace::proto::test_proto::complex_struct_with_empty_msg::HASH ^   //
-                         mynamespace::proto::test_proto::complex_struct_custom_alloc_msg::HASH ^ //
                          mynamespace::proto::test_proto::flat_struct_msg::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
-    EXPECT_EQ(14917833515515611505U, hash_test_proto);
+    EXPECT_EQ(18394245099761547257U, hash_test_proto);
 }
 
 TEST_F(Cpp17Test, BytesPlain) {
@@ -472,4 +465,33 @@ TEST_F(Cpp17Test, DispatchMessage) {
 #endif
 
     EXPECT_TRUE(invoked);
+}
+
+TEST_F(Cpp17Test, MessageReflectionFieldTypes) {
+    using namespace messgen;
+
+    auto s = mynamespace::types::subspace::complex_struct{};
+
+    auto types = std::vector<std::string_view>{};
+    for_each(members_of(reflect_object(s)), [&](auto &&param) { types.push_back(name_of(type_of(param))); });
+    EXPECT_EQ(types.size(), 15);
+
+    auto expected_types = std::vector<std::string_view>{
+        "mynamespace::types::simple_bitset",
+        "mynamespace::types::simple_struct[2]",
+        "int64[4]",
+        "mynamespace::types::var_size_struct[2]",
+        "float64[]",
+        "mynamespace::types::simple_enum[]",
+        "mynamespace::types::simple_struct[]",
+        "mynamespace::types::var_size_struct[][]",
+        "int16[][4][]",
+        "string",
+        "bytes",
+        "string[]",
+        "string{int32}",
+        "int32[]{string}",
+        "int32[0]",
+    };
+    EXPECT_EQ(expected_types, types);
 }

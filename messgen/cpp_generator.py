@@ -762,7 +762,6 @@ class CppGenerator:
                 return "std::map<%s, %s>" % (key_c_type, value_c_type)
             elif mode == "custom_alloc":
                 self._add_include("messgen/map.h")
-                self._add_include("span")
                 return "messgen::map<%s, %s>" % (key_c_type, value_c_type)
             else:
                 raise RuntimeError("Unsupported mode for map: %s" % mode)
