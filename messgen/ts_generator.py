@@ -63,14 +63,14 @@ class TSWriter:
             self.line(f"/** {text} */")
 
     @contextmanager
-    def block(self, header: str):
+    def block(self, header: str, end: str = ""):
         self.line(f"{header} {{")
         self._ind += 1
         try:
             yield
         finally:
             self._ind -= 1
-            self.line("}")
+            self.line(f"}}{end}")
 
     def emit(self) -> str:
         return "\n".join(self._buf).rstrip() + "\n"
@@ -331,7 +331,7 @@ class TypeScriptGenerator:
         w = TSWriter()
         w.line(f"export const PROTO_ID = {proto.proto_id};")
         w.blank()
-        with w.block("export interface Proto"):
+        with w.block("export type Proto =", end=";"):
             with w.block("[PROTO_ID]:"):
                 for m in messages:
                     tf = _type_folder_of(m.type)
@@ -354,7 +354,7 @@ class TypeScriptGenerator:
     def _emit_struct(self, name: str, struct: StructType, types: Dict[str, MessgenType]) -> str:
         w = TSWriter()
         w.jsdoc(struct.comment or '', f"Size: {struct.size}" if struct.size is not None else '')
-        with w.block(f"export interface {normalize(name)}"):
+        with w.block(f"export type {normalize(name)} =", end=";"):
             for f in struct.fields or []:
                 w.jsdoc(f.comment or '')
                 w.line(f"{f.name}: {TypeScriptTypes.resolve(f.type)};")

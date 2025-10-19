@@ -1,13 +1,12 @@
 #pragma once
 
-#include "traits.h"
+#include "traits_common.h"
 
-#include <string>
-#include <string_view>
 #include <array>
 #include <cstdint>
+#include <string_view>
+#include <type_traits>
 #include <utility>
-#include <tuple>
 
 namespace messgen {
 
@@ -19,7 +18,7 @@ template <class T>
 using splice_t = std::remove_pointer_t<T>;
 
 template <class T>
-constexpr reflect_t<T> reflect_type = {};
+constexpr reflect_t<remove_cvref_t<T>> reflect_type = {};
 
 template <class T>
 constexpr reflect_t<remove_cvref_t<T>> reflect_object(T &&t) {
@@ -139,36 +138,61 @@ template <class T>
     return "float64";
 }
 
-class bytes;
-
-[[nodiscard]] constexpr std::string_view name_of(reflect_t<messgen::bytes>) noexcept {
-    return "bytes";
+template <typename T>
+constexpr std::string_view name_of(reflect_t<std::basic_string_view<T>>) noexcept {
+    return "string";
 }
 
-template <class Protocol>
-constexpr auto members_of() -> std::enable_if_t<is_protocol_v<Protocol>, decltype(members_of(reflect_type<Protocol>))> {
-    constexpr auto members = members_of(reflect_type<Protocol>);
-    return members;
-}
-
-template <class Message>
-constexpr auto hash_of(reflect_t<Message>) -> std::enable_if_t<is_message_v<Message>, uint64_t> {
-    constexpr auto hash = Message::HASH;
-    return hash;
-}
-
-template <class Protocol>
-constexpr auto hash_of(reflect_t<Protocol>) -> std::enable_if_t<is_protocol_v<Protocol>, uint64_t> {
-    auto hash = uint64_t{0};
-    auto combine = [&hash](auto... members) { hash = (hash_of(type_of(members)) ^ ...); };
-    std::apply(combine, members_of(reflect_type<Protocol>));
-    return hash;
-}
+namespace detail {
 
 template <class T>
-constexpr auto hash_of() -> std::enable_if_t<is_protocol_v<T> || is_message_v<T>, uint64_t> {
-    constexpr auto hash = hash_of(reflect_type<T>);
-    return hash;
+constexpr static auto composite_name_of = nullptr;
+
+constexpr size_t num_chars(int num) noexcept {
+    size_t count = 0;
+    while (num) {
+        ++count;
+        num /= 10;
+    }
+    return count;
 }
+
+template <size_t N>
+constexpr size_t num_chars(std::array<std::string_view, N> strs) noexcept {
+    size_t size = 0;
+    for (auto &str : strs) {
+        size += str.size();
+    }
+    return size;
+}
+
+template <size_t N>
+constexpr static auto chars_of = [] {
+    auto result = std::array<char, num_chars(N) + 1>{};
+    auto *ptr = result.data();
+    auto num = N;
+    while (num) {
+        *ptr++ = char('0' + num % 10);
+        num /= 10;
+    }
+    *ptr = '\0';
+    return std::pair{result, num_chars(N)};
+}();
+
+template <class T>
+constexpr static auto name_storage_of = []() {
+    constexpr auto strs = composite_name_of<T>;
+    auto result = std::array<char, num_chars(strs) + 1>{};
+    auto *ptr = result.data();
+    for (auto str : strs) {
+        for (char c : str) {
+            *ptr++ = c;
+        }
+    }
+    *ptr = '\0';
+    return std::pair{result, num_chars(strs)};
+}();
+
+} // namespace detail
 
 } // namespace messgen

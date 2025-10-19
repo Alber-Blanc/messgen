@@ -10,7 +10,6 @@ function(messgen_add_types_library LIBRARY_NAME BASE_DIRS MODE)
     get_filename_component(MESSGEN_DIR ${MESSGEN_DIR} DIRECTORY)
 
     set(MESSGEN_ARGS "")
-    MESSAGE("Types base dirs ${BASE_DIRS}")
     foreach (BASE_DIR ${BASE_DIRS})
         list(APPEND MESSGEN_ARGS "--types" ${BASE_DIR})
     endforeach ()
