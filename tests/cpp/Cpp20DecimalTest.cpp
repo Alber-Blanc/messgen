@@ -1,4 +1,4 @@
-#include <messgen/decimal.h>
+#include <../../port/cpp/messgen/decimal.h>
 #include <mynamespace/types/flat_struct_with_decimal.h>
 
 #include <cmath>

@@ -467,6 +467,18 @@ TEST_F(Cpp17Test, DispatchMessage) {
     EXPECT_TRUE(invoked);
 }
 
+TEST_F(Cpp17Test, ConstexprNameReflection) {
+    using namespace messgen;
+
+#ifdef MESSGEN_MODE_CUSTOM_ALLOC
+    constexpr auto name = name_of(reflect_type<messgen::map<std::string_view, std::array<messgen::span<mynamespace::types::var_size_struct>, 4>>>);
+#else
+    constexpr auto name = name_of(reflect_type<std::map<std::string, std::array<std::vector<mynamespace::types::var_size_struct>, 4>>>);
+#endif
+
+    EXPECT_EQ("mynamespace::types::var_size_struct[][4]{string}", name);
+}
+
 TEST_F(Cpp17Test, MessageReflectionFieldTypes) {
     using namespace messgen;
 

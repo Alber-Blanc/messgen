@@ -4,53 +4,9 @@
 
 namespace messgen {
 
-template <std::size_t N>
-struct ConstexprString {
-    char data[N + 1]{};
-    std::size_t size = 0;
-
-    constexpr void append(std::string_view str) {
-        for (char c : str) {
-            if (size < N) {
-                data[size++] = c;
-            }
-        }
-        data[size] = '\0';
-    }
-
-    constexpr void append(char c) {
-        if (size < N) {
-            data[size++] = c;
-            data[size] = '\0';
-        }
-    }
-
-    constexpr std::string_view view() const {
-        return std::string_view{data, size};
-    }
-};
-
-template <std::size_t MaxDigits = 20>
-constexpr std::array<char, MaxDigits> uint_to_string(std::size_t value) {
-    std::array<char, MaxDigits> buf{};
-    std::size_t pos = MaxDigits;
-    do {
-        buf[--pos] = char('0' + (value % 10));
-        value /= 10;
-    } while (value && pos > 0);
-
-    return buf;
-}
-
 template <typename T>
-constexpr std::string_view name_of(reflect_t<std::basic_string_view<T>>) {
-    constexpr ConstexprString<64> buffer = []() constexpr {
-        ConstexprString<64> result;
-        result.append("string");
-        return result;
-    }();
-
-    return buffer.view();
+constexpr std::string_view name_of(reflect_t<std::basic_string_view<T>>) noexcept {
+    return "string";
 }
 
 template <class T>
@@ -59,62 +15,49 @@ class span;
 template <class Key, class T>
 struct map;
 
-template <typename T, std::size_t N>
-constexpr std::string_view name_of(reflect_t<std::array<T, N>>);
-
-template <typename T>
-constexpr std::string_view name_of(reflect_t<messgen::span<T>>);
-
-template <typename Key, typename T>
-constexpr std::string_view name_of(reflect_t<messgen::map<Key, T>>);
-
-template <typename T, std::size_t N>
-constexpr std::string_view name_of(reflect_t<std::array<T, N>>) {
-    // constexpr auto type_name = name_of(reflect_type<T>);
-    // constexpr auto n_str = uint_to_string(N);
-    //
-    // constexpr ConstexprString<128> buffer = [&]() constexpr {
-    //     ConstexprString<128> result;
-    //     result.append(type_name);
-    //     result.append("[");
-    //     result.append(std::string_view(n_str.data(), n_str.size()));
-    //     result.append("]");
-    //     return result;
-    // }();
-    //
-    // return buffer.view();
-    return "dupa";
+template <class T, auto N>
+[[nodiscard]] constexpr std::string_view name_of(reflect_t<std::array<T, N>>) noexcept {
+    auto &[arr, size] = detail::name_storage_of<std::array<T, N>>;
+    return std::string_view{arr.data(), size};
 }
 
-template <typename T>
-constexpr std::string_view name_of(reflect_t<messgen::span<T>>) {
-    // constexpr auto el_type_name = name_of(reflect_type<T>);
-    // constexpr ConstexprString<64> buffer = [el_type_name]() constexpr {
-    //     ConstexprString<64> result;
-    //     result.append(el_type_name);
-    //     result.append("[]");
-    //     return result;
-    // }();
-    //
-    // return buffer.view();
-    return "dupa";
+template <class T>
+[[nodiscard]] constexpr std::string_view name_of(reflect_t<messgen::span<T>>) noexcept {
+    auto &[arr, size] = detail::name_storage_of<messgen::span<T>>;
+    return std::string_view{arr.data(), size};
 }
 
-template <typename Key, typename T>
-constexpr std::string_view name_of(reflect_t<messgen::map<Key, T>>) {
-    // constexpr auto key_name = name_of(reflect_type<Key>);
-    // constexpr auto value_name = name_of(reflect_type<T>);
-    // constexpr ConstexprString<64> buffer = []() constexpr {
-    //     ConstexprString<64> result;
-    //     result.append(value_name);
-    //     result.append("{");
-    //     result.append(key_name);
-    //     result.append("}");
-    //     return result;
-    // }();
-    //
-    // return buffer.view();
-    return "dupa";
+template <class K, class V>
+[[nodiscard]] constexpr std::string_view name_of(reflect_t<messgen::map<K, V>>) noexcept {
+    auto &[arr, size] = detail::name_storage_of<messgen::map<K, V>>;
+    return std::string_view{arr.data(), size};
 }
 
+namespace detail {
+
+// clang-format off
+template <class T, auto N>
+constexpr static auto composite_name_of<std::array<T, N>> = std::array{
+    name_of(reflect_type<T>),
+    std::string_view{"["},
+    std::string_view{chars_of<N>.first.data(), chars_of<N>.second},
+    std::string_view{"]"}
+};
+
+template <class T>
+constexpr static auto composite_name_of<messgen::span<T>> = std::array{
+    name_of(reflect_type<T>),
+    std::string_view{"[]"}
+};
+
+template <class K, class V>
+constexpr static auto composite_name_of<messgen::map<K, V>> = std::array{
+    name_of(reflect_type<V>),
+    std::string_view{"{"},
+    name_of(reflect_type<K>),
+    std::string_view{"}"},
+};
+// clang-format on
+
+} // namespace detail
 } // namespace messgen
