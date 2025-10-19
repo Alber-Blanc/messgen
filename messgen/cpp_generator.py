@@ -487,6 +487,18 @@ class CppGenerator:
         align = self._get_alignment(type_def)
         return offs % align == 0
 
+    def _is_flat_type(self, type_def):
+        if type_def.size is None:
+            return False
+
+        if type_def.type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.bitset, TypeClass.decimal]:
+            return True
+        elif type_def.type_class == TypeClass.struct:
+            groups = self._field_groups(type_def.fields)
+            return len(groups) == 0 or (len(groups) == 1 and groups[0].size is not None)
+        else:
+            return False
+
     def _generate_type_struct(self, type_name: str, type_def: StructType, types: dict[str, MessgenType]):
         fields = type_def.fields
 
@@ -510,7 +522,7 @@ class CppGenerator:
         # IS_FLAT flag
         is_flat_str = "false"
         is_empty = len(groups) == 0
-        is_flat = is_empty or (len(groups) == 1 and groups[0].size is not None)
+        is_flat = self._is_flat_type(type_def)
         if is_flat:
             code.append(_indent("static constexpr size_t FLAT_SIZE = %d;" % (0 if is_empty else groups[0].size)))
             is_flat_str = "true"
@@ -815,12 +827,17 @@ class CppGenerator:
         for field in fields:
             field_def = self._types.get(field.type)
             align = self._get_alignment(field_def)
+            is_flat = self._is_flat_type(field_def)
             size = field_def.size
 
             # Check if there is padding before this field
             if len(groups[-1].fields) > 0 and (
-                    (size is None) or (groups[-1].size is None) or (groups[-1].size % align != 0) or (
-                    size % align != 0)):
+                    (not is_flat) or
+                    (size is None) or
+                    (groups[-1].size is None) or
+                    (groups[-1].size % align != 0) or
+                    (size % align != 0)
+            ):
                 # Start next group
                 groups.append(FieldsGroup())
 
@@ -857,16 +874,16 @@ class CppGenerator:
             el_size = el_type_def.size
             el_align = self._get_alignment(el_type_def)
 
-            if el_size == 0:
+            if el_size == 0 or (type_class == TypeClass.array and field_type_def.size == 0):
                 pass
-            elif el_size is not None and el_size % el_align == 0:
-                # Vector of fixed size elements, optimize with single memcpy
-                c.append("_field_size = %d * %s.size();" % (el_size, field_name))
-                c.extend(self._memcpy_to_buf("%s.data()" % field_name, "_field_size"))
+            elif self._is_flat_type(el_type_def) and el_size % el_align == 0:
+                # Vector or array of flat aligned elements, optimize with single memcpy
+                c.append(f"_field_size = {el_size} * {field_name}.size();")
+                c.extend(self._memcpy_to_buf(f"{field_name}.data()", "_field_size"))
             else:
-                # Vector of variable size elements
-                c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
-                c.extend(_indent(self._serialize_field("_i%d" % level_n, el_type_def, level_n + 1)))
+                # Parse one by one
+                c.append(f"for (auto &_i{level_n}: {field_name}) {{")
+                c.extend(_indent(self._serialize_field(f"_i{level_n}", el_type_def, level_n + 1)))
                 c.append("}")
 
         elif type_class == TypeClass.map:
@@ -879,17 +896,15 @@ class CppGenerator:
             c.extend(_indent(self._serialize_field("_i%d.second" % level_n, value_type_def, level_n + 1)))
             c.append("}")
 
-        elif type_class == TypeClass.string:
-            c.append("*reinterpret_cast<messgen::size_type *>(&_buf[_size]) = %s.size();" % field_name)
-            c.append("_size += sizeof(messgen::size_type);")
-            c.append("%s.copy(reinterpret_cast<char *>(&_buf[_size]), %s.size());" % (field_name, field_name))
-            c.append("_size += %s.size();" % field_name)
 
-        elif type_class == TypeClass.bytes:
-            c.append("_size_ptr = reinterpret_cast<messgen::size_type *>(&_buf[_size]);")
+        elif type_class in [TypeClass.string, TypeClass.bytes]:
+            c.append(f"*reinterpret_cast<messgen::size_type *>(&_buf[_size]) = {field_name}.size();")
             c.append("_size += sizeof(messgen::size_type);")
-            c.append(f"_field_size = {field_name}.size();")
-            c.extend(self._memcpy_to_buf(f"{field_name}.data()", "_field_size"))
+            if type_class == TypeClass.string:
+                c.append(f"{field_name}.copy(reinterpret_cast<char *>(&_buf[_size]), {field_name}.size());")
+                c.append(f"_size += {field_name}.size();")
+            else:
+                c.extend(self._memcpy_to_buf(f"{field_name}.data()", f"{field_name}.size()"))
 
         else:
             raise RuntimeError("Unsupported type_class in _serialize_field: %s" % type_class)
@@ -915,65 +930,47 @@ class CppGenerator:
                 alloc = ", _alloc"
             c.append("_size += %s.deserialize(&_buf[_size]%s);" % (field_name, alloc))
 
-        elif type_class == TypeClass.array:
-            el_type_def = self._types.get(field_type_def.element_type)
-            el_size = el_type_def.size
-            el_align = self._get_alignment(el_type_def)
-            if el_size == 0:
-                pass
-            elif el_size is not None and el_size % el_align == 0:
-                # Vector or array of fixed size elements, optimize with single memcpy
-                c.append("_field_size = %d * %s.size();" % (el_size, field_name))
-                c.extend(self._memcpy_from_buf("%s.data()" % field_name, "_field_size"))
-            else:
-                # Vector or array of variable size elements
-                c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
-                c.extend(_indent(self._deserialize_field("_i%d" % level_n, el_type_def, level_n + 1)))
-                c.append("}")
-
-        elif type_class == TypeClass.vector:
-            el_type_def = self._types.get(field_type_def.element_type)
-            el_size = el_type_def.size
-            el_align = self._get_alignment(el_type_def)
-
-            if mode == "auto_alloc":
-                c.append("%s.resize(*reinterpret_cast<const messgen::size_type *>(&_buf[_size]));" % field_name)
-                c.append("_size += sizeof(messgen::size_type);")
-                if el_size == 0:
-                    pass
-                elif el_size is not None and el_size % el_align == 0:
-                    # Vector or array of fixed size elements, optimize with single memcpy
-                    c.append("_field_size = %d * %s.size();" % (el_size, field_name))
-                    c.extend(self._memcpy_from_buf("%s.data()" % field_name, "_field_size"))
-                else:
-                    # Vector or array of variable size elements
-                    c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
-                    c.extend(_indent(self._deserialize_field("_i%d" % level_n, el_type_def, level_n + 1)))
-                    c.append("}")
-            elif mode == "custom_alloc":
-                el_c_type = self._cpp_type(field_type_def.element_type)
+        elif type_class in [TypeClass.array, TypeClass.vector]:
+            # For vector read the size and allocate memory if needed
+            if type_class == TypeClass.vector:
                 c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
                 c.append("_size += sizeof(messgen::size_type);")
-                if el_align > 1:
-                    # Allocate memory and copy data to recover alignment
-                    c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), _field_size}};")
-                    if el_size == 0:
-                        pass
-                    elif el_size is not None and el_size % el_align == 0:
-                        # Vector or array of fixed size elements, optimize with single memcpy
-                        if el_size != 1:
-                            c.append("_field_size *= %d;" % el_size)
+                if mode == "auto_alloc":
+                    c.append(f"{field_name}.resize(_field_size);")
+
+            el_type_def = self._types.get(field_type_def.element_type)
+            el_size = el_type_def.size
+            el_align = self._get_alignment(el_type_def)
+            el_c_type = self._cpp_type(field_type_def.element_type)
+
+            # Copy data
+            if el_size == 0 or (type_class == TypeClass.array and field_type_def.size == 0):
+                pass
+            elif self._is_flat_type(el_type_def) and el_size % el_align == 0:
+                # Vector or array of flat aligned elements, optimize with single memcpy or zero-copy
+                if mode == "custom_alloc":
+                    if el_align > 1:
+                        # Allocate memory and copy data to recover alignment
+                        if type_class == TypeClass.vector:
+                            c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), _field_size}};")
+                        # Vector or array of flat aligned elements, optimize with single memcpy
+                        c.append(f"_field_size = {el_size} * {field_name}.size();")
                         c.extend(self._memcpy_from_buf("%s.data()" % field_name, "_field_size"))
                     else:
-                        # Vector or array of variable size elements
-                        c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
-                        c.extend(_indent(self._deserialize_field("_i%d" % level_n, el_type_def, level_n + 1)))
-                        c.append("}")
+                        # For alignment == 1 simply point to data in source buffer
+                        c.append(
+                            f"{field_name} = {{const_cast<{el_c_type} *>(reinterpret_cast<const {el_c_type} *>(&_buf[_size])), _field_size}};")
+                        c.append(f"_size += _field_size * {el_size};")
                 else:
-                    # For alignment == 1 simply point to data in source buffer
-                    c.append(
-                        f"{field_name} = {{const_cast<{el_c_type} *>(reinterpret_cast<const {el_c_type} *>(&_buf[_size])), _field_size}};")
-                    c.append("_size += _field_size * %d;" % el_size)
+                    c.append(f"_field_size = {el_size} * {field_name}.size();")
+                    c.extend(self._memcpy_from_buf(f"{field_name}.data()", "_field_size"))
+            else:
+                # Parse one by one
+                if mode == "custom_alloc" and type_class == TypeClass.vector:
+                    c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), _field_size}};")
+                c.append(f"for (auto &_i{level_n}: {field_name}) {{")
+                c.extend(_indent(self._deserialize_field(f"_i{level_n}", el_type_def, level_n + 1)))
+                c.append("}")
 
         elif type_class == TypeClass.map:
             key_c_type = self._cpp_type(field_type_def.key_type)
@@ -1019,22 +1016,17 @@ class CppGenerator:
                 #     c.append(f"{field_name} = {{reinterpret_cast<const {el_c_type} *>(&_buf[_size]), _field_size}};")
                 #     c.append("_size += _field_size * %d;" % el_size)
 
-        elif type_class == TypeClass.string:
+        elif type_class in [TypeClass.string, TypeClass.bytes]:
             c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
             c.append("_size += sizeof(messgen::size_type);")
-            c.append("%s = {reinterpret_cast<const char *>(&_buf[_size]), _field_size};" % field_name)
-            c.append("_size += _field_size;")
-
-        elif type_class == TypeClass.bytes:
-            c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
-            c.append("_size += sizeof(messgen::size_type);")
-            c.append("%s = {&_buf[_size], _field_size};" % field_name)
+            if type_class == TypeClass.string:
+                c.append(f"{field_name} = {{reinterpret_cast<const char *>(&_buf[_size]), _field_size}};")
+            else:
+                c.append(f"{field_name} = {{&_buf[_size], _field_size}};")
             c.append("_size += _field_size;")
 
         else:
             raise RuntimeError("Unsupported type_class in _deserialize_field: %s" % type_class)
-
-        c.append("")
 
         return c
 
@@ -1091,8 +1083,8 @@ class CppGenerator:
         return c
 
     def _memcpy_to_buf(self, src: str, size) -> list:
-        return ["::memcpy(&_buf[_size], reinterpret_cast<const uint8_t *>(%s), %s);" % (src, size),
+        return ["::memcpy(&_buf[_size], %s, %s);" % (src, size),
                 "_size += %s;" % size]
 
     def _memcpy_from_buf(self, dst: str, size) -> list:
-        return ["::memcpy(reinterpret_cast<uint8_t *>(%s), &_buf[_size], %s);" % (dst, size), "_size += %s;" % size]
+        return ["::memcpy(%s, &_buf[_size], %s);" % (dst, size), "_size += %s;" % size]

@@ -174,87 +174,43 @@ TEST_F(Cpp17Test, ComplexStruct) {
     s.bitset0 = mynamespace::types::simple_bitset::two;
     s.arr_simple_struct[0].f3 = 3;
     s.arr_simple_struct[1].f3 = 5;
-    // s.arr_int[0] = 10;
-    // s.arr_int[1] = 20;
-    // s.arr_int[2] = 30;
-    // s.arr_int[3] = 40;
-    // s.arr_var_size_struct[0].f0 = 3;
-    // s.arr_var_size_struct[1].f0 = 5;
-    // s.str = "Hello messgen!";
-    //
-    // std::vector<int64_t> f1_vec_data0 = {12345, 23456};
-    // std::vector<int64_t> f1_vec_data1 = {1234, 2345};
-    // std::vector<double> vec_float_data = {1.2345, 2.3456};
+    s.arr_int[0] = 10;
+    s.arr_int[1] = 20;
+    s.arr_int[2] = 30;
+    s.arr_int[3] = 40;
+    s.arr_var_size_struct[0].f0 = 3;
+    s.arr_var_size_struct[1].f0 = 5;
+    s.str = "Hello messgen!";
+    std::array<uint8_t, 8> bytes_buf{1, 2, 3, 4, 5, 6, 7, 8};
+    s.bs = messgen::bytes(&bytes_buf);
+
+    std::vector<int64_t> f1_vec_data0 = {12345, 23456};
+    std::vector<int64_t> f1_vec_data1 = {1234, 2345};
+    std::vector<double> vec_float_data = {1.2345, 2.3456};
+    std::vector<mynamespace::types::simple_enum> vec_enum_data = {mynamespace::types::simple_enum::another_value};
+    std::vector<mynamespace::types::simple_struct> vec_simple_struct_data = {mynamespace::types::simple_struct{
+        .f0 = 12345,
+        .f1 = 23456,
+        .f2 = 34567,
+        .f3 = 45678,
+        .f4 = 56789,
+        .f5 = 67890,
+        .f6 = 781,
+        .f8 = 90,
+    }};
 
 #ifdef MESSGEN_MODE_CUSTOM_ALLOC
-    // s.arr_var_size_struct[0].f1_vec = messgen::span<int64_t>(&f1_vec_data0);
-    // s.arr_var_size_struct[1].f1_vec = messgen::span<int64_t>(&f1_vec_data1);
-    //
-    // s.vec_float = messgen::span<double>(&vec_float_data);
-    //
-    //
-    // std::vector<decltype(s.vec_float)::value_type> vec_float_data = {45.787};
-    // s.vec_float = vec_float_data;
-    // std::vector<decltype(s.vec_enum)::value_type> vec_enum_data = {mynamespace::types::simple_enum::another_value};
-    // // s.vec_enum = vec_enum_data;
-    //
-    // std::vector<decltype(s.vec_vec_var_size_struct)::value_type> vec_vec_var_size_struct;
-    // std::vector<decltype(s.vec_vec_var_size_struct)::value_type::value_type> vec_vec_var_size_struct_0;
-    // vec_vec_var_size_struct_0.push_back({});
-    // vec_vec_var_size_struct_0[0].f0 = 234;
-    // std::vector<decltype(s.vec_vec_var_size_struct[0][0].f1_vec)::value_type> vec_vec_var_size_struct_0_f1_vec = {777};
-    // // vec_vec_var_size_struct_0[0].f1_vec = vec_vec_var_size_struct_0_f1_vec;
-    // vec_vec_var_size_struct.push_back(vec_vec_var_size_struct_0);
-    // s.vec_vec_var_size_struct = vec_vec_var_size_struct;
-
-    // s.vec_arr_vec_int.resize(1);
-    // s.v_vec2[1][0].resize(3);
-    // s.v_vec2[1][0][2] = 5;
-    // s.bs.assign({1, 2, 3, 4, 5});
-    // s.str_vec.push_back("spam");
-    // s.str_vec.push_back("eggs");
-    // s.str_vec.push_back("sticks");
-    // s.map_str_by_int[23] = "ping";
-    // s.map_str_by_int[777] = "pong";
-    // s.map_vec_by_str["cat"].push_back(1);
-    // s.map_vec_by_str["cat"].push_back(2);
-    // s.map_vec_by_str["cat"].push_back(3);
-    // s.map_vec_by_str["dog"].push_back(30);
-    // s.map_vec_by_str["dog"].push_back(40);
-    s.bitset0 |= mynamespace::types::simple_bitset::error;
+    s.arr_var_size_struct[0].f1_vec = messgen::span<int64_t>(&f1_vec_data0);
+    s.arr_var_size_struct[1].f1_vec = messgen::span<int64_t>(&f1_vec_data1);
+    s.vec_float = messgen::span<double>(&vec_float_data);
+    s.vec_enum = messgen::span<mynamespace::types::simple_enum>(&vec_enum_data);
+    s.vec_simple_struct = messgen::span<mynamespace::types::simple_struct>(&vec_simple_struct_data);
 #else
-    std::vector<decltype(s.vec_float)::value_type> vec_float_data = {45.787};
-    // qs.vec_float = vec_float_data;
-    std::vector<decltype(s.vec_enum)::value_type> vec_enum_data = {mynamespace::types::simple_enum::another_value};
-    // s.vec_enum = vec_enum_data;
-    s.arr_simple_struct[0].f3 = 3;
-    s.arr_simple_struct[1].f3 = 5;
-
-    std::vector<decltype(s.vec_vec_var_size_struct)::value_type> vec_vec_var_size_struct;
-    std::vector<decltype(s.vec_vec_var_size_struct)::value_type::value_type> vec_vec_var_size_struct_0;
-    vec_vec_var_size_struct_0.push_back({});
-    vec_vec_var_size_struct_0[0].f0 = 234;
-    std::vector<decltype(s.vec_vec_var_size_struct[0][0].f1_vec)::value_type> vec_vec_var_size_struct_0_f1_vec = {777};
-    // vec_vec_var_size_struct_0[0].f1_vec = vec_vec_var_size_struct_0_f1_vec;
-    vec_vec_var_size_struct.push_back(vec_vec_var_size_struct_0);
-    s.vec_vec_var_size_struct = vec_vec_var_size_struct;
-
-    // s.vec_arr_vec_int.resize(1);
-    // s.v_vec2[1][0].resize(3);
-    // s.v_vec2[1][0][2] = 5;
-    s.str = "Hello messgen!";
-    // s.bs.assign({1, 2, 3, 4, 5});
-    // s.str_vec.push_back("spam");
-    // s.str_vec.push_back("eggs");
-    // s.str_vec.push_back("sticks");
-    // s.map_str_by_int[23] = "ping";
-    // s.map_str_by_int[777] = "pong";
-    // s.map_vec_by_str["cat"].push_back(1);
-    // s.map_vec_by_str["cat"].push_back(2);
-    // s.map_vec_by_str["cat"].push_back(3);
-    // s.map_vec_by_str["dog"].push_back(30);
-    // s.map_vec_by_str["dog"].push_back(40);
-    s.bitset0 |= mynamespace::types::simple_bitset::error;
+    s.arr_var_size_struct[0].f1_vec = f1_vec_data0;
+    s.arr_var_size_struct[1].f1_vec = f1_vec_data1;
+    s.vec_float = vec_float_data;
+    s.vec_enum = vec_enum_data;
+    s.vec_simple_struct = vec_simple_struct_data;
 #endif
 
     test_serialization(s);
@@ -418,10 +374,10 @@ TEST_F(Cpp17Test, ProtoHash) {
     constexpr auto hash_another_proto = hash_of<mynamespace::proto::subspace::another_proto>();
     EXPECT_NE(hash_another_proto, hash_test_proto);
 
-    auto expected_hash = mynamespace::proto::test_proto::simple_struct_msg::HASH ^               //
-                         mynamespace::proto::test_proto::complex_struct_msg::HASH ^              //
-                         mynamespace::proto::test_proto::var_size_struct_msg::HASH ^             //
-                         mynamespace::proto::test_proto::empty_struct_msg::HASH ^                //
+    auto expected_hash = mynamespace::proto::test_proto::simple_struct_msg::HASH ^   //
+                         mynamespace::proto::test_proto::complex_struct_msg::HASH ^  //
+                         mynamespace::proto::test_proto::var_size_struct_msg::HASH ^ //
+                         mynamespace::proto::test_proto::empty_struct_msg::HASH ^    //
                          mynamespace::proto::test_proto::flat_struct_msg::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
     EXPECT_EQ(18394245099761547257U, hash_test_proto);
