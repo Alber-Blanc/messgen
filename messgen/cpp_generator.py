@@ -949,18 +949,18 @@ class CppGenerator:
             elif self._is_flat_type(el_type_def) and el_size % el_align == 0:
                 # Vector or array of flat aligned elements, optimize with single memcpy or zero-copy
                 if mode == "custom_alloc":
-                    if el_align > 1 or type_class == TypeClass.array:
-                        # Allocate memory and copy data to recover alignment
+                    if el_align == 1 and type_class == TypeClass.vector:
+                        # For the vector (messgen::span) with alignment == 1 point to data in source buffer, zero-copy
+                        c.append(
+                            f"{field_name} = {{const_cast<{el_c_type} *>(reinterpret_cast<const {el_c_type} *>(&_buf[_size])), _field_size}};")
+                        c.append(f"_size += _field_size * {el_size};")
+                    else:
+                        # Allocate memory if needed and copy data
                         if type_class == TypeClass.vector:
                             c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), _field_size}};")
                         # Vector or array of flat aligned elements, optimize with single memcpy
                         c.append(f"_field_size = {el_size} * {field_name}.size();")
                         c.extend(self._memcpy_from_buf("%s.data()" % field_name, "_field_size"))
-                    else:
-                        # For alignment == 1 simply point to data in source buffer
-                        c.append(
-                            f"{field_name} = {{const_cast<{el_c_type} *>(reinterpret_cast<const {el_c_type} *>(&_buf[_size])), _field_size}};")
-                        c.append(f"_size += _field_size * {el_size};")
                 else:
                     c.append(f"_field_size = {el_size} * {field_name}.size();")
                     c.extend(self._memcpy_from_buf(f"{field_name}.data()", "_field_size"))
