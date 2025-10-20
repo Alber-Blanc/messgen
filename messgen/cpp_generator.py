@@ -949,7 +949,7 @@ class CppGenerator:
             elif self._is_flat_type(el_type_def) and el_size % el_align == 0:
                 # Vector or array of flat aligned elements, optimize with single memcpy or zero-copy
                 if mode == "custom_alloc":
-                    if el_align > 1:
+                    if el_align > 1 or type_class == TypeClass.array:
                         # Allocate memory and copy data to recover alignment
                         if type_class == TypeClass.vector:
                             c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), _field_size}};")
