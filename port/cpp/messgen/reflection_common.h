@@ -1,12 +1,13 @@
 #pragma once
 
-#include "traits_common.h"
+#include "traits.h"
 
 #include <array>
 #include <cstdint>
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <tuple>
 
 namespace messgen {
 
@@ -138,9 +139,10 @@ template <class T>
     return "float64";
 }
 
-template <typename T>
-constexpr std::string_view name_of(reflect_t<std::basic_string_view<T>>) noexcept {
-    return "string";
+class bytes;
+
+[[nodiscard]] constexpr std::string_view name_of(reflect_t<messgen::bytes>) noexcept {
+    return "bytes";
 }
 
 namespace detail {
@@ -154,7 +156,7 @@ constexpr size_t num_chars(int num) noexcept {
         ++count;
         num /= 10;
     }
-    return count;
+    return std::max(count, size_t(1));
 }
 
 template <size_t N>
@@ -171,7 +173,7 @@ constexpr static auto chars_of = [] {
     auto result = std::array<char, num_chars(N) + 1>{};
     auto *ptr = result.data();
     auto num = N;
-    while (num) {
+    while (num or ptr == result.data()) {
         *ptr++ = char('0' + num % 10);
         num /= 10;
     }
@@ -194,5 +196,31 @@ constexpr static auto name_storage_of = []() {
 }();
 
 } // namespace detail
+
+template <class Protocol>
+constexpr auto members_of() -> std::enable_if_t<is_protocol_v<Protocol>, decltype(members_of(reflect_type<Protocol>))> {
+    constexpr auto members = members_of(reflect_type<Protocol>);
+    return members;
+}
+
+template <class Message>
+constexpr auto hash_of(reflect_t<Message>) -> std::enable_if_t<is_message_v<Message>, uint64_t> {
+    constexpr auto hash = Message::HASH;
+    return hash;
+}
+
+template <class Protocol>
+constexpr auto hash_of(reflect_t<Protocol>) -> std::enable_if_t<is_protocol_v<Protocol>, uint64_t> {
+    auto hash = uint64_t{0};
+    auto combine = [&hash](auto... members) { hash = (hash_of(type_of(members)) ^ ...); };
+    std::apply(combine, members_of(reflect_type<Protocol>));
+    return hash;
+}
+
+template <class T>
+constexpr auto hash_of() -> std::enable_if_t<is_protocol_v<T> || is_message_v<T>, uint64_t> {
+    constexpr auto hash = hash_of(reflect_type<T>);
+    return hash;
+}
 
 } // namespace messgen

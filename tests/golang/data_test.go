@@ -81,7 +81,7 @@ var TEST_DATA = []TestCase{
 		ArrayOfSizeZero: [0]int32{},
 	}},
 
-	{"ComplexStructNoSTL", "complex_struct_nostl.bin", false, &subspace.ComplexStructNostl{
+	{"ComplexStructCustomAlloc", "complex_struct_custom_alloc.bin", false, &subspace.ComplexStructCustomAlloc{
 		F0:    0x1234567890abcdef,
 		F1:    0x12345678,
 		F2:    0x1234567890abcdef,

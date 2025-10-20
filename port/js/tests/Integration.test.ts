@@ -134,18 +134,18 @@ describe('integration', () => {
       f0: BigInt('0x1234567890abcdef'),
       f1: 0x12345678,
       f2: BigInt('0x1234567890abcdef'),
-      s_arr: Array(2).fill(simpleStruct),
-      f1_arr: new BigInt64Array(4).fill(BigInt('0x1234567890abcdef')),
-      v_arr: Array(2).fill({
+      arr_simple_struct: Array(2).fill(simpleStruct),
+      arr_int: new BigInt64Array(4).fill(BigInt('0x1234567890abcdef')),
+      arr_var_size_struct: Array(2).fill({
         f0: BigInt('0x1234567890abcdef'),
         f1_vec: new BigInt64Array([BigInt('0x1234567890abcdef'), BigInt(5), BigInt(1)]),
         str: 'Hello messgen!',
       }),
-      f2_vec: new Float64Array(3).fill(1.2345678901234567890),
-      e_vec: [
+      vec_float: new Float64Array(3).fill(1.2345678901234567890),
+      vec_enum: [
         0,
         1],
-      s_vec: Array(3).fill(simpleStruct),
+      vec_simple_struct: Array(3).fill(simpleStruct),
       v_vec0: Array(3).fill(Array(2).fill({
         f0: BigInt('0x1234567890abcdef'),
         f1_vec: new BigInt64Array([BigInt('0x1234567890abcdef'), BigInt(5), BigInt(1)]),
@@ -159,7 +159,7 @@ describe('integration', () => {
       v_vec2: Array(2).fill(Array(4).fill(new Int16Array(3).fill(0x1234))), // replace 2 with desired outer list length
       str: 'Example String',
       str_vec: ['string1', 'string2', 'string3'],
-      bits0: 1 | 4,
+      bitset0: 1 | 4,
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct_nostl.bin');
 
@@ -192,16 +192,16 @@ describe('integration', () => {
       f0: BigInt('0x1234567890abcdef'),
       f1: 0x12345678,
       f2: BigInt('0x1234567890abcdef'),
-      s_arr: Array(2).fill(simpleStruct),
-      f1_arr: new BigInt64Array(4).fill(BigInt('0x1234567890abcdef')),
-      v_arr: Array(2).fill({
+      arr_simple_struct: Array(2).fill(simpleStruct),
+      arr_int: new BigInt64Array(4).fill(BigInt('0x1234567890abcdef')),
+      arr_var_size_struct: Array(2).fill({
         f0: BigInt('0x1234567890abcdef'),
         f1_vec: new BigInt64Array([BigInt('0x1234567890abcdef'), BigInt(5), BigInt(1)]),
         str: 'Hello messgen!',
       }),
-      f2_vec: new Float64Array(3).fill(1.2345678901234567890),
-      e_vec: [0, 1],
-      s_vec: Array(3).fill(simpleStruct),
+      vec_float: new Float64Array(3).fill(1.2345678901234567890),
+      vec_enum: [0, 1],
+      vec_simple_struct: Array(3).fill(simpleStruct),
       v_vec0: Array(3).fill(Array(2).fill({
         f0: BigInt('0x1234567890abcdef'),
         f1_vec: new BigInt64Array([BigInt('0x1234567890abcdef'), BigInt(5), BigInt(1)]),
@@ -218,7 +218,7 @@ describe('integration', () => {
       str_vec: ['string1', 'string2', 'string3'],
       map_str_by_int: new Map(Array.from({ length: 3 }, (_, i) => [i, `string${i}`])),
       map_vec_by_str: new Map(Array.from({ length: 3 }, (_, i) => [`key${i}`, new Int32Array(3).fill(0x1234)])),
-      bits0: 1 | 4,
+      bitset0: 1 | 4,
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct.bin');
 
