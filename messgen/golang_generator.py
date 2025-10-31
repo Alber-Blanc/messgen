@@ -775,7 +775,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
         yield f"\treturn messgen.PayloadId{{Protocol: Id, Message: {toGoName(msg.name)}_Id}}"
         yield f"}}"
         yield f""
-        yield f"func (m *{toGoName(msg.name)}) Data() *{tp.reference(pkg)} {{"
+        yield f"func (m *{toGoName(msg.name)}) Data() messgen.Serializable {{"
         yield f"\treturn (*{tp.reference(pkg)})(m)"
         yield f"}}"
         yield f""
