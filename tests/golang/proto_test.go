@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/Alber-Blanc/messgen/build-golang-test/msgs/mynamespace/proto/test_proto"
-	_type "github.com/Alber-Blanc/messgen/build-golang-test/msgs/mynamespace/types"
 )
 
 // TestProtocol is very a basic test that only checks that the generated code compiles and could be used.
@@ -15,7 +14,7 @@ func TestProtocol(t *testing.T) {
 	called := false
 	testFunc := func(ctx context.Context, msg *test_proto.SimpleStructMsg) error {
 		called = true
-		if !reflect.DeepEqual(*msg.Data().(*_type.SimpleStruct), simple) {
+		if !reflect.DeepEqual(*msg.Data(), simple) {
 			return fmt.Errorf("Dispatched message has unexpected content")
 		}
 
