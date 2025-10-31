@@ -8,7 +8,7 @@ type Serializable interface {
 }
 
 type ProtocolMessage interface {
-	Id() PayloadId
+	ID() PayloadId
 	Hash() uint64
 	Data() Serializable
 }
