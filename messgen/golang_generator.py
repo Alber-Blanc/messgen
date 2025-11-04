@@ -614,7 +614,7 @@ class ResolvedStruct(ResolvedType):
             yield f"\"{i}\""
         yield ")\n"
 
-        # To stop go camplaign about unused imports
+        # To stop go complaints about unused imports
         yield " var _ = fmt.Print"
         yield " var _ = binary.LittleEndian"
 
@@ -769,20 +769,18 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
     yield ""
     for id, msg in proto_def.messages.items():
         tp = types[msg.type]
-        yield f"type {toGoName(msg.name)} struct {{"
-        yield f"\tMessageData {tp.reference(pkg)}"
+        yield f"type {toGoName(msg.name)} {tp.reference(pkg)}"
+        yield f""
+        yield f"func (m *{toGoName(msg.name)}) ID() messgen.PayloadId {{"
+        yield f"\treturn messgen.PayloadId{{Protocol: Id, Message: {toGoName(msg.name)}_Id}}"
         yield f"}}"
         yield f""
-        yield f"func (m *{toGoName(msg.name)}) Id() messgen.PayloadId {{"
-        yield f"\treturn messgen.PayloadId{{Protocol: Id, Message: {toGoName(msg.name)}_Id}}"
+        yield f"func (m *{toGoName(msg.name)}) Data() messgen.Serializable {{"
+        yield f"\treturn (*{tp.reference(pkg)})(m)"
         yield f"}}"
         yield f""
         yield f"func (m *{toGoName(msg.name)}) Hash() uint64{{"
         yield f"\treturn {toGoName(msg.name)}_Hash"
-        yield f"}}"
-        yield f""
-        yield f"func (m *{toGoName(msg.name)}) Data() messgen.Serializable {{"
-        yield f"\treturn &m.MessageData"
         yield f"}}"
         yield f""
 
@@ -816,7 +814,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
         yield f"\t}}\n"
         yield f"\tdispatcher[int(mid)] = func(ctx context.Context, body []byte) error {{"
         yield f"\t\tmsg := &{toGoName(msg.name)}{{}}"
-        yield f"\t\tsz, err := msg.MessageData.Deserialize(body)"
+        yield f"\t\tsz, err := msg.Data().Deserialize(body)"
         yield f"\t\tif err != nil {{"
         yield f"\t\t\treturn fmt.Errorf(\"failed to read message {toGoName(msg.name)}: %s\", err)"
         yield f"\t\t}} else if int(sz) != len(body) {{"
@@ -854,7 +852,6 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
 
 class GolangGenerator:
     PROTO_TYPE_VAR_TYPE = "uint8"
-    _EXT_HEADER = ".h"
 
     def __init__(self, options: dict):
         self._options: dict = options
@@ -941,8 +938,8 @@ class GolangGenerator:
             output.parent.mkdir(parents=True, exist_ok=True)
             with open(output, 'w') as file:
                 # Pefix
-                print(f"{CODEGEN_FILE_PREFIX}\n", file=file);
-                print(f"package {type.package_name(gomod_name)}\n", file=file);
+                print(f"{CODEGEN_FILE_PREFIX}\n", file=file)
+                print(f"package {type.package_name(gomod_name)}\n", file=file)
 
                 # type
                 for line in type.render():
