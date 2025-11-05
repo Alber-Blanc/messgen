@@ -1,4 +1,5 @@
 #include <messgen/messgen.h>
+#include <messgen/concepts.h>
 #include <mynamespace/proto/test_proto.h>
 #include <mynamespace/proto/subspace/another_proto.h>
 
