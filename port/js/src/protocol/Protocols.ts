@@ -1,8 +1,11 @@
 import { TypeClass } from '../types';
 import type { BasicType, DecimalType, IName, IType, TypeDefinition } from '../types';
+import { DependencyResolver } from './dependency.resolver';
 import { type RawType, RawTypeClass } from './Protocols.types';
 
 export class Protocols {
+  private resolver = new DependencyResolver();
+
   private static DECIMAL = 'dec64';
   private static SCALAR_TYPES_INFO = new Map<string, boolean>([
     ['int8', true],
@@ -67,46 +70,7 @@ export class Protocols {
 
   dependencies(typeName: IType): Set<string> {
     const typeDefinition = this.getType(typeName);
-    const deps = new Set<string>();
-
-    switch (typeDefinition.typeClass) {
-      case TypeClass.SCALAR:
-      case TypeClass.DECIMAL:
-        break;
-
-      case TypeClass.ARRAY:
-      case TypeClass.TYPED_ARRAY:
-        if (typeDefinition.elementType) {
-          deps.add(typeDefinition.elementType);
-        }
-        break;
-
-      case TypeClass.MAP:
-        if (typeDefinition.keyType) {
-          deps.add(typeDefinition.keyType);
-        }
-        if (typeDefinition.valueType) {
-          deps.add(typeDefinition.valueType);
-        }
-        break;
-
-      case TypeClass.STRUCT:
-        if (typeDefinition.fields) {
-          typeDefinition.fields.forEach((field) => {
-            deps.add(field.type);
-          });
-        }
-        break;
-
-      case TypeClass.ENUM:
-      case TypeClass.BITSET:
-        break;
-
-      default:
-        break;
-    }
-
-    return deps;
+    return this.resolver.resolve(typeDefinition);
   }
 
   private parseArrayType(typeName: string): TypeDefinition {
