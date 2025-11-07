@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { Protocols } from '../src/protocol/Protocols';
+import { Protocols } from './Protocols';
 
 describe('Protocols', () => {
   let protocols: Protocols;

@@ -123,3 +123,7 @@ export type TypeDefinition =
   | StructTypeDefinition
   | EnumTypeDefinition
   | BitsetTypeDefinition;
+
+// Protocol metadata types
+export type ProtocolName = string;
+export type MessageName = string;

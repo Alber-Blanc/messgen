@@ -2,9 +2,9 @@
 /* eslint-disable @typescript-eslint/no-loss-of-precision */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { execSync } from 'child_process';
-import { Codec } from '../src/Codec';
-import { uploadTypes, uploadProtocols } from './utils';
-import type { Protocol, RawType } from '../src/protocol';
+import { Codec } from './Codec';
+import { uploadTypes, uploadProtocols } from '../tests/utils';
+import type { Protocol, RawType } from './protocol';
 
 describe('Codec', () => {
   let types: RawType[];

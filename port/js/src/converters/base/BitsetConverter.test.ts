@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { BasicType, BitsetBit, BitsetTypeDefinition } from '../src';
-import { BitsetConverter, Buffer, TypeClass } from '../src';
-import { initGetType } from './utils';
+import type { BasicType, BitsetBit, BitsetTypeDefinition } from '../../types';
+import { BitsetConverter, Buffer, TypeClass } from '../..';
+import { initGetType } from '../../../tests/utils';
 
 describe('BitsetConverter', () => {
   describe('#base', () => {

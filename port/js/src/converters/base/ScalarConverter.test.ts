@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { Buffer } from '../src/Buffer';
-import { ScalarConverter } from '../src/converters/base/ScalarConverter';
-import type { BasicType } from '../src/types';
-import { IS_LITTLE_ENDIAN } from '../src/config';
+import { Buffer } from '../../Buffer';
+import { ScalarConverter } from './ScalarConverter';
+import type { BasicType } from '../../types';
+import { IS_LITTLE_ENDIAN } from '../../config';
 
 describe('ScalarConverter', () => {
   describe('::primitive', () => {
