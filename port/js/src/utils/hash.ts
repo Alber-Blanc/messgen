@@ -1,4 +1,4 @@
-import { md5 } from 'js-md5';
+import { lib, MD5 } from 'crypto-js';
 import type { RawMessage } from '../protocol/Protocols.types';
 import type { Protocols } from '../protocol/Protocols';
 
@@ -8,7 +8,6 @@ export function hashMessage(message: RawMessage): bigint {
 
 export function hashType(typeName: string, protocols: Protocols): bigint {
   const typeDefinition = protocols.getType(typeName);
-
   const dependencies = protocols.dependencies(typeName);
 
   return Array.from(dependencies).reduce((acc, dep) => {
@@ -18,12 +17,18 @@ export function hashType(typeName: string, protocols: Protocols): bigint {
 }
 
 function hashBytes(payload: Uint8Array): bigint {
-  const hashArray = md5.array(payload);
+  const wordArray = lib.WordArray.create(payload as unknown as number[]);
+  const hash = MD5(wordArray);
 
-  // Take first 8 bytes and convert to little-endian uint64
+  const { words, sigBytes } = hash;
+  const bytesToUse = Math.min(8, sigBytes);
   let result = 0n;
-  for (let i = 0; i < 8; i += 1) {
-    result |= BigInt(hashArray[i]) << BigInt(i * 8);
+
+  for (let i = 0; i < bytesToUse; i += 1) {
+    const word = words[i >>> 2];
+    const byteShift = 24 - (i % 4) * 8;
+    const byte = (word >>> byteShift) & 0xff;
+    result |= BigInt(byte) << BigInt(i * 8);
   }
 
   return result;
@@ -58,21 +63,13 @@ function toSortedItems(obj: unknown): unknown {
 }
 
 function hashStruct(data: unknown): bigint {
-  // Create deep copy to avoid modifying original
   const copy = JSON.parse(JSON.stringify(data));
 
-  // Remove all "comment" keys recursively
   removeKeys(copy, 'comment');
 
-  // Convert to sorted array of [key, value] pairs (like Python's sorted(dict.items()))
   const sortedItems = toSortedItems(copy);
-
-  // Serialize to JSON with no spaces (separators=(",", ":"))
   const jsonStr = JSON.stringify(sortedItems);
 
-  // Encode to bytes
-  const encoder = new TextEncoder();
-  const bytes = encoder.encode(jsonStr);
-
+  const bytes = new TextEncoder().encode(jsonStr);
   return hashBytes(bytes);
 }

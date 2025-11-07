@@ -3,7 +3,7 @@ import { Protocols, type RawMessage } from '../protocol';
 import { hashMessage, hashType } from './hash';
 
 describe('Hash functions', () => {
-  describe('hashMessage', () => {
+  describe('#hashMessage', () => {
     it('should hash a simple message', () => {
       const message: RawMessage = {
         message_id: 1,
@@ -64,18 +64,19 @@ describe('Hash functions', () => {
 
       const hash1 = hashMessage(message1);
       const hash2 = hashMessage(message2);
+
       expect(hash1).not.toBe(hash2);
     });
   });
 
-  describe('hashType', () => {
+  describe('#hashType', () => {
     it('should hash scalar types', () => {
       const protocols = new Protocols();
       protocols.load([]);
 
       const hash = hashType('uint32', protocols);
-      expect(hash).not.toBeNull();
-      expect(typeof hash).toBe('bigint');
+
+      expect(hash).toBe(5061369293401170136n);
     });
 
     it('should hash struct types', () => {
@@ -92,8 +93,8 @@ describe('Hash functions', () => {
       ]);
 
       const hash = hashType('LoginData', protocols);
-      expect(hash).not.toBeNull();
-      expect(typeof hash).toBe('bigint');
+
+      expect(hash).toBe(479398456421290568n);
     });
 
     it('should hash enum types', () => {
@@ -111,8 +112,8 @@ describe('Hash functions', () => {
       ]);
 
       const hash = hashType('Status', protocols);
-      expect(hash).not.toBeNull();
-      expect(typeof hash).toBe('bigint');
+
+      expect(hash).toBe(11925832958824953276n);
     });
 
     it('should include dependencies in hash', () => {
@@ -135,13 +136,9 @@ describe('Hash functions', () => {
         },
       ]);
 
-      // Changing Inner should change Outer's hash
       const outerHash = hashType('Outer', protocols);
-      expect(outerHash).not.toBeNull();
-
-      // The hash should be different from just hashing Outer without dependencies
       const innerHash = hashType('Inner', protocols);
-      expect(innerHash).not.toBeNull();
+
       expect(outerHash).not.toBe(innerHash);
     });
 
@@ -150,8 +147,8 @@ describe('Hash functions', () => {
       protocols.load([]);
 
       const hash = hashType('uint32[]', protocols);
-      expect(hash).not.toBeNull();
-      expect(typeof hash).toBe('bigint');
+
+      expect(hash).toBe(867778072280195960n);
     });
 
     it('should handle map types', () => {
@@ -159,8 +156,8 @@ describe('Hash functions', () => {
       protocols.load([]);
 
       const hash = hashType('string{uint32}', protocols);
-      expect(hash).not.toBeNull();
-      expect(typeof hash).toBe('bigint');
+
+      expect(hash).toBe(14187822969938353579n);
     });
   });
 });
