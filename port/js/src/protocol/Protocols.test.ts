@@ -30,6 +30,7 @@ describe('Protocols', () => {
   describe('#getType', () => {
     it('should resolve scalar types', () => {
       const type = protocols.getType('uint64');
+
       expect(type).toEqual({
         type: 'uint64',
         typeClass: 'scalar',
@@ -38,6 +39,7 @@ describe('Protocols', () => {
 
     it('should resolve array types', () => {
       const type = protocols.getType('uint64[4]');
+
       expect(type).toEqual({
         type: 'uint64[4]',
         typeClass: 'typed-array',
@@ -48,6 +50,7 @@ describe('Protocols', () => {
 
     it('should resolve dynamic array types', () => {
       const type = protocols.getType('uint64[]');
+
       expect(type).toEqual({
         type: 'uint64[]',
         typeClass: 'typed-array',
@@ -58,6 +61,7 @@ describe('Protocols', () => {
 
     it('should resolve map types', () => {
       const type = protocols.getType('string{int32}');
+
       expect(type).toEqual({
         type: 'string{int32}',
         typeClass: 'map',
@@ -68,6 +72,7 @@ describe('Protocols', () => {
 
     it('should resolve struct types', () => {
       const type = protocols.getType('simple_struct');
+
       expect(type).toEqual({
         typeClass: 'struct',
         typeName: 'simple_struct',
@@ -80,6 +85,7 @@ describe('Protocols', () => {
 
     it('should resolve enum types', () => {
       const type = protocols.getType('simple_enum');
+
       expect(type).toEqual({
         typeClass: 'enum',
         typeName: 'simple_enum',
@@ -93,6 +99,7 @@ describe('Protocols', () => {
 
     it('should resolve decimal types', () => {
       const type = protocols.getType('dec64');
+
       expect(type).toEqual({
         type: 'dec64',
         typeClass: 'decimal',
@@ -107,7 +114,7 @@ describe('Protocols', () => {
 
     it('should resolve cross-protocol type references', () => {
       const type = protocols.getType('simple_struct');
-      expect(type).toBeDefined();
+
       expect(type.typeClass).toBe('struct');
     });
   });
@@ -115,21 +122,25 @@ describe('Protocols', () => {
   describe('#dependencies', () => {
     it('should return empty dependencies for scalar type', () => {
       const deps = protocols.dependencies('uint32');
+
       expect(deps.size).toBe(0);
     });
 
     it('should return dependencies for array type', () => {
       const deps = protocols.dependencies('simple_struct[10]');
+
       expect(deps).toEqual(new Set(['simple_struct']));
     });
 
     it('should return dependencies for map type', () => {
       const deps = protocols.dependencies('simple_enum{simple_struct}');
+
       expect(deps).toEqual(new Set(['simple_enum', 'simple_struct']));
     });
 
     it('should return dependencies for struct type', () => {
       const deps = protocols.dependencies('simple_struct');
+
       expect(deps).toEqual(new Set(['uint64', 'int64']));
     });
   });
