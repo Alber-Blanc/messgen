@@ -43,7 +43,6 @@ class JsonGenerator:
             proto_def = protocols[proto_name]
             proto_dict = asdict(proto_def)
 
-            # Add hash to each message
             for message_id, message_dict in proto_dict["messages"].items():
                 message_obj = proto_def.messages[int(message_id)]
                 message_dict["hash"] = str(hash_message(message_obj))
