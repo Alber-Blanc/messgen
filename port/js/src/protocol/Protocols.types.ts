@@ -64,7 +64,6 @@ export interface Protocol {
   messages: Record<string, RawMessage>;
 }
 
-// Protocol metadata for internal codec lookup
 export type MessageMetadata = [protoName: string, message: RawMessage];
 export type ProtocolMessageMap = Map<number, RawMessage>;
 export type ProtocolRegistry = Map<number, ProtocolMessageMap>;
