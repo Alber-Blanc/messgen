@@ -117,4 +117,12 @@ describe('Codec', () => {
       expect(codec.deserializeType('mynamespace/types/var_size_struct', message.buffer)).toEqual(rawData);
     });
   });
+
+  describe('#messageInfoById', () => {
+    it('should get message info by id', () => {
+      const messageInfo = codec.messageInfoById(1, 1);
+
+      expect(messageInfo.messageHash()).toBe(12088864483134247070n);
+    });
+  });
 });

@@ -1,5 +1,4 @@
 import type { RawMessage } from './Protocols.types';
-import { hashMessage } from '../utils/hash';
 
 export class MessageInfo {
   constructor(
@@ -22,6 +21,6 @@ export class MessageInfo {
   }
 
   messageHash(): bigint {
-    return hashMessage(this.message) ^ this.typeHash;
+    return BigInt(this.message.hash) ^ this.typeHash;
   }
 }

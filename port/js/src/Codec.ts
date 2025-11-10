@@ -3,7 +3,6 @@ import { type RawType, type Protocol, Protocols, MessageInfo } from './protocol'
 import { ConverterFactory } from './converters';
 import type { ProtocolMap, TypeMap, TypeByName } from './Codec.types';
 import { Buffer } from './Buffer';
-import { hashType } from './utils/hash';
 
 export class Codec<Types extends Record<string, unknown> = Record<string, unknown>> {
   private protocols = new Protocols();
@@ -100,7 +99,7 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
       throw new Error(`Unsupported proto_id=${protoId} message_id=${messageId}`);
     }
 
-    const typeHash = hashType(message.type, this.protocols) || 0n;
+    const typeHash = this.protocols.getTypeHash(message.type);
     return new MessageInfo(protoId, message, typeHash);
   }
 }

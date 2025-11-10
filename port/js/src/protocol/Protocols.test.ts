@@ -14,6 +14,7 @@ describe('Protocols', () => {
           { name: 'f0', type: 'uint64' },
           { name: 'f1', type: 'int64' },
         ],
+        hash: '14386769706336566742'
       },
       {
         type: 'simple_enum',
@@ -23,6 +24,7 @@ describe('Protocols', () => {
           { name: 'one_value', value: 0 },
           { name: 'another_value', value: 1 },
         ],
+        hash: '',
       },
     ]);
   });
@@ -116,32 +118,6 @@ describe('Protocols', () => {
       const type = protocols.getType('simple_struct');
 
       expect(type.typeClass).toBe('struct');
-    });
-  });
-
-  describe('#dependencies', () => {
-    it('should return empty dependencies for scalar type', () => {
-      const deps = protocols.dependencies('uint32');
-
-      expect(deps.size).toBe(0);
-    });
-
-    it('should return dependencies for array type', () => {
-      const deps = protocols.dependencies('simple_struct[10]');
-
-      expect(deps).toEqual(new Set(['simple_struct']));
-    });
-
-    it('should return dependencies for map type', () => {
-      const deps = protocols.dependencies('simple_enum{simple_struct}');
-
-      expect(deps).toEqual(new Set(['simple_enum', 'simple_struct']));
-    });
-
-    it('should return dependencies for struct type', () => {
-      const deps = protocols.dependencies('simple_struct');
-
-      expect(deps).toEqual(new Set(['uint64', 'int64']));
     });
   });
 });

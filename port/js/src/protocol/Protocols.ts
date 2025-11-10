@@ -1,11 +1,8 @@
 import { TypeClass } from '../types';
 import type { BasicType, DecimalType, IName, IType, TypeDefinition } from '../types';
-import { DependencyResolver } from './dependency.resolver';
 import { type RawType, RawTypeClass } from './Protocols.types';
 
 export class Protocols {
-  private resolver = new DependencyResolver();
-
   private static DECIMAL = 'dec64';
   private static SCALAR_TYPES_INFO = new Map<string, boolean>([
     ['int8', true],
@@ -25,9 +22,12 @@ export class Protocols {
   ]);
 
   private types = new Map<IName, TypeDefinition>();
+  private rawTypes = new Map<IName, RawType>();
 
   load(types: RawType[]): void {
     types.forEach((type) => {
+      this.rawTypes.set(type.type, type);
+
       if (type.type_class === RawTypeClass.STRUCT) {
         this.types.set(type.type, {
           typeClass: TypeClass.STRUCT,
@@ -68,9 +68,9 @@ export class Protocols {
     return this.resolveType(typeName);
   }
 
-  dependencies(typeName: IType): Set<string> {
-    const typeDefinition = this.getType(typeName);
-    return this.resolver.resolve(typeDefinition);
+  getTypeHash(typeName: IType): bigint {
+    const rawType = this.rawTypes.get(typeName);
+    return rawType ? BigInt(rawType.hash) : 0n;
   }
 
   private parseArrayType(typeName: string): TypeDefinition {

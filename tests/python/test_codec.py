@@ -419,3 +419,10 @@ def test_var_size_string_serialization(codec):
 
     actual_msg = type_def.deserialize(expected_bytes)
     assert actual_msg == expected_msg
+
+def test_message_hashes(codec):
+    message_info = codec.message_info_by_id(
+        proto_id=1,
+        message_id=1,
+    )
+    assert message_info.message_hash() == 12088864483134247070

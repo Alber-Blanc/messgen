@@ -8,6 +8,8 @@ from .model import (
     MessgenType,
     Protocol,
     TypeClass,
+    hash_type,
+    hash_message,
 )
 
 
@@ -27,7 +29,10 @@ class JsonGenerator:
         for type_name in sorted(types.keys()):
             type_def = types[type_name]
             if type_def.type_class in [TypeClass.struct, TypeClass.enum, TypeClass.bitset]:
-                combined.append(asdict(type_def))
+                type_dict = asdict(type_def)
+                type_hash = hash_type(type_def, types)
+                type_dict["hash"] = str(type_hash) if type_hash is not None else None
+                combined.append(type_dict)
 
         self._write_file(out_dir, "types", combined)
 
@@ -37,6 +42,12 @@ class JsonGenerator:
         for proto_name in sorted(protocols.keys()):
             proto_def = protocols[proto_name]
             proto_dict = asdict(proto_def)
+
+            # Add hash to each message
+            for message_id, message_dict in proto_dict["messages"].items():
+                message_obj = proto_def.messages[int(message_id)]
+                message_dict["hash"] = str(hash_message(message_obj))
+
             proto_dict["version"] = version_hash(proto_dict)
             combined.append(proto_dict)
 
