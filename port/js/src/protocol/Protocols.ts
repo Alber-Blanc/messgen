@@ -22,9 +22,12 @@ export class Protocols {
   ]);
 
   private types = new Map<IName, TypeDefinition>();
+  private rawTypes = new Map<IName, RawType>();
 
   load(types: RawType[]): void {
     types.forEach((type) => {
+      this.rawTypes.set(type.type, type);
+
       if (type.type_class === RawTypeClass.STRUCT) {
         this.types.set(type.type, {
           typeClass: TypeClass.STRUCT,
@@ -63,6 +66,11 @@ export class Protocols {
       return this.parseMapType(typeName);
     }
     return this.resolveType(typeName);
+  }
+
+  getTypeHash(typeName: IType): bigint {
+    const rawType = this.rawTypes.get(typeName);
+    return rawType ? BigInt(rawType.hash) : 0n;
   }
 
   private parseArrayType(typeName: string): TypeDefinition {

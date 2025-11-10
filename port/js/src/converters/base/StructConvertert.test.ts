@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { TypeClass, type Field, type StructTypeDefinition } from '../src/types';
-import { StructConverter } from '../src/converters/base/StructConverter';
-import { Buffer } from '../src/Buffer';
-import { initGetType } from './utils';
+import { TypeClass, type Field, type StructTypeDefinition } from '../../types';
+import { StructConverter } from './StructConverter';
+import { Buffer } from '../../Buffer';
+import { initGetType } from '../../../tests/utils';
 
 describe('StructConverter', () => {
   it('should serializes an object', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import Decimal from 'decimal.js';
-import { DecimalConverter } from '../src/converters/base/DecimalConverter';
-import { Buffer } from '../src/Buffer';
+import { DecimalConverter } from './DecimalConverter';
+import { Buffer } from '../../Buffer';
 
 describe('DecimalConverter', () => {
   const converter = new DecimalConverter();

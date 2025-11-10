@@ -2,9 +2,9 @@
 /* eslint-disable @typescript-eslint/no-loss-of-precision */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { execSync } from 'child_process';
-import { Codec } from '../src/Codec';
-import { uploadTypes, uploadProtocols } from './utils';
-import type { Protocol, RawType } from '../src/protocol';
+import { Codec } from './Codec';
+import { uploadTypes, uploadProtocols } from '../tests/utils';
+import type { Protocol, RawType } from './protocol';
 
 describe('Codec', () => {
   let types: RawType[];
@@ -115,6 +115,14 @@ describe('Codec', () => {
       const message = codec.serialize(1, 2, rawData);
 
       expect(codec.deserializeType('mynamespace/types/var_size_struct', message.buffer)).toEqual(rawData);
+    });
+  });
+
+  describe('#messageInfo', () => {
+    it('should get message info by id', () => {
+      const messageInfo = codec.messageInfo(1, 1);
+
+      expect(messageInfo.messageHash()).toBe(12088864483134247070n);
     });
   });
 });

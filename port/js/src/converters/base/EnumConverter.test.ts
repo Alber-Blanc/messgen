@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import type { EnumTypeDefinition, EnumValue, BasicType } from '../src';
-import { Buffer, TypeClass, EnumConverter } from '../src';
-import { initGetType } from './utils';
+import type { EnumTypeDefinition, EnumValue, BasicType } from '../..';
+import { Buffer, TypeClass, EnumConverter } from '../..';
+import { initGetType } from '../../../tests/utils';
 
 describe('EnumConverter', () => {
   it('should serialize single valued enum', () => {

@@ -4,6 +4,7 @@ export interface RawStructType {
   type: string;
   type_class: 'struct'
   fields: Field[];
+  hash: string;
 }
 
 export interface RawEnumType {
@@ -11,6 +12,7 @@ export interface RawEnumType {
   type_class: 'enum';
   base_type: NumberType;
   values: EnumValue[];
+  hash: string;
 }
 
 export interface RawBitsetType {
@@ -18,6 +20,7 @@ export interface RawBitsetType {
   type_class: 'bitset';
   base_type: NumberType;
   bits: BitsetBit[];
+  hash: string;
 }
 
 export type RawType = RawStructType | RawEnumType | RawBitsetType;
@@ -52,6 +55,7 @@ export interface RawMessage {
   message_id: number;
   name: IName;
   type: string;
+  hash: string;
 }
 
 export interface Protocol {
@@ -59,3 +63,7 @@ export interface Protocol {
   proto_id: number;
   messages: Record<string, RawMessage>;
 }
+
+export type MessageMetadata = [protoName: string, message: RawMessage];
+export type ProtocolMessageMap = Map<number, RawMessage>;
+export type ProtocolRegistry = Map<number, ProtocolMessageMap>;
