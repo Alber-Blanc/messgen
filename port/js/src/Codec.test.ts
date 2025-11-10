@@ -118,9 +118,9 @@ describe('Codec', () => {
     });
   });
 
-  describe('#messageInfoById', () => {
+  describe('#messageInfo', () => {
     it('should get message info by id', () => {
-      const messageInfo = codec.messageInfoById(1, 1);
+      const messageInfo = codec.messageInfo(1, 1);
 
       expect(messageInfo.messageHash()).toBe(12088864483134247070n);
     });

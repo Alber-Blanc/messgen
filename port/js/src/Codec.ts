@@ -88,7 +88,7 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
     return converter.deserialize(new Buffer(arrayBuffer));
   }
 
-  public messageInfoById(protoId: number, messageId: number): MessageInfo {
+  public messageInfo(protoId: number, messageId: number): MessageInfo {
     const protoNameById = this.nameById.get(protoId);
     if (!protoNameById) {
       throw new Error(`Unsupported proto_id=${protoId}`);
