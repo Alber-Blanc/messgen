@@ -14,7 +14,7 @@ describe('Protocols', () => {
           { name: 'f0', type: 'uint64' },
           { name: 'f1', type: 'int64' },
         ],
-        hash: '14386769706336566742'
+        hash: '14386769706336566742',
       },
       {
         type: 'simple_enum',
