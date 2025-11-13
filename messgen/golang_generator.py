@@ -139,9 +139,9 @@ class ResolvedBuiltin(ResolvedType):
             if self._model.type_class in [TypeClass.scalar]:
                 return self._model.size
             elif self._model.type_class in [TypeClass.string]:
-                return 16
+                return 16 # len + pointer
             elif self._model.type_class in [TypeClass.bytes]:
-                return 24
+                return 24 # len + cap + pointer
         raise Exception("Unknown builtin type class for '%s'" % self._model.type)
 
     def render(self, mod: str):
@@ -174,7 +174,7 @@ class ResolvedSlice(ResolvedType):
     def type_size(self):
         if isinstance(self._model, ArrayType):
             return self._model.array_size * self._element.type_size()
-        return 24
+        return 24 # cap + len + pointer
 
     def data_size(self):
         if isinstance(self._model, ArrayType) and self._element.data_size() != None:
@@ -205,7 +205,7 @@ class ResolvedMap(ResolvedType):
         return 8
 
     def type_size(self):
-        return 16
+        return 8 # only pointer
 
     def data_size(self):
         return None
