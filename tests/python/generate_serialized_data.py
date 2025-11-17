@@ -233,4 +233,39 @@ if __name__ == "__main__":
         f.write(b)
     print("Successfully generated serialized data to tests/data/serialized/bin/complex_types_with_flat_groups.bin")
 
+    # complex_types_with_flat_groups_without_map
+    t = codec.type_converter("mynamespace/types/complex_types_with_flat_groups")
+    msg1 = {
+        "array1": [1, 2, 3, 4, 5, 6],
+        "map1": {
+            1: "1",
+        },
+        "string1": "string1",
+        "bytes1": b"some bytes",
+        "f0": 0x1234567890abcdef,
+        "f1": 0x1234567890abcdef,
+        "f2": 1.2345678901234567890,
+        "f3": 0x12345678,
+        "f4": 0x12345678,
+        "f5": 1.2345678901234567890,
+        "f6": 0x1234,
+        "f7": 0x12,
+        "f8": -0x12,
+        "array2": [2, 3, 4, 5],
+        "map2": {
+            "0": 0,
+        },
+        "string2": "some string2",
+        "bytes2": b"some bytes2",
+        "flag1": 0x1,
+        "flag2": 0x2,
+        "flag3": 0x3,
+        "flag4": 0x4,
+    }
+
+    b = t.serialize(msg1)
+    with open('tests/data/serialized/bin/complex_types_with_flat_groups_with_single_item_map.bin', 'wb') as f:
+        f.write(b)
+    print("Successfully generated serialized data to tests/data/serialized/bin/complex_types_with_flat_groups_with_single_item_map.bin")
+
     print("Successfully")
