@@ -8,3 +8,4 @@ messages:
   5: { name: "complex_struct_with_empty_msg", type: "mynamespace/types/subspace/complex_struct_with_empty", comment: "Complex struct with empty message" }
   6: { name: "complex_struct_nostl_msg", type: "mynamespace/types/subspace/complex_struct_nostl", comment: "Complex struct without STL message" }
   9: { name: "flat_struct_msg", type: "mynamespace/types/flat_struct", comment: "Flat struct message" }
+  10: {name: "complex_types_with_flat_groups_msg", type: "mynamespace/types/complex_types_with_flat_groups", comment: "A complex struct with complex types and several flag groups"}

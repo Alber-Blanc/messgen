@@ -121,7 +121,7 @@ def test_protocol_deserialization(codec, simple_struct):
 def test_protocol_info(codec):
     test_proto_name = "mynamespace/proto/test_proto"
     protocol_by_name = codec.protocol_info_by_name(test_proto_name)
-    assert len(protocol_by_name.messages()) == 8
+    assert len(protocol_by_name.messages()) == 9
     assert protocol_by_name.proto_name() == test_proto_name
     assert protocol_by_name.proto_id() == 1
     assert protocol_by_name.proto_hash() == (
@@ -133,13 +133,14 @@ def test_protocol_info(codec):
         ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct_with_empty_msg").message_hash()
         ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct_nostl_msg").message_hash()
         ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="flat_struct_msg").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_types_with_flat_groups_msg").message_hash()
     )
 
     protocol_by_id = codec.protocol_info_by_id(1)
     assert protocol_by_id.proto_name() == protocol_by_name.proto_name()
     assert protocol_by_id.proto_id() == protocol_by_name.proto_id()
     assert protocol_by_id.proto_hash() == protocol_by_name.proto_hash()
-    assert protocol_by_id.proto_hash() == 17049879361460499161
+    assert protocol_by_id.proto_hash() == 615801888777759705
 
 
 def test_decimal_decoding():
