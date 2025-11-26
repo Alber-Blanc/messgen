@@ -1,7 +1,8 @@
 #pragma once
 
-#include <messgen/reflection.h>
-#include <messgen/traits.h>
+#include "reflection.h"
+#include "traits.h"
+#include "Allocator.h"
 
 #if __cplusplus >= 202002L
 #include "concepts.h"

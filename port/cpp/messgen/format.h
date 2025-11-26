@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../cpp/messgen/decimal.h"
+#include "decimal.h"
 #include "messgen.h"
 
 #include <fmt/format.h>

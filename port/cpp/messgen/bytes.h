@@ -1,6 +1,6 @@
 #pragma once
 
-#include "messgen_common.h"
+#include "messgen.h"
 
 #include <cstddef>
 #include <cstdint>

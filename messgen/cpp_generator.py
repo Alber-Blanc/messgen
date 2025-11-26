@@ -34,6 +34,11 @@ from .model import (
 )
 
 
+class Mode:
+    AUTO_ALLOC = 1
+    CUSTOM_ALLOC = 2
+
+
 def _unqual_name(type_name: str) -> str:
     return PosixPath(type_name).stem
 
@@ -135,9 +140,16 @@ class CppGenerator:
         for type_name, type_def in types.items():
             if type_def.type_class not in [TypeClass.struct, TypeClass.enum, TypeClass.bitset]:
                 continue
+
+            # Generate auto alloc type
             file_name = out_dir / (type_name + self._EXT_HEADER)
             file_name.parent.mkdir(parents=True, exist_ok=True)
-            write_file_if_diff(file_name, self._generate_type_file(type_name, type_def, types))
+            write_file_if_diff(file_name, self._generate_type_file(type_name, type_def, types, Mode.AUTO_ALLOC))
+
+            # Generate custom alloc type
+            file_name = out_dir / "custom_alloc" / (type_name + self._EXT_HEADER)
+            file_name.parent.mkdir(parents=True, exist_ok=True)
+            write_file_if_diff(file_name, self._generate_type_file(type_name, type_def, types, Mode.CUSTOM_ALLOC))
 
     def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
         for proto_name, proto_def in protocols.items():
@@ -145,29 +157,27 @@ class CppGenerator:
             file_name.parent.mkdir(parents=True, exist_ok=True)
             write_file_if_diff(file_name, self._generate_proto_file(proto_name, proto_def))
 
-    def _get_mode(self):
-        return self._options.get("mode", "auto_alloc")
-
     def _get_cpp_standard(self):
         return int(self._options.get("cpp_standard", "20"))
 
     def _reset_file(self):
         self._includes.clear()
 
-    def _generate_type_file(self, type_name: str, type_def: MessgenType, types: dict[str, MessgenType]) -> list:
+    def _generate_type_file(self, type_name: str, type_def: MessgenType, types: dict[str, MessgenType],
+                            mode: Mode) -> list:
         print(f"Generate type: {type_name}")
         self._reset_file()
         code: list[str] = []
 
         with _namespace(_split_last_name(type_name)[0], code):
             if isinstance(type_def, EnumType):
-                code.extend(self._generate_type_enum(type_name, type_def))
+                code.extend(self._generate_type_enum(type_name, type_def, mode))
 
             elif isinstance(type_def, StructType):
-                code.extend(self._generate_type_struct(type_name, type_def, types))
+                code.extend(self._generate_type_struct(type_name, type_def, types, mode))
                 code.extend(self._generate_type_members_of(type_name, type_def))
             elif isinstance(type_def, BitsetType):
-                code.extend(self._generate_type_bitset(type_name, type_def))
+                code.extend(self._generate_type_bitset(type_name, type_def, mode))
 
         code = self._PREAMBLE_HEADER + self._generate_includes() + code
 
@@ -194,11 +204,11 @@ class CppGenerator:
 
                 code.extend(self._generate_messages(proto_name, class_name, proto_def))
                 code.extend(self._generate_reflect_message_decl())
-                code.extend(self._generate_dispatcher_decl())
+                code.extend(self._generate_dispatcher_decl(Mode.AUTO_ALLOC))
 
             code.extend(self._generate_protocol_members_of(class_name, proto_def))
             code.extend(self._generate_reflect_message(class_name, proto_def))
-            code.extend(self._generate_dispatcher(class_name))
+            code.extend(self._generate_dispatcher(class_name, Mode.AUTO_ALLOC))
 
             code.append("")
 
@@ -282,8 +292,8 @@ class CppGenerator:
         code.append("}")
         return code
 
-    def _generate_dispatcher_decl(self) -> list[str]:
-        if self._get_mode() == "custom_alloc":
+    def _generate_dispatcher_decl(self, mode: Mode) -> list[str]:
+        if mode == Mode.CUSTOM_ALLOC:
             out = """
             template <class Fn>
             static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn);
@@ -298,8 +308,8 @@ class CppGenerator:
             """
         return textwrap.indent(textwrap.dedent(out), "    ").splitlines()
 
-    def _generate_dispatcher(self, class_name: str) -> list[str]:
-        if self._get_mode() == "custom_alloc":
+    def _generate_dispatcher(self, class_name: str, mode: Mode) -> list[str]:
+        if mode == Mode.CUSTOM_ALLOC:
             out = f"""
             template <class Fn>
             constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn) {{
@@ -366,7 +376,7 @@ class CppGenerator:
         code.append(" */")
         return code
 
-    def _generate_type_enum(self, type_name, type_def):
+    def _generate_type_enum(self, type_name, type_def, mode: Mode):
         self._add_include("messgen/messgen.h")
         self._add_include("string_view")
 
@@ -375,7 +385,7 @@ class CppGenerator:
 
         code = []
         code.extend(self._generate_comment_type(type_def))
-        code.append(f"enum class {unqual_name}: {self._cpp_type(type_def.base_type)} {{")
+        code.append(f"enum class {unqual_name}: {self._cpp_type(type_def.base_type, mode)} {{")
         for enum_value in type_def.values:
             code.append("    %s = %s,%s" % (enum_value.name, enum_value.value, _inline_comment(enum_value)))
         code.append("};")
@@ -398,14 +408,14 @@ class CppGenerator:
 
         return code
 
-    def _generate_type_bitset(self, type_name, type_def):
+    def _generate_type_bitset(self, type_name, type_def, mode: Mode):
         self._add_include("messgen/messgen.h")
         self._add_include("string_view")
         self._add_include("messgen/bitset.h")
 
         unqual_name = _unqual_name(type_name)
         qual_name = _qual_name(type_name)
-        underlying_type = self._cpp_type(type_def.base_type)
+        underlying_type = self._cpp_type(type_def.base_type, mode)
 
         code = []
         code.extend(self._generate_comment_type(type_def))
@@ -499,7 +509,7 @@ class CppGenerator:
         else:
             return False
 
-    def _generate_type_struct(self, type_name: str, type_def: StructType, types: dict[str, MessgenType]):
+    def _generate_type_struct(self, type_name: str, type_def: StructType, types: dict[str, MessgenType], mode):
         fields = type_def.fields
 
         self._add_include("messgen/messgen.h")
@@ -527,7 +537,7 @@ class CppGenerator:
             code.append(_indent("static constexpr size_t FLAT_SIZE = %d;" % (0 if is_empty else groups[0].size)))
             is_flat_str = "true"
         code.append(_indent(f"static constexpr bool IS_FLAT = {is_flat_str};"))
-        if self._get_mode() == "custom_alloc":
+        if mode == Mode.CUSTOM_ALLOC:
             need_alloc_str = "false"
             if self._need_alloc(type_name):
                 need_alloc_str = "true"
@@ -539,11 +549,11 @@ class CppGenerator:
         code.append("")
 
         for field in type_def.fields:
-            field_c_type = self._cpp_type(field.type)
+            field_c_type = self._cpp_type(field.type, mode)
             code.append(_indent(f"{field_c_type} {field.name}; {_inline_comment(field)}"))
 
         need_alloc = False
-        if self._get_mode() == "custom_alloc":
+        if mode == Mode.CUSTOM_ALLOC:
             for field in type_def.fields:
                 need_alloc = need_alloc or self._need_alloc(field.type)
 
@@ -569,7 +579,7 @@ class CppGenerator:
                 field = group.fields[0]
                 field_name = field.name
                 field_type_def = self._types.get(field.type)
-                code_ser.extend(self._serialize_field(field_name, field_type_def))
+                code_ser.extend(self._serialize_field(field_name, field_type_def, mode))
             code_ser.append("")
         code_ser.append("return _size;")
 
@@ -604,7 +614,7 @@ class CppGenerator:
             elif len(group.fields) == 1:
                 field = group.fields[0]
                 field_type_def = self._types.get(field.type)
-                code_deser.extend(self._deserialize_field(field.name, field_type_def))
+                code_deser.extend(self._deserialize_field(field.name, field_type_def, mode))
             code_deser.append("")
         code_deser.append("return _size;")
 
@@ -723,9 +733,8 @@ class CppGenerator:
 
         return code
 
-    def _cpp_type(self, type_name: str) -> str:
+    def _cpp_type(self, type_name: str, mode: Mode) -> str:
         type_def = self._types[type_name]
-        mode = self._get_mode()
 
         if isinstance(type_def, BasicType):
             if type_def.type_class == TypeClass.scalar:
@@ -733,10 +742,10 @@ class CppGenerator:
                 return self._CPP_TYPES_MAP[type_name]
 
             elif type_def.type_class == TypeClass.string:
-                if mode == "auto_alloc":
+                if mode == Mode.AUTO_ALLOC:
                     self._add_include("string")
                     return "std::string"
-                elif mode == "custom_alloc":
+                elif mode == Mode.CUSTOM_ALLOC:
                     self._add_include("string_view")
                     return "std::string_view"
                 else:
@@ -752,31 +761,27 @@ class CppGenerator:
 
         elif isinstance(type_def, ArrayType):
             self._add_include("array")
-            el_c_type = self._cpp_type(type_def.element_type)
+            el_c_type = self._cpp_type(type_def.element_type, mode)
             return "std::array<%s, %d>" % (el_c_type, type_def.array_size)
 
         elif isinstance(type_def, VectorType):
-            el_c_type = self._cpp_type(type_def.element_type)
-            if mode == "auto_alloc":
+            el_c_type = self._cpp_type(type_def.element_type, mode)
+            if mode == Mode.AUTO_ALLOC:
                 self._add_include("vector")
                 return "std::vector<%s>" % el_c_type
-            elif mode == "custom_alloc":
+            elif mode == Mode.CUSTOM_ALLOC:
                 self._add_include("messgen/span.h")
                 return "messgen::span<%s>" % el_c_type
-            else:
-                raise RuntimeError("Unsupported mode for vector: %s" % mode)
 
         elif isinstance(type_def, MapType):
-            key_c_type = self._cpp_type(type_def.key_type)
-            value_c_type = self._cpp_type(type_def.value_type)
-            if mode == "auto_alloc":
+            key_c_type = self._cpp_type(type_def.key_type, mode)
+            value_c_type = self._cpp_type(type_def.value_type, mode)
+            if mode == Mode.AUTO_ALLOC:
                 self._add_include("map")
                 return "std::map<%s, %s>" % (key_c_type, value_c_type)
-            elif mode == "custom_alloc":
+            elif mode == Mode.CUSTOM_ALLOC:
                 self._add_include("messgen/map.h")
                 return "messgen::map<%s, %s>" % (key_c_type, value_c_type)
-            else:
-                raise RuntimeError("Unsupported mode for map: %s" % mode)
 
         elif isinstance(type_def, (EnumType, BitsetType, StructType)):
             scope = "global" if SEPARATOR in type_name else "local"
@@ -851,14 +856,14 @@ class CppGenerator:
 
         return groups
 
-    def _serialize_field(self, field_name, field_type_def, level_n=0):
+    def _serialize_field(self, field_name, field_type_def, mode: Mode, level_n=0):
         c = []
 
         type_class = field_type_def.type_class
 
         c.append("// %s" % field_name)
         if type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.decimal, TypeClass.bitset]:
-            c_type = self._cpp_type(field_type_def.type)
+            c_type = self._cpp_type(field_type_def.type, mode)
             size = field_type_def.size
             c.append("*reinterpret_cast<%s *>(&_buf[_size]) = %s;" % (c_type, field_name))
             c.append("_size += %s;" % size)
@@ -911,22 +916,21 @@ class CppGenerator:
 
         return c
 
-    def _deserialize_field(self, field_name, field_type_def, level_n=0):
+    def _deserialize_field(self, field_name, field_type_def, mode: Mode, level_n=0):
         c = []
 
         type_class = field_type_def.type_class
-        mode = self._get_mode()
 
         c.append("// %s" % field_name)
         if type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.decimal, TypeClass.bitset]:
-            c_type = self._cpp_type(field_type_def.type)
+            c_type = self._cpp_type(field_type_def.type, mode)
             size = field_type_def.size
             c.append("%s = *reinterpret_cast<const %s *>(&_buf[_size]);" % (field_name, c_type))
             c.append("_size += %s;" % size)
 
         elif type_class in [TypeClass.struct, TypeClass.external]:
             alloc = ""
-            if mode == "custom_alloc" and self._need_alloc(field_type_def.type):
+            if mode == Mode.CUSTOM_ALLOC and self._need_alloc(field_type_def.type):
                 alloc = ", _alloc"
             c.append("_size += %s.deserialize(&_buf[_size]%s);" % (field_name, alloc))
 
@@ -935,20 +939,20 @@ class CppGenerator:
             if type_class == TypeClass.vector:
                 c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
                 c.append("_size += sizeof(messgen::size_type);")
-                if mode == "auto_alloc":
+                if mode == Mode.AUTO_ALLOC:
                     c.append(f"{field_name}.resize(_field_size);")
 
             el_type_def = self._types.get(field_type_def.element_type)
             el_size = el_type_def.size
             el_align = self._get_alignment(el_type_def)
-            el_c_type = self._cpp_type(field_type_def.element_type)
+            el_c_type = self._cpp_type(field_type_def.element_type, mode)
 
             # Copy data
             if el_size == 0 or (type_class == TypeClass.array and field_type_def.size == 0):
                 pass
             elif self._is_flat_type(el_type_def) and el_size % el_align == 0:
                 # Vector or array of flat aligned elements, optimize with single memcpy or zero-copy
-                if mode == "custom_alloc":
+                if mode == Mode.CUSTOM_ALLOC:
                     if el_align == 1 and type_class == TypeClass.vector:
                         # For the vector (messgen::span) with alignment == 1 point to data in source buffer, zero-copy
                         c.append(
@@ -966,18 +970,18 @@ class CppGenerator:
                     c.extend(self._memcpy_from_buf(f"{field_name}.data()", "_field_size"))
             else:
                 # Parse one by one
-                if mode == "custom_alloc" and type_class == TypeClass.vector:
+                if mode == Mode.CUSTOM_ALLOC and type_class == TypeClass.vector:
                     c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), _field_size}};")
                 c.append(f"for (auto &_i{level_n}: {field_name}) {{")
-                c.extend(_indent(self._deserialize_field(f"_i{level_n}", el_type_def, level_n + 1)))
+                c.extend(_indent(self._deserialize_field(f"_i{level_n}", el_type_def, mode, level_n + 1)))
                 c.append("}")
 
         elif type_class == TypeClass.map:
-            key_c_type = self._cpp_type(field_type_def.key_type)
+            key_c_type = self._cpp_type(field_type_def.key_type, mode)
             key_type_def = self._types.get(field_type_def.key_type)
-            value_c_type = self._cpp_type(field_type_def.value_type)
+            value_c_type = self._cpp_type(field_type_def.value_type, mode)
             value_type_def = self._types.get(field_type_def.value_type)
-            if mode == "auto_alloc":
+            if mode == Mode.AUTO_ALLOC:
                 c.append("{")
                 c.append(
                     _indent(
@@ -989,12 +993,13 @@ class CppGenerator:
                 c.append(_indent(_indent("%s _key%d;" % (key_c_type, level_n))))
                 c.append(_indent(_indent("%s _value%d;" % (value_c_type, level_n))))
                 c.append("")
-                c.extend(_indent(_indent(self._deserialize_field("_key%d" % level_n, key_type_def, level_n + 1))))
-                c.extend(_indent(_indent(self._deserialize_field("_value%d" % level_n, value_type_def, level_n + 1))))
+                c.extend(_indent(_indent(self._deserialize_field("_key%d" % level_n, key_type_def, mode, level_n + 1))))
+                c.extend(
+                    _indent(_indent(self._deserialize_field("_value%d" % level_n, value_type_def, mode, level_n + 1))))
                 c.append(_indent(_indent("%s.insert({_key%d, _value%d});" % (field_name, level_n, level_n))))
                 c.append(_indent("}"))
                 c.append("}")
-            elif mode == "custom_alloc":
+            elif mode == Mode.CUSTOM_ALLOC:
                 el_align = max(self._get_alignment(key_type_def), self._get_alignment(value_type_def))
                 c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
                 c.append("_size += sizeof(messgen::size_type);")
@@ -1008,8 +1013,8 @@ class CppGenerator:
                 else:
                     # Vector or array of variable size elements
                     c.append(f"for (auto &_i{level_n}: {field_name}) {{")
-                    c.extend(_indent(self._deserialize_field(f"_i{level_n}.first", key_type_def, level_n + 1)))
-                    c.extend(_indent(self._deserialize_field(f"_i{level_n}.second", value_type_def, level_n + 1)))
+                    c.extend(_indent(self._deserialize_field(f"_i{level_n}.first", key_type_def, mode, level_n + 1)))
+                    c.extend(_indent(self._deserialize_field(f"_i{level_n}.second", value_type_def, mode, level_n + 1)))
                     c.append("}")
                 # else:
                 #     # For alignment == 1 simply point to data in source buffer
