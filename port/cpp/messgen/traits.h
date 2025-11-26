@@ -169,8 +169,8 @@ inline constexpr bool has_data_type_member_v = has_data_type_member<T>::value;
 template <class T>
 struct is_message : std::bool_constant<has_data_type_member_v<remove_cvref_t<T>> &&  //
                                        has_proto_id_member_v<remove_cvref_t<T>> &&   //
-                                       has_message_id_member_v<remove_cvref_t<T>> && //
-                                       has_data_member_v<remove_cvref_t<T>>> {};
+                                       has_message_id_member_v<remove_cvref_t<T>>/* TODO repair && //
+                                       has_data_member_v<remove_cvref_t<T>>*/> {};
 
 template <class T>
 inline constexpr bool is_message_v = messgen::is_message<T>::value;
