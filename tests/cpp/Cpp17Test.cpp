@@ -159,17 +159,60 @@ TEST_F(Cpp17Test, VarSizeStruct) {
     mynamespace::types::var_size_struct s{};
 
     s.f0 = 1;
-#ifdef MESSGEN_MODE_CUSTOM_ALLOC
+    s.f1_vec = {3, 4};
+    test_serialization(s);
+}
+
+TEST_F(Cpp17Test, VarSizeStructView) {
+    mynamespace::types::view::var_size_struct s{};
+
+    s.f0 = 1;
     std::vector<int64_t> f1_vec{3, 4};
     s.f1_vec = messgen::span<int64_t>(&f1_vec);
-#else
-    s.f1_vec = {3, 4};
-#endif
     test_serialization(s);
 }
 
 TEST_F(Cpp17Test, ComplexStruct) {
     mynamespace::types::subspace::complex_struct s{};
+
+    s.bitset0 = mynamespace::types::simple_bitset::two;
+    s.arr_simple_struct[0].f3 = 3;
+    s.arr_simple_struct[1].f3 = 5;
+    s.arr_int[0] = 10;
+    s.arr_int[1] = 20;
+    s.arr_int[2] = 30;
+    s.arr_int[3] = 40;
+    s.arr_var_size_struct[0].f0 = 3;
+    s.arr_var_size_struct[1].f0 = 5;
+    s.str = "Hello messgen!";
+    s.bs = {1, 2, 3, 4, 5, 6, 7, 8};
+
+    std::vector<int64_t> f1_vec_data0 = {12345, 23456};
+    std::vector<int64_t> f1_vec_data1 = {1234, 2345};
+    std::vector<double> vec_float_data = {1.2345, 2.3456};
+    std::vector<mynamespace::types::simple_enum> vec_enum_data = {mynamespace::types::simple_enum::another_value};
+    std::vector<mynamespace::types::simple_struct> vec_simple_struct_data = {mynamespace::types::simple_struct{
+        .f0 = 12345,
+        .f1 = 23456,
+        .f2 = 34567,
+        .f3 = 45678,
+        .f4 = 56789,
+        .f5 = 67890,
+        .f6 = 781,
+        .f8 = 90,
+    }};
+
+    s.arr_var_size_struct[0].f1_vec = f1_vec_data0;
+    s.arr_var_size_struct[1].f1_vec = f1_vec_data1;
+    s.vec_float = vec_float_data;
+    s.vec_enum = vec_enum_data;
+    s.vec_simple_struct = vec_simple_struct_data;
+
+    test_serialization(s);
+}
+
+TEST_F(Cpp17Test, ComplexStructView) {
+    mynamespace::types::subspace::view::complex_struct s{};
 
     s.bitset0 = mynamespace::types::simple_bitset::two;
     s.arr_simple_struct[0].f3 = 3;
@@ -199,19 +242,11 @@ TEST_F(Cpp17Test, ComplexStruct) {
         .f8 = 90,
     }};
 
-#ifdef MESSGEN_MODE_CUSTOM_ALLOC
     s.arr_var_size_struct[0].f1_vec = messgen::span<int64_t>(&f1_vec_data0);
     s.arr_var_size_struct[1].f1_vec = messgen::span<int64_t>(&f1_vec_data1);
     s.vec_float = messgen::span<double>(&vec_float_data);
     s.vec_enum = messgen::span<mynamespace::types::simple_enum>(&vec_enum_data);
     s.vec_simple_struct = messgen::span<mynamespace::types::simple_struct>(&vec_simple_struct_data);
-#else
-    s.arr_var_size_struct[0].f1_vec = f1_vec_data0;
-    s.arr_var_size_struct[1].f1_vec = f1_vec_data1;
-    s.vec_float = vec_float_data;
-    s.vec_enum = vec_enum_data;
-    s.vec_simple_struct = vec_simple_struct_data;
-#endif
 
     test_serialization(s);
 }
@@ -435,11 +470,7 @@ TEST_F(Cpp17Test, DispatchMessage) {
 TEST_F(Cpp17Test, ConstexprNameReflection) {
     using namespace messgen;
 
-#ifdef MESSGEN_MODE_CUSTOM_ALLOC
-    constexpr auto name = name_of(reflect_type<messgen::map<std::string_view, std::array<messgen::span<mynamespace::types::var_size_struct>, 4>>>);
-#else
     constexpr auto name = name_of(reflect_type<std::map<std::string, std::array<std::vector<mynamespace::types::var_size_struct>, 4>>>);
-#endif
 
     EXPECT_EQ("mynamespace::types::var_size_struct[][4]{string}", name);
 }

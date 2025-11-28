@@ -811,18 +811,20 @@ class CppGenerator:
                 return self._CPP_TYPES_MAP[type_name]
 
             elif type_def.type_class == TypeClass.string:
-                if mode == Mode.STORAGE:
-                    self._add_include("string")
-                    return "std::string"
-                elif mode == Mode.VIEW:
+                if mode == Mode.VIEW:
                     self._add_include("string_view")
                     return "std::string_view"
                 else:
-                    raise RuntimeError("Unsupported mode for string: %s" % mode)
+                    self._add_include("string")
+                    return "std::string"
 
             elif type_def.type_class == TypeClass.bytes:
-                self._add_include("messgen/bytes.h")
-                return "messgen::bytes"
+                if mode == Mode.VIEW:
+                    self._add_include("messgen/bytes.h")
+                    return "messgen::bytes"
+                else:
+                    self._add_include("vector")
+                    return "std::vector<uint8_t>"
 
         elif isinstance(type_def, DecimalType):
             self._add_include("messgen/decimal.h")
@@ -835,22 +837,22 @@ class CppGenerator:
 
         elif isinstance(type_def, VectorType):
             el_c_type = self._cpp_type(type_def.element_type, mode)
-            if mode == Mode.STORAGE:
-                self._add_include("vector")
-                return "std::vector<%s>" % el_c_type
-            elif mode == Mode.VIEW:
+            if mode == Mode.VIEW:
                 self._add_include("messgen/span.h")
                 return "messgen::span<%s>" % el_c_type
+            else:
+                self._add_include("vector")
+                return "std::vector<%s>" % el_c_type
 
         elif isinstance(type_def, MapType):
             key_c_type = self._cpp_type(type_def.key_type, mode)
             value_c_type = self._cpp_type(type_def.value_type, mode)
-            if mode == Mode.STORAGE:
-                self._add_include("map")
-                return "std::map<%s, %s>" % (key_c_type, value_c_type)
-            elif mode == Mode.VIEW:
+            if mode == Mode.VIEW:
                 self._add_include("messgen/map.h")
                 return "messgen::map<%s, %s>" % (key_c_type, value_c_type)
+            else:
+                self._add_include("map")
+                return "std::map<%s, %s>" % (key_c_type, value_c_type)
 
         elif isinstance(type_def, (EnumType, BitsetType, StructType)):
             scope = "global" if SEPARATOR in type_name else "local"
@@ -1093,13 +1095,19 @@ class CppGenerator:
                 #     c.append(f"{field_name} = {{reinterpret_cast<const {el_c_type} *>(&_buf[_size]), _field_size}};")
                 #     c.append("_size += _field_size * %d;" % el_size)
 
-        elif type_class in [TypeClass.string, TypeClass.bytes]:
+        elif type_class == TypeClass.string:
             c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
             c.append("_size += sizeof(messgen::size_type);")
-            if type_class == TypeClass.string:
-                c.append(f"{field_name} = {{reinterpret_cast<const char *>(&_buf[_size]), _field_size}};")
-            else:
+            c.append(f"{field_name} = {{reinterpret_cast<const char *>(&_buf[_size]), _field_size}};")
+            c.append("_size += _field_size;")
+
+        elif type_class == TypeClass.bytes:
+            c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
+            c.append("_size += sizeof(messgen::size_type);")
+            if mode == Mode.VIEW:
                 c.append(f"{field_name} = {{&_buf[_size], _field_size}};")
+            else:
+                c.append(f"{field_name}.assign(&_buf[_size], &_buf[_size + _field_size]);")
             c.append("_size += _field_size;")
 
         else:
