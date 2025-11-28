@@ -28,10 +28,16 @@ concept enumeration = std::is_enum_v<T> && requires(T t) {
 };
 
 template <class Type>
-concept serializable = requires(std::remove_cvref_t<Type> msg, uint8_t *buf) {
+concept serializable = requires(std::remove_cvref_t<Type> msg, uint8_t *buf, messgen::Allocator &alloc) {
     { msg.serialized_size() } -> std::same_as<size_t>;
     { msg.serialize(buf) } -> std::same_as<size_t>;
-    { msg.deserialize(buf) } -> std::same_as<size_t>;
+    requires(
+        requires {
+            { msg.deserialize(buf) } -> std::same_as<size_t>;
+        } ||
+        requires {
+            { msg.deserialize(buf, alloc) } -> std::same_as<size_t>;
+        });
 };
 
 template <class Type>
@@ -45,10 +51,12 @@ template <class Type>
 concept flat_type = type<Type> && std::remove_cvref_t<Type>::IS_FLAT;
 
 template <class Message>
-concept message = type<typename std::remove_cvref_t<Message>::data_type> && requires(std::remove_cvref_t<Message> msg) {
+concept message = type<typename std::remove_cvref_t<Message>::data_type> && requires(std::remove_cvref_t<Message> msg, uint8_t *buf) {
     { msg.PROTO_ID } -> std::convertible_to<int>;
     { msg.MESSAGE_ID } -> std::convertible_to<int>;
-    { msg.data } -> std::convertible_to<typename std::remove_cvref_t<Message>::data_type>;
+    { msg.serialized_size() } -> std::same_as<size_t>;
+    { msg.serialize(buf) } -> std::same_as<size_t>;
+    { msg.deserialize() } -> std::same_as<typename std::remove_cvref_t<Message>::data_type>;
 };
 
 template <class Protocol>

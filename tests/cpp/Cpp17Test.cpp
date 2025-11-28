@@ -42,7 +42,7 @@ protected:
     void test_zerocopy(const T &msg) {
         size_t sz_check = msg.serialized_size();
 
-        EXPECT_EQ(T::FLAT_SIZE, sz_check);
+        EXPECT_EQ(T::FIXED_SIZE, sz_check);
 
         _buf.resize(sz_check);
         size_t ser_size = msg.serialize(_buf.data());
@@ -110,7 +110,7 @@ TEST_F(Cpp17Test, FlatStructZeroCopy) {
 TEST_F(Cpp17Test, EmptyStruct) {
     mynamespace::types::empty_struct s{};
     ASSERT_TRUE(s.IS_FLAT);
-    ASSERT_EQ(s.FLAT_SIZE, 0);
+    ASSERT_EQ(s.FIXED_SIZE, 0);
     ASSERT_EQ(s.serialized_size(), 0);
     test_serialization(s);
 }
@@ -390,6 +390,19 @@ TEST_F(Cpp17Test, BytesPlain) {
     EXPECT_EQ(2, bs.data()[1]);
 }
 
+TEST_F(Cpp17Test, SerializeMessage) {
+    using namespace messgen;
+
+    mynamespace::types::simple_struct data{
+        .f0 = 1,
+        .f1 = 2,
+    };
+    mynamespace::proto::test_proto::simple_struct_msg msg{data};
+
+    _buf.resize(msg.serialized_size());
+    msg.serialize(_buf.data());
+}
+
 TEST_F(Cpp17Test, DispatchMessage) {
     using namespace messgen;
 
@@ -398,27 +411,23 @@ TEST_F(Cpp17Test, DispatchMessage) {
         .f1 = 2,
     };
     _buf.resize(expected.serialized_size());
-    size_t ser_size = expected.serialize(_buf.data());
+    expected.serialize(_buf.data());
 
     auto invoked = false;
-    auto handler = [&](auto &&actual) {
-        using ActualType = std::decay_t<decltype(actual)>;
+    auto handler = [&](auto &&msg) {
+        using ActualType = std::decay_t<decltype(msg)>;
+        auto actual_data = msg.deserialize();
 
         if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct_msg>) {
-            EXPECT_EQ(expected.f0, actual.data.f0);
-            EXPECT_EQ(expected.f1, actual.data.f1);
+            EXPECT_EQ(expected.f0, actual_data.f0);
+            EXPECT_EQ(expected.f1, actual_data.f1);
             invoked = true;
         } else {
             FAIL() << "Unexpected message type handled.";
         }
     };
 
-#ifdef MESSGEN_MODE_CUSTOM_ALLOC
-    messgen::Allocator alloc;
-    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), handler, alloc);
-#else
     mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), handler);
-#endif
 
     EXPECT_TRUE(invoked);
 }

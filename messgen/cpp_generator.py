@@ -237,42 +237,111 @@ class CppGenerator:
         self._add_include("tuple")
         code: list[str] = []
         for message in proto_def.messages.values():
+            type_def = self._types.get(message.type)
+            is_flat = self._is_flat_type(type_def)
+
             _append_code(code, 1, f"""
                 struct {message.name} {{
                     using data_type = ::{_qual_name(message.type)};
-                    using data_type_view = ::{_qual_view_name(message.type)};
+                """)
+            if type_def.size is None:
+                _append_code(code, 2, f"""\
+                    using data_type_view = ::{_qual_view_name(message.type)};""")
+            _append_code(code, 2, f"""\
                     using protocol_type = {class_name};
 
                     static constexpr int16_t PROTO_ID = protocol_type::PROTO_ID;
                     static constexpr int16_t MESSAGE_ID = {message.message_id};
                     static constexpr uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
                     static constexpr std::string_view NAME = "{_qual_name(proto_name)}::{message.name}";
+                    
+                    {message.name}() = default;
+                    
+                    explicit {message.name}(const uint8_t *data) {{
+                        _data = data;
+                    }}
                 """)
-            _append_code(code, 2, f"""
-                    data_type deserialize() const {{
-                        if constexpr (data_type::IS_FLAT) {{
-                            return *reinterpret_cast<data_type *>(_data);
-                        }} else {{
+
+            if type_def.size is None:
+                # Dynamic size
+                _append_code(code, 2, f"""
+                    explicit {message.name}(const data_type& t) : _data(&t), _serialize_func(&messgen::free_serialize<data_type>), _serialized_size_func(&messgen::free_serialized_size<data_type>) {{}}
+                    
+                    explicit {message.name}(const data_type_view& t) : _data(&t), _serialize_func(&messgen::free_serialize<data_type_view>), _serialized_size_func(&messgen::free_serialized_size<data_type>) {{}}
+
+                    size_t serialized_size() const {{
+                        return (*_serialized_size_func)(_data);
+                    }}
+                    
+                    size_t serialize(uint8_t* buf) const {{
+                        return (*_serialize_func)(_data, buf);
+                    }}
+                """)
+
+                if self._need_alloc(message.type):
+                    self._add_include("messgen/Allocator.h", "global")
+                    _append_code(code, 2, f"""
+                            data_type_view deserialize_view(::messgen::Allocator &alloc) const {{
+                                data_type_view v;
+                                v.deserialize(reinterpret_cast<const uint8_t *>(_data), alloc);
+                                return v;
+                            }}
+                            """)
+                else:
+                    if is_flat:
+                        _append_code(code, 2, f"""
+                                const data_type_view &deserialize_view() const {{
+                                    return *reinterpret_cast<const data_type_view *>(_data);
+                                }}
+                                """)
+                    else:
+                        _append_code(code, 2, f"""
+                                data_type_view deserialize_view() const {{
+                                    data_type_view v;
+                                    v.deserialize(reinterpret_cast<const uint8_t *>(_data));
+                                    return v;
+                                }}
+                                """)
+
+            else:
+                # Static size, data_type == data_type_view
+                _append_code(code, 2, f"""
+                    explicit {message.name}(const data_type& t) : _data(&t) {{}}
+
+                    consteval size_t serialized_size() const {{
+                        return data_type::FIXED_SIZE;
+                    }}
+                    
+                    size_t serialize(uint8_t* buf) const {{
+                        return reinterpret_cast<const data_type *>(_data)->serialize(buf);
+                    }}
+                """)
+
+            if is_flat:
+                _append_code(code, 2, f"""
+                        const data_type &deserialize() const {{
+                            return *reinterpret_cast<const data_type *>(_data);
+                        }}
+                        """)
+            else:
+                _append_code(code, 2, f"""
+                        data_type deserialize() const {{
                             data_type v;
-                            v.deserialize(reinterpret_cast<uint8_t *>(_data));
+                            v.deserialize(reinterpret_cast<const uint8_t *>(_data));
                             return v;
                         }}
-                    }}
-            
-                    data_type_view deserialize_view() const {{
-                        if constexpr (data_type_view::IS_FLAT) {{
-                            return *reinterpret_cast<data_type_view *>(_data);
-                        }} else {{
-                            data_type_view v;
-                            v.deserialize(reinterpret_cast<uint8_t *>(_data));
-                            return v;
-                        }}
-                    }}
-                    """)
+                        """)
+
             _append_code(code, 1, f"""
                 private:
-                    void *_data{{}};
+                    const void *_data{{}};
                 """)
+            if type_def.size is None:
+                _append_code(code, 2, f"""\
+                    ::messgen::serialize_func _serialize_func{{}};
+                    ::messgen::serialized_size_func _serialized_size_func{{}};
+                """)
+
             if self._get_cpp_standard() >= 20:
                 code.append(f"    auto operator<=>(const struct {message.name} &) const = default;")
             else:
@@ -342,61 +411,22 @@ class CppGenerator:
         return textwrap.indent(textwrap.dedent(out), "    ").splitlines()
 
     def _generate_dispatcher(self, class_name: str, mode: Mode) -> list[str]:
-        if mode == Mode.VIEW:
-            out = f"""
+        out = []
+        _append_code(out, 0, f"""
             template <class Fn>
             constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn) {{
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
                     using message_type = messgen::splice_t<R>;
                     if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
-                        auto msg = message_type{{}};
-                        msg.data.deserialize(payload);
-                        std::forward<Fn>(fn).operator()(std::move(msg));
+                        std::forward<Fn>(fn).operator()(message_type{{payload}});
                         result = true;
                     }}
                 }});
                 return result;
             }}
-
-            template <class Fn>
-            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, messgen::Allocator &alloc) {{
-                auto result = false;
-                reflect_message(msg_id, [&]<class R>(R) {{
-                    using message_type = messgen::splice_t<R>;
-                    if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
-                        auto msg = message_type{{}};
-                        if constexpr(message_type::data_type::NEED_ALLOC) {{
-                            msg.data.deserialize(payload, alloc);
-                        }} else {{
-                            msg.data.deserialize(payload);
-                        }}
-                        std::forward<Fn>(fn).operator()(std::move(msg));
-                        result = true;
-                    }}
-                }});
-                return result;
-            }}
-            """
-        else:
-            out = f"""
-            template <class Fn>
-            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn) {{
-                auto result = false;
-                reflect_message(msg_id, [&]<class R>(R) {{
-                    using message_type = messgen::splice_t<R>;
-                    if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
-                        auto msg = message_type{{}};
-                        msg.data.deserialize(payload);
-                        std::forward<Fn>(fn).operator()(std::move(msg));
-                        result = true;
-                    }}
-                }});
-                return result;
-            }}
-            """
-
-        return textwrap.dedent(out).splitlines()
+            """)
+        return out
 
     @staticmethod
     def _generate_comment_type(type_def):
@@ -562,19 +592,25 @@ class CppGenerator:
                                                                                                        groups[0].fields[
                                                                                                            0].name))
 
-        # IS_FLAT flag
+        # Flat type
         is_flat_str = "false"
         is_empty = len(groups) == 0
         is_flat = self._is_flat_type(type_def)
         if is_flat:
-            code.append(_indent("static constexpr size_t FLAT_SIZE = %d;" % (0 if is_empty else groups[0].size)))
             is_flat_str = "true"
         code.append(_indent(f"static constexpr bool IS_FLAT = {is_flat_str};"))
+
+        # Static size type
+        if type_def.size is not None:
+            code.append(_indent("static constexpr size_t FIXED_SIZE = %d;" % type_def.size))
+
+        # Need alloc
         if mode == Mode.VIEW:
             need_alloc_str = "false"
             if self._need_alloc(type_name):
                 need_alloc_str = "true"
             code.append(_indent(f"static constexpr bool NEED_ALLOC = {need_alloc_str};"))
+
         if type_hash := hash_type(type_def, types):
             code.append(_indent(f"static constexpr uint64_t HASH = {type_hash}ULL;"))
         code.append(_indent(f'static constexpr std::string_view NAME = "{_qual_name(type_name)}";'))
