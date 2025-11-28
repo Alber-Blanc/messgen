@@ -9,6 +9,7 @@ from .model import (
     BitsetType,
     ArrayType,
     BasicType,
+    ExternalType,
     MapType,
     MessgenType,
     Protocol,
@@ -407,7 +408,7 @@ class ResolvedStruct(ResolvedType):
     def renderSize(self, name:str, cur: ResolvedType, step = 0):
         if cur._model.type_class == TypeClass.string or cur._model.type_class == TypeClass.bytes:
             yield f"  result += 4 + len({name})"
-        elif cur._model.type_class == TypeClass.struct:
+        elif cur._model.type_class in [TypeClass.struct, TypeClass.external]:
             yield f"  result += int({name}.SerializedSize())"
         elif isinstance(cur, ResolvedBuiltin):
             yield f"  result += {cur.type_size()}"
@@ -454,7 +455,7 @@ class ResolvedStruct(ResolvedType):
             yield f"  buf  := unsafe.Slice(tmp, len({name})*{cur.type_size()})"
             yield f"  copy(output[outputOfs+4:], buf)"
             yield f"  outputOfs += 4 + len({name})"
-        elif cur._model.type_class == TypeClass.struct:
+        elif cur._model.type_class in [TypeClass.struct, TypeClass.external]:
             yield f"  sz, err := {name}.Serialize(output[outputOfs:])"
             yield f"  if err != nil {{"
             yield f"     return uint32(outputOfs), fmt.Errorf(\"Failed to encode field '{name}'\")"
@@ -520,7 +521,7 @@ class ResolvedStruct(ResolvedType):
             yield f"  }}"
             yield f"  copy({name}, input[inputOfs+4:])"
             yield f"  inputOfs += (4+size)"
-        elif cur._model.type_class == TypeClass.struct:
+        elif cur._model.type_class in [TypeClass.struct, TypeClass.external]:
             yield f"  if len(input) < inputOfs {{"
             yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
             yield f"  }}"
@@ -599,6 +600,11 @@ class ResolvedStruct(ResolvedType):
                     hasFlatSlice = hasFlatSlice or (
                             f._model.type_class in [TypeClass.array, TypeClass.vector] and
                             f._element.is_flat()
+                    ) or (
+                            f._model.type_class in [TypeClass.map] and (
+                                f._key.is_flat() or 
+                                f._value.is_flat()
+                            )
                     )
             hasFlatGroups = hasFlatGroups or g.size != None
             hasNonFlatGroups = hasNonFlatGroups or g.size == None
@@ -732,6 +738,55 @@ class ResolvedStruct(ResolvedType):
         if len(group.fields) > 0:
             group.pad = (max_align - offset % max_align) % max_align
             yield group
+
+
+class ResolvedExternal(ResolvedType):
+    def __init__(self, type_def: ExternalType, ext_hash: int | None, package: str):
+        super().__init__(type_def, package)
+        self._hash = ext_hash
+        self._size = type_def.size
+
+    def alignment(self):
+        # Conservative alignment assumption; no internal layout info is available
+        return 8
+
+    def data_size(self):
+        return self._size
+
+    def type_size(self):
+        return self._size if self._size is not None else 0
+
+    def is_flat(self):
+        return False
+
+    def render(self):
+        yield "import ("
+        yield " \"fmt\""
+        yield ")\n"
+
+        yield " var _ = fmt.Errorf"
+
+        yield f"type {self._name} struct {{}}\n"
+
+        if self._hash is not None:
+            yield f"const {self._name}_Hash = uint64({self._hash})\n"
+
+        yield f"func (s *{self._name}) SerializedSize() uint32 {{"
+        yield f"\tpanic(\"external type '{self._name}' is not implemented\")"
+        yield "}"
+
+        yield f"func (s *{self._name}) Serialize(output []byte) (uint32, error) {{"
+        yield f"\treturn 0, fmt.Errorf(\"external type '{self._name}' is not implemented\")"
+        yield "}"
+
+        yield f"func (s *{self._name}) Deserialize(input []byte) (uint32, error) {{"
+        yield f"\treturn 0, fmt.Errorf(\"external type '{self._name}' is not implemented\")"
+        yield "}"
+
+        if self._hash is not None:
+            yield f"func (s *{self._name}) Hash() uint64 {{ return {self._name}_Hash }}"
+        else:
+            yield f"func (s *{self._name}) Hash() uint64 {{ return 0 }}"
 
 def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, resolved_types: dict, messgen_types: dict):
     yield CODEGEN_FILE_PREFIX + "\n"
@@ -916,6 +971,10 @@ class GolangGenerator:
                 resolved_struct.add_field(field.name, fresolved)
 
             resolved = resolved_struct
+        elif type_def.type_class == TypeClass.external:
+            ext_hash: int | None = hash_type(type_def, self._types)
+            ext_type = cast(ExternalType, type_def)
+            resolved = ResolvedExternal(ext_type, ext_hash, package)
         elif isinstance(type_def, BasicType):
             resolved = ResolvedBuiltin(type_def, package)
         else:
@@ -936,7 +995,7 @@ class GolangGenerator:
 
             # Only struct/enum/bitset gets generated
             output = None
-            if type._model.type_class in [TypeClass.struct, TypeClass.enum, TypeClass.bitset]:
+            if type._model.type_class in [TypeClass.struct, TypeClass.enum, TypeClass.bitset, TypeClass.external]:
                 pkg = "/".join(type._package).removeprefix(f"{gomod_name}/{out_dir.name}")
                 pkg = pkg.removeprefix("/")
                 output = out_dir / pathlib.Path(pkg)
