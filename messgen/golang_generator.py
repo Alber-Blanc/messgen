@@ -773,20 +773,20 @@ class ResolvedExternal(ResolvedType):
 
         yield f"func (s *{self._name}) SerializedSize() uint32 {{"
         yield f"\tpanic(\"external type '{self._name}' is not implemented\")"
-        yield "}"
+        yield "}\n"
 
         yield f"func (s *{self._name}) Serialize(output []byte) (uint32, error) {{"
         yield f"\treturn 0, fmt.Errorf(\"external type '{self._name}' is not implemented\")"
-        yield "}"
+        yield "}\n"
 
         yield f"func (s *{self._name}) Deserialize(input []byte) (uint32, error) {{"
         yield f"\treturn 0, fmt.Errorf(\"external type '{self._name}' is not implemented\")"
-        yield "}"
+        yield "}\n"
 
         if self._hash is not None:
-            yield f"func (s *{self._name}) Hash() uint64 {{ return {self._name}_Hash }}"
+            yield f"func (s *{self._name}) Hash() uint64 {{ return {self._name}_Hash }}\n"
         else:
-            yield f"func (s *{self._name}) Hash() uint64 {{ return 0 }}"
+            yield f"func (s *{self._name}) Hash() uint64 {{ return 0 }}\n"
 
 def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, resolved_types: dict, messgen_types: dict):
     yield CODEGEN_FILE_PREFIX + "\n"
