@@ -6,6 +6,7 @@
 #include <cmath>
 #include <compare>
 #include <cstdint>
+#include <inttypes.h>
 #include <ios>
 #include <istream>
 #include <iostream>
@@ -465,11 +466,11 @@ private:
     // convert to string
     char buff[128];
     if (print_exp != 0) {
-        sprintf(buff, "%ld.%lde%d", print_int, print_frac, print_exp);
+        sprintf(buff, "%" PRId64 ".%" PRId64 "e%d", print_int, print_frac, print_exp);
     } else if (print_frac != 0) {
-        sprintf(buff, "%ld.%ld", print_int, print_frac);
+        sprintf(buff, "%" PRId64 ".%" PRId64, print_int, print_frac);
     } else {
-        sprintf(buff, "%ld", print_int);
+        sprintf(buff, "%" PRId64, print_int);
     }
 
     return buff;
