@@ -45,6 +45,12 @@ struct decimal64 {
         : decimal64(1, 0, 0) {
     }
 
+    /// @brief Default constructor initializing from raw coefficient and exponent
+    ///
+    /// @param coeff The signed integer coefficient
+    /// @param exponent The signed decimal exponent
+    constexpr explicit decimal64(int64_t coeff, int16_t exponent) noexcept;
+
     /// @brief Creates a decimal64 from a double value according to specified tick size and rounding mode
     ///
     /// @param value The double value to convert
@@ -226,7 +232,6 @@ private:
     friend decimal64 operator""_dd();
 
     constexpr explicit decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept;
-    constexpr explicit decimal64(int64_t coeff, int exponent) noexcept;
     constexpr explicit decimal64(value_type value) noexcept;
 
     /// @brief Normalizes the decimal components to fit in range
@@ -500,7 +505,7 @@ constexpr inline decimal64 &decimal64::operator+=(decimal64 other) noexcept {
 
     auto res_exp = lhs_exp * (!align_lhs) + rhs_exp * align_lhs;
     auto res_coeff = lhs_sign * int64_t(lhs_coeff) + rhs_sign * int64_t(rhs_coeff);
-    _value = decimal64{res_coeff, res_exp}._value;
+    _value = decimal64{res_coeff, static_cast<int16_t>(res_exp)}._value;
 
     return *this;
 }
@@ -551,8 +556,8 @@ constexpr inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t expon
     _value |= coeff & DEC_MAX_COEFFICIENT;
 }
 
-constexpr inline decimal64::decimal64(int64_t coeff, int exponent) noexcept
-    : decimal64(int8_t((coeff >= 0) * 2 - 1), uint64_t(coeff * (coeff > 0) + (coeff < 0) * -coeff), int16_t(exponent)) {
+constexpr inline decimal64::decimal64(int64_t coeff, int16_t exponent) noexcept
+    : decimal64(int8_t((coeff >= 0) * 2 - 1), uint64_t(coeff * (coeff > 0) + (coeff < 0) * -coeff), exponent) {
 }
 
 constexpr inline decimal64::decimal64(value_type value) noexcept
