@@ -229,7 +229,7 @@ private:
     }();
 
     template <char... C>
-    friend decimal64 operator""_dd();
+    friend decimal64 constexpr operator""_dd();
 
     constexpr explicit decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept;
     constexpr explicit decimal64(value_type value) noexcept;
@@ -721,7 +721,7 @@ consteval std::tuple<int, uint64_t, int> parse() {
 } // namespace detail
 
 template <char... C>
-[[nodiscard]] decimal64 operator""_dd() {
+[[nodiscard]] decimal64 constexpr operator""_dd() {
     auto [sign, coeff, exponent] = detail::parse<C...>();
     return decimal64{int8_t(sign), coeff, int16_t(exponent)};
 }
