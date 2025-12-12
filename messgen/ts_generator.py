@@ -8,13 +8,10 @@ from contextlib import contextmanager
 from .common import SEPARATOR
 from .model import MessgenType, EnumType, StructType, Protocol, TypeClass, BitsetType
 
-_ARRAY_RE = re.compile(r"(?P<base>[^\[{]+)(?P<dims>(?:\[[^\]]*\])*)$")
-_MAP_RE = re.compile(r"^(?P<base>[^\{]+)\{(?P<key>[^\}]+)\}$")
 
 def normalize(name: str) -> str:
     last = name.split('/')[-1]
     return ''.join(w.capitalize() for w in last.split('_') if w)
-
 
 def enum_key(name: str) -> str:
     segments = re.split(f"[{SEPARATOR}_/]", name)
@@ -90,35 +87,46 @@ class TypeScriptTypes:
 
     @classmethod
     def resolve(cls, t: str) -> str:
-        m = _MAP_RE.match(t)
+        m = cls._split_map(t)
         if m:
-            base = cls.resolve(m.group('base'))
-            key = cls.resolve(m.group('key'))
+            (base, key) = map(cls.resolve, m)
             return f"Map<{key}, {base}>"
 
-        m = _ARRAY_RE.match(t)
-        if m:
-            base, dims = m.group('base'), m.group('dims')
-            dims_count = dims.count('[')
+        v = cls._split_vec_or_arr(t)
+        if v:
+            (base, _) = v
+            # Convert int8[] to Int8Array, etc.
             typed = cls.ARRAYS.get(base)
-            if typed and dims_count:
-                return typed + '[]' * (dims_count - 1)
-            core = cls.PRIMITIVES.get(base, normalize(base))
-            return core + '[]' * dims_count
+            if typed:
+                return typed
+            base = cls.resolve(base)
+            # treat fixed-size arrays same as dynamic arrays
+            return f"{base}[]"
 
         return cls.PRIMITIVES.get(t, normalize(t))
 
     @classmethod
-    def _strip_dims(cls, t: str) -> str:
-        m = _ARRAY_RE.match(t)
-        return m.group('base') if m else t
+    def _split_vec_or_arr(cls, t: str):
+        if not t.endswith("]"):
+            return None
+        start = t.rfind('[')
+        assert start != -1, "Invalid array type format"
+        size_str = t[start + 1:-1]
+        size = int(size_str) if size_str.isdigit() else None
+        base = t[:start]
+        return (base, size)
 
     @classmethod
     def _split_map(cls, t: str):
-        m = _MAP_RE.match(t)
-        if not m:
+        if not t.endswith("}"):
             return None
-        return m.group('base'), m.group('key')
+        # not supporting map type as "key" value for simplicity,
+        # parse from the end to find the last '{'
+        start = t.rfind('{')
+        assert start != -1, "Invalid map type format"
+        key = t[start + 1:-1]
+        base = t[:start]
+        return (base, key)
 
     @classmethod
     def dependencies(cls, t: str) -> Set[str]:
@@ -127,8 +135,12 @@ class TypeScriptTypes:
             base, key = m
             return cls.dependencies(base) | cls.dependencies(key)
 
-        base = cls._strip_dims(t)
-        return set() if base in cls.PRIMITIVES else {base}
+        v = cls._split_vec_or_arr(t)
+        if v:
+            (base, _) = v
+            return cls.dependencies(base)
+
+        return set() if t in cls.PRIMITIVES else {t}
 
     @classmethod
     def uses_dec64(cls, t: str) -> bool:
@@ -136,8 +148,13 @@ class TypeScriptTypes:
         if m:
             base, key = m
             return cls.uses_dec64(base) or cls.uses_dec64(key)
-        base = cls._strip_dims(t)
-        return base == 'dec64'
+
+        v = cls._split_vec_or_arr(t)
+        if v:
+            (base, _) = v
+            return cls.uses_dec64(base)
+
+        return t == 'dec64'
 
 class TypeScriptGenerator:
     TYPES_FILE = 'types.ts'

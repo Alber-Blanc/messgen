@@ -35,6 +35,6 @@
   "include": [
     "src/**/*.ts",
     "benchmarks/perf-process/index.ts",
-    "tests/Integration.test.ts",
+    "tests/**/*.ts",
   ]
 }
