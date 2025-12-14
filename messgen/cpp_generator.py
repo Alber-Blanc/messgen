@@ -190,7 +190,7 @@ class CppGenerator:
                     code.extend(self._generate_type_struct(type_name, type_def, types, Mode.VIEW))
                     code.extend(self._generate_type_members_of(type_name, type_def))
                 else:
-                    code.append(f"using {type_name.split("/")[-1]} = {self._cpp_type(type_name, Mode.STORAGE)};")
+                    code.append(f"using {type_name.split('/')[-1]} = {self._cpp_type(type_name, Mode.STORAGE)};")
                 code.extend([
                     "",
                     "}"
