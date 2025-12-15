@@ -48,9 +48,9 @@ def _qual_name(type_name: str) -> str:
     return type_name.replace(SEPARATOR, "::")
 
 
-def _qual_view_name(type_name: str) -> str:
+def _qual_stor_name(type_name: str) -> str:
     p = type_name.split(SEPARATOR)
-    return "::".join(p[:-1] + ["view", p[-1]])
+    return "::".join(p[:-1] + ["stor", p[-1]])
 
 
 def _split_last_name(type_name) -> tuple[str, str]:
@@ -104,8 +104,8 @@ def _indent(c):
         raise RuntimeError("Unsupported type for indent: %s" % type(c))
 
 
-def _append_code(code: list, level: int, s: str):
-    code.extend(textwrap.indent(textwrap.dedent(s), "    " * level).splitlines())
+def _format_code(level: int, s: str):
+    return textwrap.indent(textwrap.dedent(s), "    " * level).splitlines()
 
 
 class FieldsGroup:
@@ -173,30 +173,29 @@ class CppGenerator:
         code: list[str] = []
 
         with _namespace(_split_last_name(type_name)[0], code):
-            if isinstance(type_def, EnumType):
-                code.extend(self._generate_type_enum(type_name, type_def, Mode.STORAGE))
-
-            elif isinstance(type_def, StructType):
-                # Storage type
-                code.extend(self._generate_type_struct(type_name, type_def, types, Mode.STORAGE))
+            if isinstance(type_def, StructType):
+                # View type
+                code.extend(self._generate_type_struct(type_name, type_def, types, Mode.VIEW))
                 code.extend(self._generate_type_members_of(type_name, type_def))
 
-                # View type
+                # Storage type
                 code.extend([
                     "",
-                    "namespace view {",
+                    "namespace stor {",
                     ""])
                 if type_def.size is None:
-                    code.extend(self._generate_type_struct(type_name, type_def, types, Mode.VIEW))
+                    code.extend(self._generate_type_struct(type_name, type_def, types, Mode.STORAGE))
                     code.extend(self._generate_type_members_of(type_name, type_def))
                 else:
-                    code.append(f"using {type_name.split('/')[-1]} = {self._cpp_type(type_name, Mode.STORAGE)};")
+                    code.append(f"using {type_name.split('/')[-1]} = {self._cpp_type(type_name, Mode.VIEW)};")
                 code.extend([
                     "",
                     "}"
                 ])
+            elif isinstance(type_def, EnumType):
+                code.extend(self._generate_type_enum(type_name, type_def))
             elif isinstance(type_def, BitsetType):
-                code.extend(self._generate_type_bitset(type_name, type_def, Mode.STORAGE))
+                code.extend(self._generate_type_bitset(type_name, type_def))
 
         code = self._PREAMBLE_HEADER + self._generate_includes() + code
 
@@ -223,11 +222,11 @@ class CppGenerator:
 
                 code.extend(self._generate_messages(proto_name, class_name, proto_def))
                 code.extend(self._generate_reflect_message_decl())
-                code.extend(self._generate_dispatcher_decl(Mode.STORAGE))
+                code.extend(self._generate_dispatcher_decl())
 
             code.extend(self._generate_protocol_members_of(class_name, proto_def))
             code.extend(self._generate_reflect_message(class_name, proto_def))
-            code.extend(self._generate_dispatcher(class_name, Mode.STORAGE))
+            code.extend(self._generate_dispatcher(class_name))
 
             code.append("")
 
@@ -240,14 +239,10 @@ class CppGenerator:
             type_def = self._types.get(message.type)
             is_flat = self._is_flat_type(type_def)
 
-            _append_code(code, 1, f"""
+            code.extend(_format_code(1, f"""
                 struct {message.name} {{
                     using data_type = ::{_qual_name(message.type)};
-                """)
-            if type_def.size is None:
-                _append_code(code, 2, f"""\
-                    using data_type_view = ::{_qual_view_name(message.type)};""")
-            _append_code(code, 2, f"""\
+                    using data_type_stor = ::{_qual_stor_name(message.type)};
                     using protocol_type = {class_name};
 
                     static constexpr int16_t PROTO_ID = protocol_type::PROTO_ID;
@@ -260,15 +255,15 @@ class CppGenerator:
                     explicit {message.name}(const uint8_t *data) {{
                         _data = data;
                     }}
-                """)
+                """))
 
             if type_def.size is None:
                 # Dynamic size
-                _append_code(code, 2, f"""
+                code.extend(_format_code(2, f"""
                     explicit {message.name}(const data_type& t) : _data(&t), _serialize_func(&messgen::free_serialize<data_type>), _serialized_size_func(&messgen::free_serialized_size<data_type>) {{}}
-                    
-                    explicit {message.name}(const data_type_view& t) : _data(&t), _serialize_func(&messgen::free_serialize<data_type_view>), _serialized_size_func(&messgen::free_serialized_size<data_type>) {{}}
 
+                    explicit {message.name}(const data_type_stor& t) : _data(&t), _serialize_func(&messgen::free_serialize<data_type_stor>), _serialized_size_func(&messgen::free_serialized_size<data_type_stor>) {{}}
+                    
                     size_t serialized_size() const {{
                         return (*_serialized_size_func)(_data);
                     }}
@@ -276,36 +271,36 @@ class CppGenerator:
                     size_t serialize(uint8_t* buf) const {{
                         return (*_serialize_func)(_data, buf);
                     }}
-                """)
+                """))
 
                 if self._need_alloc(message.type):
                     self._add_include("messgen/Allocator.h", "global")
-                    _append_code(code, 2, f"""
-                            data_type_view deserialize_view(::messgen::Allocator &alloc) const {{
-                                data_type_view v;
+                    code.extend(_format_code(2, f"""
+                            data_type deserialize(::messgen::Allocator &alloc) const {{
+                                data_type v;
                                 v.deserialize(reinterpret_cast<const uint8_t *>(_data), alloc);
                                 return v;
                             }}
-                            """)
+                            """))
                 else:
-                    if is_flat:
-                        _append_code(code, 2, f"""
-                                const data_type_view &deserialize_view() const {{
-                                    return *reinterpret_cast<const data_type_view *>(_data);
-                                }}
-                                """)
-                    else:
-                        _append_code(code, 2, f"""
-                                data_type_view deserialize_view() const {{
-                                    data_type_view v;
-                                    v.deserialize(reinterpret_cast<const uint8_t *>(_data));
-                                    return v;
-                                }}
-                                """)
+                    code.extend(_format_code(2, f"""
+                            data_type deserialize() const {{
+                                data_type v;
+                                v.deserialize(reinterpret_cast<const uint8_t *>(_data));
+                                return v;
+                            }}
+                            """))
+                code.extend(_format_code(2, f"""
+                        data_type_stor deserialize_stor() const {{
+                            data_type_stor v;
+                            v.deserialize(reinterpret_cast<const uint8_t *>(_data));
+                            return v;
+                        }}
+                        """))
 
             else:
                 # Static size, data_type == data_type_view
-                _append_code(code, 2, f"""
+                code.extend(_format_code(2, f"""
                     explicit {message.name}(const data_type& t) : _data(&t) {{}}
 
                     consteval size_t serialized_size() const {{
@@ -315,37 +310,47 @@ class CppGenerator:
                     size_t serialize(uint8_t* buf) const {{
                         return reinterpret_cast<const data_type *>(_data)->serialize(buf);
                     }}
-                """)
+                """))
 
-            if is_flat:
-                _append_code(code, 2, f"""
-                        const data_type &deserialize() const {{
-                            return *reinterpret_cast<const data_type *>(_data);
-                        }}
-                        """)
-            else:
-                _append_code(code, 2, f"""
-                        data_type deserialize() const {{
-                            data_type v;
-                            v.deserialize(reinterpret_cast<const uint8_t *>(_data));
-                            return v;
-                        }}
-                        """)
+                if is_flat:
+                    code.extend(_format_code(2, f"""
+                            const data_type &deserialize() const {{
+                                return *reinterpret_cast<const data_type *>(_data);
+                            }}
+    
+                            const data_type_stor &deserialize_stor() const {{
+                                return *reinterpret_cast<const data_type_stor *>(_data);
+                            }}
+                            """))
+                else:
+                    code.extend(_format_code(2, f"""
+                            data_type deserialize() const {{
+                                data_type v;
+                                v.deserialize(reinterpret_cast<const uint8_t *>(_data));
+                                return v;
+                            }}
+    
+                            data_type_stor deserialize_stor() const {{
+                                data_type_stor v;
+                                v.deserialize(reinterpret_cast<const uint8_t *>(_data));
+                                return v;
+                            }}
+                            """))
 
-            _append_code(code, 1, f"""
+            code.extend(_format_code(1, f"""
                 private:
                     const void *_data{{}};
-                """)
+                """))
             if type_def.size is None:
-                _append_code(code, 2, f"""\
+                code.extend(_format_code(2, f"""\
                     ::messgen::serialize_func _serialize_func{{}};
                     ::messgen::serialized_size_func _serialized_size_func{{}};
-                """)
+                """))
 
             if self._get_cpp_standard() >= 20:
                 code.append(f"    auto operator<=>(const struct {message.name} &) const = default;")
             else:
-                _append_code(code, 2, f"""
+                code.extend(_format_code(2, f"""
                             friend bool operator==(const struct {message.name}& l, const struct {message.name}& r) {{
                                 return l._data == r._data;
                             }}
@@ -353,7 +358,7 @@ class CppGenerator:
                             friend bool operator!=(const struct {message.name}& l, const struct {message.name}& r) {{
                                 return !(l == r);
                             }}
-                        """)
+                        """))
             code.append("    };")
         return code
 
@@ -394,25 +399,15 @@ class CppGenerator:
         code.append("}")
         return code
 
-    def _generate_dispatcher_decl(self, mode: Mode) -> list[str]:
-        if mode == Mode.VIEW:
-            out = """
-            template <class Fn>
-            static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn);
-
-            template <class Fn>
-            static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, messgen::Allocator &alloc);
-            """
-        else:
-            out = """
-            template <class Fn>
-            static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn);
-            """
+    def _generate_dispatcher_decl(self) -> list[str]:
+        out = """
+        template <class Fn>
+        static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn);
+        """
         return textwrap.indent(textwrap.dedent(out), "    ").splitlines()
 
-    def _generate_dispatcher(self, class_name: str, mode: Mode) -> list[str]:
-        out = []
-        _append_code(out, 0, f"""
+    def _generate_dispatcher(self, class_name: str) -> list[str]:
+        return _format_code(0, f"""
             template <class Fn>
             constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn) {{
                 auto result = false;
@@ -426,7 +421,6 @@ class CppGenerator:
                 return result;
             }}
             """)
-        return out
 
     @staticmethod
     def _generate_comment_type(type_def):
@@ -439,7 +433,7 @@ class CppGenerator:
         code.append(" */")
         return code
 
-    def _generate_type_enum(self, type_name, type_def, mode: Mode):
+    def _generate_type_enum(self, type_name, type_def):
         self._add_include("messgen/messgen.h")
         self._add_include("string_view")
 
@@ -448,37 +442,37 @@ class CppGenerator:
 
         code = []
         code.extend(self._generate_comment_type(type_def))
-        code.append(f"enum class {unqual_name}: {self._cpp_type(type_def.base_type, mode)} {{")
+        code.append(f"enum class {unqual_name}: {self._cpp_type(type_def.base_type, Mode.VIEW)} {{")
         for enum_value in type_def.values:
             code.append("    %s = %s,%s" % (enum_value.name, enum_value.value, _inline_comment(enum_value)))
         code.append("};")
 
-        code.extend(
-            textwrap.dedent(f"""
-                [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
-                    return "{qual_name}";
-                }}""").splitlines()
-        )
+        code.extend(_format_code(0, f"""
+            [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return "{qual_name}";
+            }}
 
-        code.append("")
-        code.append(f"[[nodiscard]] constexpr auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
-        code.append("    return std::tuple{")
+            [[nodiscard]] constexpr auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return std::tuple{{
+            """))
+
         for enum_value in type_def.values:
             code.append(
                 f'        ::messgen::enumerator_value{{{{"{enum_value.name}"}}, {unqual_name}::{enum_value.name}}},')
-        code.append("    };")
-        code.append("}")
+        code.extend(_format_code(0, """
+                 };
+             }"""))
 
         return code
 
-    def _generate_type_bitset(self, type_name, type_def, mode: Mode):
+    def _generate_type_bitset(self, type_name, type_def):
         self._add_include("messgen/messgen.h")
         self._add_include("string_view")
         self._add_include("messgen/bitset.h")
 
         unqual_name = _unqual_name(type_name)
         qual_name = _qual_name(type_name)
-        underlying_type = self._cpp_type(type_def.base_type, mode)
+        underlying_type = self._cpp_type(type_def.base_type, Mode.VIEW)
 
         code = []
         code.extend(self._generate_comment_type(type_def))
@@ -854,13 +848,18 @@ class CppGenerator:
                 self._add_include("map")
                 return "std::map<%s, %s>" % (key_c_type, value_c_type)
 
+        elif isinstance(type_def, (EnumType, BitsetType)):
+            scope = "global" if SEPARATOR in type_name else "local"
+            self._add_include("%s.h" % type_name, scope)
+            return _qual_name(type_name)
+
         elif isinstance(type_def, (EnumType, BitsetType, StructType)):
             scope = "global" if SEPARATOR in type_name else "local"
             self._add_include("%s.h" % type_name, scope)
-            if isinstance(type_def, StructType) and mode == Mode.VIEW:
-                return _qual_view_name(type_name)
-            else:
+            if mode == Mode.VIEW:
                 return _qual_name(type_name)
+            else:
+                return _qual_stor_name(type_name)
 
         elif isinstance(type_def, (ExternalType)):
             scope = "global" if SEPARATOR in type_name else "local"

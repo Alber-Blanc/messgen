@@ -155,8 +155,8 @@ TEST_F(Cpp17Test, TwoMsg) {
     EXPECT_EQ(s2, s2c);
 }
 
-TEST_F(Cpp17Test, VarSizeStruct) {
-    mynamespace::types::var_size_struct s{};
+TEST_F(Cpp17Test, VarSizeStructStor) {
+    mynamespace::types::stor::var_size_struct s{};
 
     s.f0 = 1;
     s.f1_vec = {3, 4};
@@ -164,7 +164,7 @@ TEST_F(Cpp17Test, VarSizeStruct) {
 }
 
 TEST_F(Cpp17Test, VarSizeStructView) {
-    mynamespace::types::view::var_size_struct s{};
+    mynamespace::types::var_size_struct s{};
 
     s.f0 = 1;
     std::vector<int64_t> f1_vec{3, 4};
@@ -172,8 +172,8 @@ TEST_F(Cpp17Test, VarSizeStructView) {
     test_serialization(s);
 }
 
-TEST_F(Cpp17Test, ComplexStruct) {
-    mynamespace::types::subspace::complex_struct s{};
+TEST_F(Cpp17Test, ComplexStructStor) {
+    mynamespace::types::subspace::stor::complex_struct s{};
 
     s.bitset0 = mynamespace::types::simple_bitset::two;
     s.arr_simple_struct[0].f3 = 3;
@@ -212,7 +212,7 @@ TEST_F(Cpp17Test, ComplexStruct) {
 }
 
 TEST_F(Cpp17Test, ComplexStructView) {
-    mynamespace::types::subspace::view::complex_struct s{};
+    mynamespace::types::subspace::complex_struct s{};
 
     s.bitset0 = mynamespace::types::simple_bitset::two;
     s.arr_simple_struct[0].f3 = 3;
@@ -438,7 +438,7 @@ TEST_F(Cpp17Test, SerializeMessage) {
     msg.serialize(_buf.data());
 }
 
-TEST_F(Cpp17Test, DispatchMessage) {
+TEST_F(Cpp17Test, DispatchMessageStor) {
     using namespace messgen;
 
     auto expected = mynamespace::types::simple_struct{
@@ -451,7 +451,39 @@ TEST_F(Cpp17Test, DispatchMessage) {
     auto invoked = false;
     auto handler = [&](auto &&msg) {
         using ActualType = std::decay_t<decltype(msg)>;
-        auto actual_data = msg.deserialize();
+        auto actual_data = msg.deserialize_stor();
+
+        if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct_msg>) {
+            EXPECT_EQ(expected.f0, actual_data.f0);
+            EXPECT_EQ(expected.f1, actual_data.f1);
+            invoked = true;
+        } else {
+            FAIL() << "Unexpected message type handled.";
+        }
+    };
+
+    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), handler);
+
+    EXPECT_TRUE(invoked);
+}
+
+TEST_F(Cpp17Test, DispatchMessageView) {
+    using namespace messgen;
+
+    auto expected = mynamespace::types::simple_struct{
+        .f0 = 1,
+        .f1 = 2,
+    };
+    _buf.resize(expected.serialized_size());
+    expected.serialize(_buf.data());
+
+    auto invoked = false;
+    auto handler = [&](auto &&msg) {
+        using ActualType = std::decay_t<decltype(msg)>;
+        typename ActualType::data_type actual_data;
+        if constexpr (not ActualType::data_type::NEED_ALLOC) {
+            actual_data = msg.deserialize();
+        }
 
         if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct_msg>) {
             EXPECT_EQ(expected.f0, actual_data.f0);
