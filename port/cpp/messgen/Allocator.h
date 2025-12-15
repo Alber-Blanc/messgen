@@ -1,5 +1,7 @@
 #pragma once
 
+#include "traits.h"
+
 #include <cstddef>
 #include <cstdint>
 
@@ -14,6 +16,11 @@ public:
     Allocator() noexcept {}
 
     Allocator(uint8_t *ptr, size_t size) noexcept : _ptr(ptr), _size(size) {}
+
+    template <class VIEW>
+    explicit Allocator(VIEW *v, std::enable_if_t<is_data_view_v<VIEW>> * = nullptr) noexcept
+        : Allocator(v->data(), v->size()) {
+        }
 
     /**
      * @brief Allocates memory for num objects of type T
