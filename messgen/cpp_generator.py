@@ -563,6 +563,9 @@ class CppGenerator:
         elif type_def.type_class == TypeClass.struct:
             groups = self._field_groups(type_def.fields)
             return len(groups) == 0 or (len(groups) == 1 and groups[0].size is not None)
+        elif type_def.type_class == TypeClass.array:
+            el_type_def = self._types.get(type_def.element_type)
+            return el_type_def.size is not None and el_type_def.size % self._get_alignment(el_type_def) == 0
         else:
             return False
 
