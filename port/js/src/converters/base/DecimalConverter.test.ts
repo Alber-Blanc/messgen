@@ -228,9 +228,7 @@ describe('DecimalConverter', () => {
 
       expect(value.isNaN()).toBe(true);
     });
-  });
 
-  describe('#deserialize', () => {
     it('should decode 0x308462D53C8ABAC0 to 123456.7890123456', () => {
       expectDecimal('0x308462D53C8ABAC0', '123456.7890123456');
     });
@@ -381,6 +379,99 @@ describe('DecimalConverter', () => {
       const result = converter.deserialize(buf);
       expect(result.isNaN()).toBe(true);
     });
+  });
+  describe('#serialize', () => {
+    it('should encode 0 → 0x31C0000000000000', () => {
+      expectSerialize(0, '0x31C0000000000000');
+    });
+
+    it('should encode 1 → 0x31C0000000000001', () => {
+      expectSerialize(1, '0x31C0000000000001');
+    });
+
+    it('should encode 123 → 0x31C000000000007B', () => {
+      expectSerialize(123, '0x31C000000000007B');
+    });
+
+    it('should encode 1.23 → 0x318000000000007B', () => {
+      expectSerialize('1.23', '0x318000000000007B');
+    });
+
+    it('should encode 12300 → 0x320000000000007B', () => {
+      expectSerialize('12300', '0x320000000000007B');
+    });
+
+    it('should encode -123 → 0xB1C000000000007B', () => {
+      expectSerialize(-123, '0xB1C000000000007B');
+    });
+
+    it('should encode -12.3 → 0xB1A000000000007B', () => {
+      expectSerialize('-12.3', '0xB1A000000000007B');
+    });
+
+    it('should encode 0.5 → 0x31A0000000000005', () => {
+      expectSerialize('0.5', '0x31A0000000000005');
+    });
+
+    it('should encode 0.15 → 0x318000000000000F', () => {
+      expectSerialize('0.15', '0x318000000000000F');
+    });
+
+    it('should encode 0.125 → 0x316000000000007D', () => {
+      expectSerialize('0.125', '0x316000000000007D');
+    });
+
+    it('should encode 9999999 → 0x31C000000098967F', () => {
+      expectSerialize('9999999', '0x31C000000098967F');
+    });
+
+    it('should encode 1e-28 → 0x2E40000000000001', () => {
+      expectSerialize('1e-28', '0x2E40000000000001');
+    });
+
+    it('should encode 9e+28 → 0x3540000000000009', () => {
+      expectSerialize('9e+28', '0x3540000000000009');
+    });
+
+    it('should encode 9999999999999999 → 0x6C7386F26FC0FFFF', () => {
+      expectSerialize('9999999999999999', '0x6C7386F26FC0FFFF');
+    });
+
+    it('should encode 9999999999999999e-383 → 0x607B86F26FC0FFFF', () => {
+      expectSerialize('9999999999999999e-383', '0x607B86F26FC0FFFF');
+    });
+
+    it('should encode +Infinity → 0x7800000000000000', () => {
+      expectSerialize(Infinity, '0x7800000000000000');
+    });
+
+    it('should encode -Infinity → 0xF800000000000000', () => {
+      expectSerialize(-Infinity, '0xF800000000000000');
+    });
+
+    it('should encode NaN → 0x7C00000000000000', () => {
+      const buf = new Buffer(new ArrayBuffer(8));
+      converter.serialize(NaN, buf);
+
+      const bits = fromBytes(new Uint8Array(buf.buffer));
+      expect(bits).toBe(0x7C00000000000000n);
+    });
+
+    function expectSerialize(value: Decimal | string | number, expectedHex: string) {
+      const buf = new Buffer(new ArrayBuffer(8));
+      converter.serialize(value, buf);
+
+      const actual = fromBytes(new Uint8Array(buf.buffer));
+      expect(actual).toBe(BigInt(expectedHex));
+    }
+
+    function fromBytes(bytes: Uint8Array): bigint {
+      let bits = 0n;
+      for (let i = 0; i < 8; i++) {
+        bits |= BigInt(bytes[i]) << BigInt(i * 8);
+      }
+      return bits;
+    }
   });
 
   function expectDecimal(bitsHex: string, expected: string) {

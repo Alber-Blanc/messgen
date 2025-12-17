@@ -81,25 +81,27 @@ export class DecimalConverter extends Converter {
     return this.encode(sign, coefficient, exponent);
   }
 
-  private normalize(value: Decimal): { coefficient: bigint; exponent: number } {
-    const digits = value.d;
-    const rawExp = value.e;
-    let exponent = rawExp - (digits.length - 1);
-    let coefficient = BigInt(digits.join(''));
+  private normalize(value: Decimal): NormalizedDecimal {
+    let exponent = 0;
+    let v = value;
 
-    // Remove trailing zeros
-    while (coefficient !== 0n
-      && coefficient % 10n === 0n
-      && exponent < DecimalConverter.MAX_EXPONENT) {
+    while (!v.isInteger() && exponent > DecimalConverter.MIN_EXPONENT) {
+      v = v.mul(10);
+      exponent--;
+    }
+
+    let coefficient = BigInt(v.toFixed(0));
+
+    while (coefficient !== 0n && coefficient % 10n === 0n && exponent < DecimalConverter.MAX_EXPONENT) {
       coefficient /= 10n;
       exponent++;
     }
-    // Adjust for exponent overflow
-    while (exponent > DecimalConverter.MAX_EXPONENT
-      && coefficient * 10n <= DecimalConverter.MAX_COEFFICIENT) {
+
+    while (exponent > DecimalConverter.MAX_EXPONENT && coefficient * 10n <= DecimalConverter.MAX_COEFFICIENT) {
       coefficient *= 10n;
       exponent--;
     }
+
     return { coefficient, exponent };
   }
 
@@ -182,3 +184,8 @@ export class DecimalConverter extends Converter {
 }
 
 type Input = Decimal | number | string;
+
+interface NormalizedDecimal {
+  coefficient: bigint;
+  exponent: number
+}
