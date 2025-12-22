@@ -858,10 +858,8 @@ class CppGenerator:
 
         c.append("// %s" % field_name)
         if type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.decimal, TypeClass.bitset]:
-            c_type = self._cpp_type(field_type_def.type)
             size = field_type_def.size
-            c.append("*reinterpret_cast<%s *>(&_buf[_size]) = %s;" % (c_type, field_name))
-            c.append("_size += %s;" % size)
+            c.extend(self._memcpy_to_buf(f"&{field_name}", size))
 
         elif type_class in [TypeClass.struct, TypeClass.external]:
             c.append("_size += %s.serialize(&_buf[_size]);" % field_name)
@@ -919,10 +917,8 @@ class CppGenerator:
 
         c.append("// %s" % field_name)
         if type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.decimal, TypeClass.bitset]:
-            c_type = self._cpp_type(field_type_def.type)
             size = field_type_def.size
-            c.append("%s = *reinterpret_cast<const %s *>(&_buf[_size]);" % (field_name, c_type))
-            c.append("_size += %s;" % size)
+            c.extend(self._memcpy_from_buf(f"&{field_name}", size))
 
         elif type_class in [TypeClass.struct, TypeClass.external]:
             alloc = ""
