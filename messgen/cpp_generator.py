@@ -319,30 +319,19 @@ class CppGenerator:
                     }}
                 """))
 
-                if is_flat:
-                    code.extend(_format_code(2, f"""
-                            const data_type &deserialize() const {{
-                                return *reinterpret_cast<const data_type *>(_data);
-                            }}
-    
-                            const data_type_stor &deserialize_stor() const {{
-                                return *reinterpret_cast<const data_type_stor *>(_data);
-                            }}
-                            """))
-                else:
-                    code.extend(_format_code(2, f"""
-                            data_type deserialize() const {{
-                                data_type v;
-                                v.deserialize(reinterpret_cast<const uint8_t *>(_data));
-                                return v;
-                            }}
-    
-                            data_type_stor deserialize_stor() const {{
-                                data_type_stor v;
-                                v.deserialize(reinterpret_cast<const uint8_t *>(_data));
-                                return v;
-                            }}
-                            """))
+                code.extend(_format_code(2, f"""
+                        data_type deserialize() const {{
+                            data_type v;
+                            v.deserialize(reinterpret_cast<const uint8_t *>(_data));
+                            return v;
+                        }}
+
+                        data_type_stor deserialize_stor() const {{
+                            data_type_stor v;
+                            v.deserialize(reinterpret_cast<const uint8_t *>(_data));
+                            return v;
+                        }}
+                        """))
 
             code.extend(_format_code(1, f"""
                 private:
