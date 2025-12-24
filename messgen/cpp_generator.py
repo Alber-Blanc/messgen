@@ -98,6 +98,7 @@ class FieldsGroup:
         self.fields: list = []
         self.field_names: list = []
         self.size: int = 0
+        self.is_flat = True
 
     def __repr__(self) -> str:
         return str(self)
@@ -832,6 +833,7 @@ class CppGenerator:
 
             # Check if there is padding before this field
             if len(groups[-1].fields) > 0 and (
+                    (not groups[-1].is_flat) or
                     (not is_flat) or
                     (size is None) or
                     (groups[-1].size is None) or
@@ -848,6 +850,8 @@ class CppGenerator:
                     groups[-1].size += size
                 else:
                     groups[-1].size = None
+            if not is_flat:
+                groups[-1].is_flat = False
 
         return groups
 
