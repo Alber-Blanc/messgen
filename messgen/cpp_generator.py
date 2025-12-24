@@ -303,11 +303,14 @@ class CppGenerator:
                         """))
 
             else:
+                consteval_str = ""
+                if self._get_cpp_standard() >= 20:
+                    consteval_str = "consteval "
                 # Static size, data_type == data_type_view
                 code.extend(_format_code(2, f"""
                     explicit {message.name}(const data_type& t) : _data(&t) {{}}
 
-                    consteval size_t serialized_size() const {{
+                    {consteval_str}size_t serialized_size() const {{
                         return data_type::FIXED_SIZE;
                     }}
                     
