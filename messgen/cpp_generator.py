@@ -597,16 +597,14 @@ class CppGenerator:
                                                                                                            0].name))
 
         # Flat type
-        is_flat_str = "false"
-        is_empty = len(groups) == 0
         is_flat = self._is_flat_type(type_def)
-        if is_flat:
-            is_flat_str = "true"
-        code.append(_indent(f"static constexpr bool IS_FLAT = {is_flat_str};"))
+        code.append(_indent(f"static constexpr bool IS_FLAT = {str(is_flat).lower()};"))
 
-        # Static size type
-        if type_def.size is not None:
-            code.append(_indent("static constexpr size_t FIXED_SIZE = %d;" % type_def.size))
+        # Fixed size type
+        is_fixed_size = type_def.size is not None
+        code.append(_indent(f"static constexpr bool IS_FIXED_SIZE = {str(is_fixed_size).lower()};"))
+        if is_fixed_size:
+            code.append(_indent(f"static constexpr size_t FIXED_SIZE = {type_def.size};"))
 
         # Need alloc
         if mode == Mode.VIEW:
@@ -654,6 +652,7 @@ class CppGenerator:
             code_ser.append("")
         code_ser.append("return _size;")
 
+        is_empty = len(groups) == 0
         code_ser = (
                 [
                     "",

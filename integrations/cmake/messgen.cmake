@@ -52,7 +52,6 @@ function(messgen_add_proto_library LIBRARY_NAME BASE_DIR PROTOCOL TYPES_TARGET)
 
     set(MESSGEN_ARGS "")
     get_target_property(BASE_DIRS ${TYPES_TARGET} "MESSGEN_BASE_DIRS")
-    message(STATUS, "Base dirs: ${BASE_DIRS}")
     foreach (BASE_DIR ${BASE_DIRS})
         list(APPEND MESSGEN_ARGS "--types" ${BASE_DIR})
     endforeach ()
