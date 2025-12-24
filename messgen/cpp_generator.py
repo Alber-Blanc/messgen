@@ -156,7 +156,8 @@ class CppGenerator:
             file_name.parent.mkdir(parents=True, exist_ok=True)
             write_file_if_diff(file_name, self._generate_type_file(type_name, type_def, types))
 
-    def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
+    def generate_protocols(self, out_dir: Path, types: dict[str, MessgenType], protocols: dict[str, Protocol]) -> None:
+        self._types = types
         for proto_name, proto_def in protocols.items():
             file_name = out_dir / (proto_name + self._EXT_HEADER)
             file_name.parent.mkdir(parents=True, exist_ok=True)
@@ -238,6 +239,8 @@ class CppGenerator:
         code: list[str] = []
         for message in proto_def.messages.values():
             type_def = self._types.get(message.type)
+            if type_def is None:
+                raise RuntimeError(f"Type '{message.type}' not found for message '{message.name}' in protocol '{proto_name}'")
             is_flat = self._is_flat_type(type_def)
 
             code.extend(_format_code(1, f"""

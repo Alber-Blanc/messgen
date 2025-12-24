@@ -36,7 +36,7 @@ function(messgen_add_types_library LIBRARY_NAME BASE_DIRS)
         ${MESSAGES_OUT_DIR}
         ${MESSGEN_DIR}/port/cpp
     )
-    set_target_properties(${LIBRARY_NAME} PROPERTIES "MESSGEN_BASE_DIRS" ${BASE_DIRS})
+    set_target_properties(${LIBRARY_NAME} PROPERTIES "MESSGEN_BASE_DIRS" "${BASE_DIRS}")
 endfunction()
 
 #
