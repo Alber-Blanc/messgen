@@ -113,6 +113,7 @@ class FieldsGroup:
         self.fields: list = []
         self.field_names: list = []
         self.size: int = 0
+        self.is_flat = True
 
     def __repr__(self) -> str:
         return str(self)
@@ -637,8 +638,6 @@ class CppGenerator:
 
         for group in groups:
             if len(group.fields) > 1:
-                # There is padding before current field
-                # Write together previous aligned fields, if any
                 code_ser.append("// %s" % ", ".join(group.field_names))
                 code_ser.extend(self._memcpy_to_buf("&" + group.fields[0].name, group.size))
             elif len(group.fields) == 1:
@@ -673,8 +672,6 @@ class CppGenerator:
         groups = self._field_groups(fields)
         for group in groups:
             if len(group.fields) > 1:
-                # There is padding before current field
-                # Write together previous aligned fields, if any
                 code_deser.append("// %s" % ", ".join(group.field_names))
                 code_deser.extend(self._memcpy_from_buf("&" + group.fields[0].name, group.size))
             elif len(group.fields) == 1:
@@ -913,6 +910,7 @@ class CppGenerator:
 
             # Check if there is padding before this field
             if len(groups[-1].fields) > 0 and (
+                    (not groups[-1].is_flat) or
                     (not is_flat) or
                     (size is None) or
                     (groups[-1].size is None) or
@@ -929,6 +927,8 @@ class CppGenerator:
                     groups[-1].size += size
                 else:
                     groups[-1].size = None
+            if not is_flat:
+                groups[-1].is_flat = False
 
         return groups
 
@@ -939,10 +939,13 @@ class CppGenerator:
 
         c.append("// %s" % field_name)
         if type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.decimal, TypeClass.bitset]:
-            c_type = self._cpp_type(field_type_def.type, mode)
             size = field_type_def.size
-            c.append("*reinterpret_cast<%s *>(&_buf[_size]) = %s;" % (c_type, field_name))
-            c.append("_size += %s;" % size)
+            if size == 1:
+                c_type = self._cpp_type(field_type_def.type, mode)
+                c.append(f"*reinterpret_cast<{c_type} *>(&_buf[_size]) = {field_name};")
+                c.append(f"_size += {size};")
+            else:
+                c.extend(self._memcpy_to_buf(f"&{field_name}", size))
 
         elif type_class in [TypeClass.struct, TypeClass.external]:
             c.append("_size += %s.serialize(&_buf[_size]);" % field_name)
@@ -999,10 +1002,13 @@ class CppGenerator:
 
         c.append("// %s" % field_name)
         if type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.decimal, TypeClass.bitset]:
-            c_type = self._cpp_type(field_type_def.type, mode)
             size = field_type_def.size
-            c.append("%s = *reinterpret_cast<const %s *>(&_buf[_size]);" % (field_name, c_type))
-            c.append("_size += %s;" % size)
+            if size == 1:
+                c_type = self._cpp_type(field_type_def.type, mode)
+                c.append(f"{field_name} = *reinterpret_cast<const {c_type} *>(&_buf[_size]);")
+                c.append(f"_size += {size};")
+            else:
+                c.extend(self._memcpy_from_buf(f"&{field_name}", size))
 
         elif type_class in [TypeClass.struct, TypeClass.external]:
             alloc = ""
