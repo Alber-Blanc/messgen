@@ -685,7 +685,7 @@ class ResolvedStruct(ResolvedType):
                                 f._value.is_flat()
                             )
                     )
-            hasFlatGroups = hasFlatGroups or g.size != None
+            hasFlatGroups = hasFlatGroups or (g.size != None and g.flat)
             hasNonFlatGroups = hasNonFlatGroups or g.size == None
 
         # Imports
