@@ -510,7 +510,7 @@ class ResolvedStruct(ResolvedType):
         elif cur._model.type_class in [TypeClass.struct, TypeClass.external]:
             yield f"  sz, err := {name}.Serialize(output[outputOfs:])"
             yield f"  if err != nil {{"
-            yield f"     return uint32(outputOfs), fmt.Errorf(\"Failed to encode field '{name}'\")"
+            yield f"     return uint32(outputOfs), fmt.Errorf(\"Failed to encode field '{name}': %w\", err)"
             yield f"  }}"
             yield f"  outputOfs += int(sz)"
         elif isinstance(cur, ResolvedBuiltin):
@@ -581,7 +581,7 @@ class ResolvedStruct(ResolvedType):
             yield f"  }}"
             yield f"  sz, err := {name}.Deserialize(input[inputOfs:])"
             yield f"  if err != nil {{"
-            yield f"     return uint32(inputOfs), fmt.Errorf(\"Failed to decode field '{name}'\")"
+            yield f"     return uint32(inputOfs), fmt.Errorf(\"Failed to decode field '{name}': %w\", err)"
             yield f"  }}"
             yield f"  inputOfs += int(sz)"
         elif isinstance(cur, ResolvedBuiltin):
