@@ -613,7 +613,7 @@ class ResolvedStruct(ResolvedType):
                 # It's a dynamic array, and we are allocating here a variable sized memory.
                 # It's possible (and highly likely) that the input may be corrupted
                 # and the 4 bytes for the size are just a random large uint32 number.
-                # We want to protect from allocating uint32_max memory and crashing the program.
+                # We want to protect from allocating uint32_max sized slice and crashing the program (because of OOM).
                 # But can't know right here which number of bytes we are expecting.
                 # The best we can do is to calculate the minimum number of bytes needed
                 # in the input to represent this number of elements in the slice.
