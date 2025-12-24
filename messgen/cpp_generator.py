@@ -602,9 +602,17 @@ class CppGenerator:
 
         # Fixed size type
         is_fixed_size = type_def.size is not None
+        fixed_size = 0
+        for field in fields:
+            field_type_def = self._types[field.type]
+            field_size = field_type_def.size
+            if field_size is None:
+                fixed_size += 4 # sizeof(messgen::size_type)
+            else:
+                fixed_size += field_size
+
         code.append(_indent(f"static constexpr bool IS_FIXED_SIZE = {str(is_fixed_size).lower()};"))
-        if is_fixed_size:
-            code.append(_indent(f"static constexpr size_t FIXED_SIZE = {type_def.size};"))
+        code.append(_indent(f"static constexpr size_t FIXED_SIZE = {fixed_size};"))
 
         # Need alloc
         if mode == Mode.VIEW:
