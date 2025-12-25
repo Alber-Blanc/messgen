@@ -218,7 +218,8 @@ class TypeScriptGenerator:
                     if dep_folder == folder:
                         continue
                     import_path = posixpath.relpath(dep_folder, start=folder)
-                    external[import_path].add(normalize(dep))
+                    normalized_path = import_path if import_path.startswith('.') else f'./{import_path}'
+                    external[normalized_path].add(normalize(dep))
         return external
 
     def _emit_types(self, folder: str, local_names: Set[str], types: Dict[str, MessgenType]) -> str:
