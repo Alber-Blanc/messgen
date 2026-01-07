@@ -2,6 +2,7 @@
 name = "messgen"
 description = "Cross language serialization cod generator"
 dynamic = ["version"]
+
 authors = [
     {name = "Anton Babushkin", email = "anton.babushkin@alberblanc.com"},
     {name = "Adam Lach", email = "adam.lach@alberblanc.com"},
@@ -10,6 +11,13 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = ["pyyaml"]
+
+
+[build-system]
+requires = ["setuptools>=61", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
 
 [tool.setuptools.packages.find]
 where = ["."]
