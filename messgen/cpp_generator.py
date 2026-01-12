@@ -265,6 +265,11 @@ class CppGenerator:
                         _data = data;
                         _size = size;
                     }}
+                                        
+                    explicit {message.name}(messgen::bytes buf) {{
+                        _data = buf.data();
+                        _size = buf.size();
+                    }}
                 """))
 
             if type_def.size is None:
@@ -289,7 +294,7 @@ class CppGenerator:
                     code.extend(_format_code(2, f"""
                             data_type deserialize(::messgen::Allocator &alloc) const {{
                                 data_type v;
-                                v.deserialize(reinterpret_cast<const uint8_t *>(_data), _size, alloc);
+                                v.deserialize({{reinterpret_cast<const uint8_t *>(_data), _size}}, alloc);
                                 return v;
                             }}
                             
@@ -298,7 +303,7 @@ class CppGenerator:
                     code.extend(_format_code(2, f"""
                             data_type deserialize() const {{
                                 data_type v;
-                                v.deserialize(reinterpret_cast<const uint8_t *>(_data), _size);
+                                v.deserialize({{reinterpret_cast<const uint8_t *>(_data), _size}});
                                 return v;
                             }}
                             
@@ -306,7 +311,7 @@ class CppGenerator:
                 code.extend(_format_code(2, f"""
                         data_type_stor deserialize_stor() const {{
                             data_type_stor v;
-                            v.deserialize(reinterpret_cast<const uint8_t *>(_data), _size);
+                            v.deserialize({{reinterpret_cast<const uint8_t *>(_data), _size}});
                             return v;
                         }}
                         
@@ -333,13 +338,13 @@ class CppGenerator:
                 code.extend(_format_code(2, f"""
                         data_type deserialize() const {{
                             data_type v;
-                            v.deserialize(reinterpret_cast<const uint8_t *>(_data), _size);
+                            v.deserialize({{reinterpret_cast<const uint8_t *>(_data), _size}});
                             return v;
                         }}
 
                         data_type_stor deserialize_stor() const {{
                             data_type_stor v;
-                            v.deserialize(reinterpret_cast<const uint8_t *>(_data), _size);
+                            v.deserialize({{reinterpret_cast<const uint8_t *>(_data), _size}});
                             return v;
                         }}
                         
@@ -679,8 +684,11 @@ class CppGenerator:
         if need_alloc:
             alloc = ", messgen::Allocator &_alloc"
 
+        self._add_include("messgen/bytes.h", "global")
         code_deser = _format_code(0, f"""
-            size_t deserialize(const uint8_t *{'_buf' if not is_empty else ''}, size_t _buf_size{alloc}) {{
+            size_t deserialize(messgen::bytes _buf_bytes{alloc}) {{
+                auto _buf = _buf_bytes.data();
+                auto _buf_size = _buf_bytes.size();
                 size_t _size = 0;
                 [[maybe_unused]] ssize_t _field_size;
                 """)
@@ -1057,7 +1065,7 @@ class CppGenerator:
                 c.append(f"_size += {field_name}.deserialize_unsafe(&_buf[_size]{alloc});")
             else:
                 c.extend(_format_code(0, f"""
-                    _field_size = {field_name}.deserialize(&_buf[_size], _buf_size - _size{alloc});
+                    _field_size = {field_name}.deserialize({{&_buf[_size], _buf_size - _size}}{alloc});
                     if (_field_size < 0) [[unlikely]] {{
                         return -1;
                     }}

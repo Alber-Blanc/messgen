@@ -4,6 +4,7 @@
 #error "C++20 or higher is required"
 #endif
 
+#include <messgen/bytes.h>
 #include <messgen/reflection.h>
 
 #include <concepts>
@@ -28,15 +29,15 @@ concept enumeration = std::is_enum_v<T> && requires(T t) {
 };
 
 template <class Type>
-concept serializable = requires(std::remove_cvref_t<Type> msg, uint8_t *buf, size_t size, messgen::Allocator &alloc) {
+concept serializable = requires(std::remove_cvref_t<Type> msg, uint8_t *buf, messgen::bytes buf_bytes, messgen::Allocator &alloc) {
     { msg.serialized_size() } -> std::same_as<size_t>;
     { msg.serialize(buf) } -> std::same_as<size_t>;
     requires(
         requires {
-            { msg.deserialize(buf, size) } -> std::same_as<size_t>;
+            { msg.deserialize(buf_bytes) } -> std::same_as<size_t>;
         } ||
         requires {
-            { msg.deserialize(buf, size, alloc) } -> std::same_as<size_t>;
+            { msg.deserialize(buf_bytes, alloc) } -> std::same_as<size_t>;
         });
 };
 
