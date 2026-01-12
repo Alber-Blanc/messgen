@@ -150,8 +150,8 @@ struct has_dispatch_message_method : std::false_type {};
 
 template <typename T>
 struct has_dispatch_message_method<
-    T, std::void_t<decltype(std::declval<T>().dispatch_message(std::declval<int>(), std::declval<const uint8_t *>(), std::declval<detail::noop_fn>()))>>
-    : std::bool_constant<std::is_same_v<bool, decltype(std::declval<T>().dispatch_message(std::declval<int>(), std::declval<const uint8_t *>(),
+    T, std::void_t<decltype(std::declval<T>().dispatch_message(std::declval<int>(), std::declval<const uint8_t *>(), std::declval<size_t>(), std::declval<detail::noop_fn>()))>>
+    : std::bool_constant<std::is_same_v<bool, decltype(std::declval<T>().dispatch_message(std::declval<int>(), std::declval<const uint8_t *>(), std::declval<size_t>(),
                                                                                           std::declval<detail::noop_fn>()))>> {};
 
 template <typename T>

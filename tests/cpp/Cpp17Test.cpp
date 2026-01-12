@@ -24,7 +24,7 @@ protected:
         EXPECT_EQ(ser_size, sz_check);
 
         T msg1{};
-        size_t deser_size;
+        ssize_t deser_size;
         if constexpr (messgen::has_deserialize_alloc_method_v<T>) {
             auto alloc = messgen::Allocator(_alloc_buf, sizeof(_alloc_buf));
             deser_size = msg1.deserialize(_buf.data(), _buf.size(), alloc);
@@ -462,7 +462,7 @@ TEST_F(Cpp17Test, DispatchMessageStor) {
         }
     };
 
-    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), handler);
+    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), _buf.size(), handler);
 
     EXPECT_TRUE(invoked);
 }
@@ -494,7 +494,7 @@ TEST_F(Cpp17Test, DispatchMessageView) {
         }
     };
 
-    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), handler);
+    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), _buf.size(), handler);
 
     EXPECT_TRUE(invoked);
 }

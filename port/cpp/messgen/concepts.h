@@ -28,15 +28,15 @@ concept enumeration = std::is_enum_v<T> && requires(T t) {
 };
 
 template <class Type>
-concept serializable = requires(std::remove_cvref_t<Type> msg, uint8_t *buf, messgen::Allocator &alloc) {
+concept serializable = requires(std::remove_cvref_t<Type> msg, uint8_t *buf, size_t size, messgen::Allocator &alloc) {
     { msg.serialized_size() } -> std::same_as<size_t>;
     { msg.serialize(buf) } -> std::same_as<size_t>;
     requires(
         requires {
-            { msg.deserialize(buf) } -> std::same_as<size_t>;
+            { msg.deserialize(buf, size) } -> std::same_as<size_t>;
         } ||
         requires {
-            { msg.deserialize(buf, alloc) } -> std::same_as<size_t>;
+            { msg.deserialize(buf, size, alloc) } -> std::same_as<size_t>;
         });
 };
 
@@ -60,10 +60,10 @@ concept message = type<typename std::remove_cvref_t<Message>::data_type> && requ
 };
 
 template <class Protocol>
-concept protocol = requires(std::remove_cvref_t<Protocol> proto, int msg_id, const uint8_t *payload, detail::noop_fn fn) {
+concept protocol = requires(std::remove_cvref_t<Protocol> proto, int msg_id, const uint8_t *payload, size_t payload_size, detail::noop_fn fn) {
     { proto.PROTO_ID } -> std::convertible_to<int>;
     { proto.reflect_message(msg_id, fn) } -> std::same_as<void>;
-    { proto.dispatch_message(msg_id, payload, fn) } -> std::same_as<bool>;
+    { proto.dispatch_message(msg_id, payload, payload_size, fn) } -> std::same_as<bool>;
 };
 
 } // namespace messgen
