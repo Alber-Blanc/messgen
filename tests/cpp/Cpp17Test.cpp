@@ -27,11 +27,11 @@ protected:
         size_t deser_size;
         if constexpr (messgen::has_deserialize_alloc_method_v<T>) {
             auto alloc = messgen::Allocator(_alloc_buf, sizeof(_alloc_buf));
-            deser_size = msg1.deserialize(_buf.data(), alloc);
+            deser_size = msg1.deserialize(_buf.data(), _buf.size(), alloc);
         } else if (sz_check > 0) {
-            deser_size = msg1.deserialize(&_buf[0]);
+            deser_size = msg1.deserialize(_buf.data(), _buf.size());
         } else {
-            deser_size = msg1.deserialize(nullptr);
+            deser_size = msg1.deserialize(nullptr, 0);
         }
         EXPECT_EQ(deser_size, sz_check);
 
@@ -51,7 +51,7 @@ protected:
         EXPECT_EQ(memcmp(&msg, _buf.data(), sz_check), 0);
 
         T msg1{};
-        size_t deser_size = msg1.deserialize(_buf.data());
+        size_t deser_size = msg1.deserialize(_buf.data(), _buf.size());
         EXPECT_EQ(deser_size, sz_check);
 
         EXPECT_EQ(msg, msg1);
@@ -147,8 +147,8 @@ TEST_F(Cpp17Test, TwoMsg) {
 
     mynamespace::types::simple_struct s1c{};
     mynamespace::types::flat_struct s2c{};
-    size_t deser_size = s1c.deserialize(_buf.data());
-    deser_size += s2c.deserialize(_buf.data() + deser_size);
+    size_t deser_size = s1c.deserialize(_buf.data(), _buf.size());
+    deser_size += s2c.deserialize(_buf.data() + deser_size, _buf.size() - deser_size);
     EXPECT_EQ(deser_size, sz_check);
 
     EXPECT_EQ(s1, s1c);

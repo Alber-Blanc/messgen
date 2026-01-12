@@ -63,7 +63,7 @@ template <typename T, typename = void>
 struct has_deserialize_method : std::false_type {};
 
 template <typename T>
-struct has_deserialize_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)(const uint8_t *)>(&T::deserialize))>> : std::true_type {};
+struct has_deserialize_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)(const uint8_t *, size_t)>(&T::deserialize))>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool has_deserialize_method_v = has_deserialize_method<T>::value;
@@ -74,7 +74,7 @@ struct has_deserialize_alloc_method : std::false_type {};
 class Allocator;
 
 template <typename T>
-struct has_deserialize_alloc_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)(const uint8_t *, Allocator &)>(&T::deserialize))>> : std::true_type {
+struct has_deserialize_alloc_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)(const uint8_t *, size_t, Allocator &)>(&T::deserialize))>> : std::true_type {
 };
 
 template <typename T>
