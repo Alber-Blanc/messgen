@@ -6,13 +6,16 @@
     "test": "vitest",
     "benchmark": "vitest bench",
     "coverage": "vitest run --coverage",
-    "gen": "python3 ../../messgen-generate.py --types ../../tests/msg/types --protocol ../../tests/msg/protocols:mynamespace/proto/test_proto --protocol ../../tests/msg/protocols:mynamespace/proto/subspace/another_proto --outdir ./tests",
+    "gen:exec": "python3 ../../messgen-generate.py",
+    "gen": "npm run gen:exec -- --types ../../tests/msg/types --protocol ../../tests/msg/protocols:mynamespace/proto/test_proto --protocol ../../tests/msg/protocols:mynamespace/proto/subspace/another_proto --outdir ./tests",
     "gen:json": "npm run gen -- --lang json",
     "gen:ts": "npm run gen:json && npm run gen -- --lang ts",
     "gen:md": "npm run gen -- --lang md",
+    "gen:fixtures:ts": "npm run gen:exec -- --lang ts --types ./tests/fixtures/types --outdir ./tests/fixtures/generated",
+    "gen:fixtures:json": "npm run gen:exec -- --lang json --types ./tests/fixtures/types --outdir ./tests/fixtures/generated",
     "generate-bit": "cd ../.. && python3 tests/python/generate_serialized_data.py",
     "check:lint": "eslint --ext .ts src",
-    "check:types": "npm run gen:ts && tsc --noEmit"
+    "check:types": "npm run gen:ts && npm run gen:fixtures:ts && tsc --noEmit"
   },
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",

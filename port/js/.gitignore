@@ -7,4 +7,5 @@ tests/types.json
 tests/types.ts
 tests/protocols.ts
 /tests/mynamespace/
+tests/fixtures/generated/
 gen.sh

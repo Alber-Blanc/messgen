@@ -8,12 +8,15 @@ import type { Protocol, RawType } from './protocol';
 
 describe('Codec', () => {
   let types: RawType[];
+  let fixturesTypes: RawType[];
   let protocols: Protocol[];
   let codec: Codec;
 
   beforeAll(() => {
     execSync('npm run gen:json');
+    execSync('npm run gen:fixtures:json');
     types = uploadTypes('./types.json');
+    fixturesTypes = uploadTypes('./fixtures/generated/types.json');
     protocols = uploadProtocols('./protocols.json');
     codec = new Codec(types, protocols);
   });
@@ -24,6 +27,10 @@ describe('Codec', () => {
 
   it('should load types and protocols', () => {
     expect(new Codec(types, protocols)).toBeDefined();
+  });
+
+  it('should load external types', () => {
+    expect(new Codec(fixturesTypes, [])).toBeDefined();
   });
 
   describe('#serialize', () => {
