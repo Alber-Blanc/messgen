@@ -28,7 +28,7 @@ class JsonGenerator:
 
         for type_name in sorted(types.keys()):
             type_def = types[type_name]
-            if type_def.type_class in [TypeClass.struct, TypeClass.enum, TypeClass.bitset]:
+            if type_def.type_class in [TypeClass.struct, TypeClass.enum, TypeClass.bitset, TypeClass.external]:
                 type_dict = asdict(type_def)
                 type_hash = hash_type(type_def, types)
                 type_dict["hash"] = str(type_hash) if type_hash is not None else None

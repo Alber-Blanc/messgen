@@ -6,7 +6,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 
 from .common import SEPARATOR
-from .model import MessgenType, EnumType, StructType, Protocol, TypeClass, BitsetType
+from .model import ExternalType, MessgenType, EnumType, StructType, Protocol, TypeClass, BitsetType
 
 
 def normalize(name: str) -> str:
@@ -199,7 +199,7 @@ class TypeScriptGenerator:
     def _collect_types_by_folder(self, types: Dict[str, MessgenType]) -> DefaultDict[str, Set[str]]:
         by_folder: DefaultDict[str, Set[str]] = defaultdict(set)
         for full, t in types.items():
-            if t.type_class in {TypeClass.struct, TypeClass.enum, TypeClass.bitset}:
+            if t.type_class in {TypeClass.struct, TypeClass.enum, TypeClass.bitset, TypeClass.external}:
                 by_folder[_proto_dir_from_type_path(full)].add(full)
         return by_folder
 
@@ -272,6 +272,8 @@ class TypeScriptGenerator:
                 out.append(self._emit_enum(name, cast(EnumType, t)))
             elif t.type_class is TypeClass.bitset:
                 out.append(self._emit_bitset(name, cast(BitsetType, t)))
+            elif t.type_class is TypeClass.external:
+                out.append(self._emit_external(name, cast(ExternalType, t)))
         return ''.join(out)
 
     def _emit_local_typename_enum(self, local_names: Set[str], types: Dict[str, MessgenType]) -> str:
@@ -390,6 +392,13 @@ class TypeScriptGenerator:
         with w.block(f"export enum {normalize(name)}"):
             for b in sorted(bitset.bits, key=lambda b: b.offset):
                 w.line(f"{enum_key(b.name)} = (1 << {b.offset}),")
+        return w.emit()
+
+    def _emit_external(self, name: str, external: ExternalType) -> str:
+        w = TSWriter()
+        w.jsdoc(external.comment or '')
+        w.line(f"export type {normalize(name)} = unknown;")
+        w.blank()
         return w.emit()
 
     def _write(self, path: Path, content: str) -> None:

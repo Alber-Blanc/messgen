@@ -48,6 +48,11 @@ export class Protocols {
           typeName: type.type,
           bits: type.bits,
         });
+      } else if (type.type_class === RawTypeClass.EXTERNAL) {
+        this.types.set(type.type, {
+          typeClass: TypeClass.EXTERNAL,
+          typeName: type.type,
+        });
       }
     });
   }

@@ -9,6 +9,7 @@ import {
   EnumConverter,
   DecimalConverter,
   BitsetConverter,
+  ExternalConverter,
 } from './base';
 import type { Converter } from './Converter';
 
@@ -37,6 +38,8 @@ export class ConverterFactory {
         return new TypedArrayConverter(typeDef, getType);
       case TypeClass.MAP:
         return new MapConverter(typeDef, getType);
+      case TypeClass.EXTERNAL:
+        return new ExternalConverter(typeDef);
       default:
         throw new Error(`Unsupported type class ${typeName}`);
     }

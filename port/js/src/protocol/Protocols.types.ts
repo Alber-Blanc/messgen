@@ -23,7 +23,13 @@ export interface RawBitsetType {
   hash: string;
 }
 
-export type RawType = RawStructType | RawEnumType | RawBitsetType;
+export interface RawExternalType {
+  type: string;
+  type_class: 'external';
+  hash: string;
+}
+
+export type RawType = RawStructType | RawEnumType | RawBitsetType | RawExternalType;
 
 interface EnumValue {
   name: IName;
@@ -34,6 +40,7 @@ export enum RawTypeClass {
   STRUCT = 'struct',
   ENUM = 'enum',
   BITSET = 'bitset',
+  EXTERNAL = 'external',
 }
 
 export interface StructTypeClass {
