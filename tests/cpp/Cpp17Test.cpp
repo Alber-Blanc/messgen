@@ -462,7 +462,7 @@ TEST_F(Cpp17Test, DispatchMessageStor) {
         }
     };
 
-    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), _buf.size(), handler);
+    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, messgen::bytes{&_buf}, handler);
 
     EXPECT_TRUE(invoked);
 }
@@ -494,7 +494,7 @@ TEST_F(Cpp17Test, DispatchMessageView) {
         }
     };
 
-    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, _buf.data(), _buf.size(), handler);
+    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, messgen::bytes{&_buf}, handler);
 
     EXPECT_TRUE(invoked);
 }

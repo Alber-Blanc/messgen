@@ -261,11 +261,6 @@ class CppGenerator:
                     
                     {message.name}() = default;
                     
-                    explicit {message.name}(const uint8_t *data, size_t size) {{
-                        _data = data;
-                        _size = size;
-                    }}
-                                        
                     explicit {message.name}(messgen::bytes buf) {{
                         _data = buf.data();
                         _size = buf.size();

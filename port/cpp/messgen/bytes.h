@@ -11,13 +11,13 @@ namespace messgen {
 
 class bytes {
 public:
-    using pointer = const uint8_t *;
+    using pointer = uint8_t *;
     using const_pointer = const uint8_t *;
 
     bytes() noexcept = default;
 
-    bytes(const uint8_t *ptr, size_t size) noexcept
-        : _ptr(const_cast<uint8_t *>(ptr)),
+    bytes(const_pointer ptr, size_t size) noexcept
+        : _ptr(const_cast<pointer>(ptr)),
           _size(size) {
     }
 
@@ -78,7 +78,7 @@ public:
 
 private:
     messgen::size_type _size = 0;
-    uint8_t *_ptr = nullptr;
+    pointer _ptr = nullptr;
 };
 
 } // namespace messgen

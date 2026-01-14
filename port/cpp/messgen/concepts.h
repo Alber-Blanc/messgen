@@ -61,10 +61,10 @@ concept message = type<typename std::remove_cvref_t<Message>::data_type> && requ
 };
 
 template <class Protocol>
-concept protocol = requires(std::remove_cvref_t<Protocol> proto, int msg_id, const uint8_t *payload, size_t payload_size, detail::noop_fn fn) {
+concept protocol = requires(std::remove_cvref_t<Protocol> proto, int msg_id, messgen::bytes payload, detail::noop_fn fn) {
     { proto.PROTO_ID } -> std::convertible_to<int>;
     { proto.reflect_message(msg_id, fn) } -> std::same_as<void>;
-    { proto.dispatch_message(msg_id, payload, payload_size, fn) } -> std::same_as<bool>;
+    { proto.dispatch_message(msg_id, payload, fn) } -> std::same_as<bool>;
 };
 
 } // namespace messgen
