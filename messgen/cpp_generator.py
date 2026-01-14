@@ -416,19 +416,19 @@ class CppGenerator:
     def _generate_dispatcher_decl(self) -> list[str]:
         out = """
         template <class Fn>
-        static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, size_t payload_size, Fn &&fn);
+        static constexpr bool dispatch_message(int16_t msg_id, messgen::bytes payload, Fn &&fn);
         """
         return textwrap.indent(textwrap.dedent(out), "    ").splitlines()
 
     def _generate_dispatcher(self, class_name: str) -> list[str]:
         return _format_code(0, f"""
             template <class Fn>
-            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, size_t payload_size, Fn &&fn) {{
+            constexpr bool {class_name}::dispatch_message(int16_t msg_id, messgen::bytes payload, Fn &&fn) {{
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
                     using message_type = messgen::splice_t<R>;
                     if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
-                        std::forward<Fn>(fn).operator()(message_type{{payload, payload_size}});
+                        std::forward<Fn>(fn).operator()(message_type{{payload}});
                         result = true;
                     }}
                 }});
