@@ -2,10 +2,14 @@ name: JS CI & Publish
 
 on:
   push:
-    branches: [ master, "v1" ]
+    branches: [ master ]
   pull_request:
-    branches: [ master, "v1" ]
+    branches: [ master ]
 
+
+permissions:
+  contents: read
+  id-token: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -43,12 +47,14 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+
     defaults:
       run:
         working-directory: ./port/js
-    if: github.ref == 'refs/heads/master'
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/node
 
@@ -67,5 +73,3 @@ jobs:
       - name: Publish to npm
         if: steps.version.outputs.changed == 'true'
         run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

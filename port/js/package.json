@@ -1,6 +1,7 @@
 {
   "name": "messgen",
   "version": "0.9.0",
+  "repository": "https://github.com/Alber-Blanc/messgen",
   "scripts": {
     "build": "bunchee",
     "test": "vitest",
