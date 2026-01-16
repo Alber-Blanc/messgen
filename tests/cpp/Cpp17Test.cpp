@@ -451,7 +451,9 @@ TEST_F(Cpp17Test, DispatchMessageStor) {
     auto invoked = false;
     auto handler = [&](auto &&msg) {
         using ActualType = std::decay_t<decltype(msg)>;
-        auto actual_data = msg.deserialize_stor();
+        typename ActualType::data_type_stor actual_data;
+        auto res = msg.deserialize(actual_data);
+        assert(res == actual_data.FIXED_SIZE);
 
         if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct_msg>) {
             EXPECT_EQ(expected.f0, actual_data.f0);
@@ -482,7 +484,8 @@ TEST_F(Cpp17Test, DispatchMessageView) {
         using ActualType = std::decay_t<decltype(msg)>;
         typename ActualType::data_type actual_data;
         if constexpr (not ActualType::data_type::NEED_ALLOC) {
-            actual_data = msg.deserialize();
+            auto res = msg.deserialize(actual_data);
+            assert(res == actual_data.FIXED_SIZE);
         }
 
         if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct_msg>) {

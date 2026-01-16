@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sys/types.h>
 #include <cstdint>
 #include <cstring>
 #include <type_traits>
@@ -47,7 +48,7 @@ template <typename T, typename = void>
 struct has_serialized_size_method : std::false_type {};
 
 template <typename T>
-struct has_serialized_size_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)() const>(&T::serialized_size))>> : std::true_type {};
+struct has_serialized_size_method<T, std::void_t<decltype(static_cast<size_t (T::*)() const>(&T::serialized_size))>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool has_serialized_size_method_v = has_serialized_size_method<T>::value;
@@ -56,7 +57,7 @@ template <typename T, typename = void>
 struct has_serialize_method : std::false_type {};
 
 template <typename T>
-struct has_serialize_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)(uint8_t *) const>(&T::serialize))>> : std::true_type {};
+struct has_serialize_method<T, std::void_t<decltype(static_cast<size_t (T::*)(uint8_t *) const>(&T::serialize))>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool has_serialize_method_v = has_serialize_method<T>::value;
@@ -65,7 +66,7 @@ template <typename T, typename = void>
 struct has_deserialize_method : std::false_type {};
 
 template <typename T>
-struct has_deserialize_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)(messgen::bytes)>(&T::deserialize))>> : std::true_type {};
+struct has_deserialize_method<T, std::void_t<decltype(static_cast<ssize_t (T::*)(messgen::bytes)>(&T::deserialize))>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool has_deserialize_method_v = has_deserialize_method<T>::value;
@@ -76,7 +77,7 @@ struct has_deserialize_alloc_method : std::false_type {};
 class Allocator;
 
 template <typename T>
-struct has_deserialize_alloc_method<T, std::void_t<decltype(static_cast<std::size_t (T::*)(messgen::bytes, Allocator &)>(&T::deserialize))>> : std::true_type {
+struct has_deserialize_alloc_method<T, std::void_t<decltype(static_cast<ssize_t (T::*)(messgen::bytes, Allocator &)>(&T::deserialize))>> : std::true_type {
 };
 
 template <typename T>
