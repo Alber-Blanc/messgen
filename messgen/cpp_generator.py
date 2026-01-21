@@ -9,8 +9,6 @@ from pathlib import (
     Path,
 )
 
-from numpy.ma.core import append
-
 from .common import (
     SEPARATOR,
     SIZE_TYPE,
