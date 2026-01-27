@@ -22,13 +22,4 @@ size_t free_serialized_size(const void *ptr) {
     return reinterpret_cast<const T *>(ptr)->serialized_size();
 }
 
-template <class T, class ALLOC_BUF>
-size_t deserialize_with_alloc(T &msg, uint8_t *buf, ALLOC_BUF &alloc_buf) {
-    if constexpr (T::NEED_ALLOC) {
-        return msg.deserialize(buf, Allocator(&alloc_buf));
-    } else {
-        return msg.deserialize(buf);
-    }
-}
-
 } // namespace messgen
