@@ -132,4 +132,15 @@ describe('Codec', () => {
       expect(messageInfo.messageHash()).toBe(12088864483134247070n);
     });
   });
+
+  describe('#getTypeConverter', () => {
+    it('should get type converter by type name', () => {
+      const converter = codec.getTypeConverter('mynamespace/types/var_size_struct');
+      expect(converter.name).toBe('mynamespace/types/var_size_struct');
+    });
+
+    it('should throw error if type converter not found', () => {
+      expect(() => codec.getTypeConverter('non/existent/type')).toThrowError();
+    });
+  });
 });
