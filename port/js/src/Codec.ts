@@ -1,6 +1,6 @@
 import type { ProtocolRegistry } from './protocol';
 import { type RawType, type Protocol, Protocols, MessageInfo } from './protocol';
-import { ConverterFactory } from './converters';
+import { type Converter, ConverterFactory } from './converters';
 import type { ProtocolMap, TypeMap, TypeByName } from './Codec.types';
 import { Buffer } from './Buffer';
 
@@ -34,6 +34,14 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
 
       this.protocolMap.set(protoId, typeMap);
     });
+  }
+
+  public getTypeConverter(typeName: string): Converter {
+    const converter = this.typesMap.get(typeName);
+    if (!converter) {
+      throw new Error(`Converter not found for type: ${typeName}`);
+    }
+    return converter;
   }
 
   public serialize<T = unknown>(protocolId: number, messageId: number, data: T): Buffer {
