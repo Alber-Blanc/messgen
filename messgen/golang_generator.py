@@ -9,6 +9,7 @@ from .model import (
     BitsetType,
     ArrayType,
     BasicType,
+    ExternalType,
     MapType,
     MessgenType,
     Protocol,
@@ -80,10 +81,18 @@ class ResolvedType:
         raise Exception("alignment is not defined for '%s'" % self._model.type)
 
     @abstractmethod
+    def minimum_serialized_size(self):
+        raise Exception("minimum_data_size is not defined for '%s'" % self._model.type)
+
+    @abstractmethod
     def data_size(self):
         raise Exception("data_size is not defined for '%s'" % self._model.type)
 
     def type_size(self):
+        """
+        The size of the type in memory (including padding for structs), may be different from data size
+        :return:
+        """
         return self.data_size()
 
     def model(self):
@@ -145,6 +154,16 @@ class ResolvedBuiltin(ResolvedType):
     def is_flat(self):
         return True
 
+    def minimum_serialized_size(self):
+        if isinstance(self._model, BasicType):
+            if self._model.type_class in [TypeClass.scalar]:
+                return self._model.size
+            elif self._model.type_class in [TypeClass.string, TypeClass.bytes]:
+                # string/bytes is packed as length + data, so at least 4 bytes length is okay
+                return 4
+
+        raise Exception("Unknown builtin type class for '%s'" % self._model.type)
+
     def data_size(self):
         if isinstance(self._model, BasicType):
             if self._model.type_class in [TypeClass.scalar]:
@@ -192,6 +211,15 @@ class ResolvedSlice(ResolvedType):
     def is_flat(self) -> bool:
         return self._element.is_flat()
 
+    def minimum_serialized_size(self):
+        if isinstance(self._model, ArrayType):
+            # for an array we know for sure its length,
+            # and we can predict the minimum serialized size of its elements
+            return self._element.minimum_serialized_size() * self._model.array_size
+        # Dynamic vector has at least 4 bytes for length, but we don't know anything the number of elements
+        # For example there can be 0 elements, in this case only the 4 bytes for length is needed
+        return 4
+
     def type_size(self):
         if isinstance(self._model, ArrayType):
             return self._model.array_size * self._element.type_size()
@@ -225,6 +253,12 @@ class ResolvedMap(ResolvedType):
     def alignment(self):
         return 8
 
+    def minimum_serialized_size(self):
+        # at least 4 bytes for length.
+        # just like for slices, we don't know how many elements are in the map.
+        # for example, if the map is empty, only 4 bytes for length is needed
+        return 4
+
     def type_size(self):
         return 8 # only pointer
 
@@ -245,6 +279,10 @@ class ResolvedEnum(ResolvedType):
 
     def alignment(self):
         return self._base.alignment()
+
+    def minimum_serialized_size(self):
+        # Enums are serialized as their base type
+        return self._base.minimum_serialized_size()
 
     def data_size(self):
         return self._base.data_size()
@@ -289,6 +327,10 @@ class ResolvedBitset(ResolvedType):
 
     def alignment(self):
         return self._base.alignment()
+
+    def minimum_serialized_size(self):
+        # Bitsets are serialized as their base type
+        return self._base.minimum_serialized_size()
 
     def data_size(self):
         return self._base.data_size()
@@ -396,18 +438,29 @@ class ResolvedStruct(ResolvedType):
     def data_size(self):
         return self._size
 
-    def type_size(self):
-        totalSize = 0
+    def minimum_serialized_size(self):
+        total_size = 0
+
         for g in self.fieldGroups():
             for f in g.fields:
-                totalSize += f[1].type_size()
-            totalSize += g.pad
-        return totalSize
+                # field is a tuple (name, ResolvedType)
+                total_size += f[1].minimum_serialized_size()
+
+        return total_size
+
+    def type_size(self):
+        total_size = 0
+        for g in self.fieldGroups():
+            for f in g.fields:
+                # field is a tuple (name, ResolvedType)
+                total_size += f[1].type_size()
+            total_size += g.pad
+        return total_size
 
     def renderSize(self, name:str, cur: ResolvedType, step = 0):
         if cur._model.type_class == TypeClass.string or cur._model.type_class == TypeClass.bytes:
             yield f"  result += 4 + len({name})"
-        elif cur._model.type_class == TypeClass.struct:
+        elif cur._model.type_class in [TypeClass.struct, TypeClass.external]:
             yield f"  result += int({name}.SerializedSize())"
         elif isinstance(cur, ResolvedBuiltin):
             yield f"  result += {cur.type_size()}"
@@ -454,10 +507,10 @@ class ResolvedStruct(ResolvedType):
             yield f"  buf  := unsafe.Slice(tmp, len({name})*{cur.type_size()})"
             yield f"  copy(output[outputOfs+4:], buf)"
             yield f"  outputOfs += 4 + len({name})"
-        elif cur._model.type_class == TypeClass.struct:
+        elif cur._model.type_class in [TypeClass.struct, TypeClass.external]:
             yield f"  sz, err := {name}.Serialize(output[outputOfs:])"
             yield f"  if err != nil {{"
-            yield f"     return uint32(outputOfs), fmt.Errorf(\"Failed to encode field '{name}'\")"
+            yield f"     return uint32(outputOfs), fmt.Errorf(\"Failed to encode field '{name}': %w\", err)"
             yield f"  }}"
             yield f"  outputOfs += int(sz)"
         elif isinstance(cur, ResolvedBuiltin):
@@ -502,10 +555,11 @@ class ResolvedStruct(ResolvedType):
             yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
             yield f"  }}"
             yield f"  size := int(binary.LittleEndian.Uint32(input[inputOfs:]))"
-            yield f"  tmp  := make([]byte, size)"
+            yield f"  // Check the left size before allocating the dynamic memory"
             yield f"  if len(input) < inputOfs + 4 + size {{"
             yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
             yield f"  }}"
+            yield f"  tmp  := make([]byte, size)"
             yield f"  copy(tmp, input[inputOfs+4:])"
             yield f"  {name} = string(tmp)"
             yield f"  inputOfs += (4+size)"
@@ -514,19 +568,20 @@ class ResolvedStruct(ResolvedType):
             yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
             yield f"  }}"
             yield f"  size := int(binary.LittleEndian.Uint32(input[inputOfs:]))"
-            yield f"  {name} = make([]byte, size)"
+            yield f"  // Check the left size before allocating the dynamic memory"
             yield f"  if len(input) < inputOfs + 4 + size{{"
             yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
             yield f"  }}"
+            yield f"  {name} = make([]byte, size)"
             yield f"  copy({name}, input[inputOfs+4:])"
             yield f"  inputOfs += (4+size)"
-        elif cur._model.type_class == TypeClass.struct:
+        elif cur._model.type_class in [TypeClass.struct, TypeClass.external]:
             yield f"  if len(input) < inputOfs {{"
             yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
             yield f"  }}"
             yield f"  sz, err := {name}.Deserialize(input[inputOfs:])"
             yield f"  if err != nil {{"
-            yield f"     return uint32(inputOfs), fmt.Errorf(\"Failed to decode field '{name}'\")"
+            yield f"     return uint32(inputOfs), fmt.Errorf(\"Failed to decode field '{name}': %w\", err)"
             yield f"  }}"
             yield f"  inputOfs += int(sz)"
         elif isinstance(cur, ResolvedBuiltin):
@@ -540,15 +595,40 @@ class ResolvedStruct(ResolvedType):
             # Stack element is pair of type and data variable on this level
             elem_idx  = f"i{step}"
             elem_name = f"{name}[{elem_idx}]"
+
+            # Determine and parse size of the slice/array
             if cur._model.type_class == TypeClass.array:
                 yield f"  size := len({name})"
+                yield f"  // Check the left size before allocating the dynamic memory."
+                yield f"  // We can can only assume the minimum serialized size of each element here."
+                yield f"  // So the lower bound of needed input size is calculated based on known minimum sizes."
+                yield f"  if len(input) < inputOfs + 4 + size*{cur._element.minimum_serialized_size()} {{"
+                yield f"    return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
+                yield f"  }}"
             else:
                 yield f"  if len(input) < inputOfs + 4 {{"
                 yield f"     return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
                 yield f"  }}"
                 yield f"  size := int(binary.LittleEndian.Uint32(input[inputOfs:]))"
+                # It's a dynamic array, and we are allocating here a variable sized memory.
+                # It's possible (and highly likely) that the input may be corrupted
+                # and the 4 bytes for the size are just a random large uint32 number.
+                # We want to protect from allocating uint32_max sized slice and crashing the program (because of OOM).
+                # But can't know right here which number of bytes we are expecting.
+                # The best we can do is to calculate the minimum number of bytes needed
+                # in the input to represent this number of elements in the slice.
+                yield f"  // Check the left size before allocating the dynamic memory."
+                yield f"  // We can can only assume the minimum serialized size of each element here."
+                yield f"  // So the lower bound of needed input size is calculated based on known minimum sizes."
+                yield f"  if len(input) < inputOfs + 4 + size*{cur._element.minimum_serialized_size()} {{"
+                yield f"    return 0, fmt.Errorf(\"Can't deserialize, input is too short\")"
+                yield f"  }}"
                 yield f"  {name} = make({cur.reference(self._package)}, size)"
                 yield f"  inputOfs += 4"
+
+            # For a flat element type just make a dumb copy of bytes into our slice/array.
+            # Otherwise, iterate over elements and deserialize one by one
+            # and assign them into slice/array by index like `arr[i0] = deserializedElement`
             if cur._element.data_size() != None and cur._element.is_flat():
                 yield f"  uptr := unsafe.Pointer(unsafe.SliceData({name}[0:]))"
                 yield f"  bytes := unsafe.Slice((*byte)(uptr), size*{cur._element.type_size()})"
@@ -599,8 +679,13 @@ class ResolvedStruct(ResolvedType):
                     hasFlatSlice = hasFlatSlice or (
                             f._model.type_class in [TypeClass.array, TypeClass.vector] and
                             f._element.is_flat()
+                    ) or (
+                            f._model.type_class in [TypeClass.map] and (
+                                f._key.is_flat() or 
+                                f._value.is_flat()
+                            )
                     )
-            hasFlatGroups = hasFlatGroups or g.size != None
+            hasFlatGroups = hasFlatGroups or (g.size != None and g.flat)
             hasNonFlatGroups = hasNonFlatGroups or g.size == None
 
         # Imports
@@ -732,6 +817,58 @@ class ResolvedStruct(ResolvedType):
         if len(group.fields) > 0:
             group.pad = (max_align - offset % max_align) % max_align
             yield group
+
+
+class ResolvedExternal(ResolvedType):
+    def __init__(self, type_def: ExternalType, ext_hash: int | None, package: str):
+        super().__init__(type_def, package)
+        self._hash = ext_hash
+        self._size = type_def.size
+
+    def alignment(self):
+        # Conservative alignment assumption; no internal layout info is available
+        return 8
+
+    def minimum_serialized_size(self):
+        return self._size if self._size is not None else 0
+
+    def data_size(self):
+        return self._size
+
+    def type_size(self):
+        return self._size if self._size is not None else 0
+
+    def is_flat(self):
+        return False
+
+    def render(self):
+        yield "import ("
+        yield " \"fmt\""
+        yield ")\n"
+
+        yield " var _ = fmt.Errorf"
+
+        yield f"type {self._name} struct {{}}\n"
+
+        if self._hash is not None:
+            yield f"const {self._name}_Hash = uint64({self._hash})\n"
+
+        yield f"func (s *{self._name}) SerializedSize() uint32 {{"
+        yield f"\tpanic(\"external type '{self._name}' is not implemented\")"
+        yield "}\n"
+
+        yield f"func (s *{self._name}) Serialize(output []byte) (uint32, error) {{"
+        yield f"\treturn 0, fmt.Errorf(\"external type '{self._name}' is not implemented\")"
+        yield "}\n"
+
+        yield f"func (s *{self._name}) Deserialize(input []byte) (uint32, error) {{"
+        yield f"\treturn 0, fmt.Errorf(\"external type '{self._name}' is not implemented\")"
+        yield "}\n"
+
+        if self._hash is not None:
+            yield f"func (s *{self._name}) Hash() uint64 {{ return {self._name}_Hash }}\n"
+        else:
+            yield f"func (s *{self._name}) Hash() uint64 {{ return 0 }}\n"
 
 def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, resolved_types: dict, messgen_types: dict):
     yield CODEGEN_FILE_PREFIX + "\n"
@@ -916,6 +1053,10 @@ class GolangGenerator:
                 resolved_struct.add_field(field.name, fresolved)
 
             resolved = resolved_struct
+        elif type_def.type_class == TypeClass.external:
+            ext_hash: int | None = hash_type(type_def, self._types)
+            ext_type = cast(ExternalType, type_def)
+            resolved = ResolvedExternal(ext_type, ext_hash, package)
         elif isinstance(type_def, BasicType):
             resolved = ResolvedBuiltin(type_def, package)
         else:
@@ -936,7 +1077,7 @@ class GolangGenerator:
 
             # Only struct/enum/bitset gets generated
             output = None
-            if type._model.type_class in [TypeClass.struct, TypeClass.enum, TypeClass.bitset]:
+            if type._model.type_class in [TypeClass.struct, TypeClass.enum, TypeClass.bitset, TypeClass.external]:
                 pkg = "/".join(type._package).removeprefix(f"{gomod_name}/{out_dir.name}")
                 pkg = pkg.removeprefix("/")
                 output = out_dir / pathlib.Path(pkg)
