@@ -54,14 +54,15 @@ template <class Type>
 concept flat_type = type<Type> && std::remove_cvref_t<Type>::IS_FLAT;
 
 template <class Message>
-concept message = type<typename std::remove_cvref_t<Message>::data_type> && requires(std::remove_cvref_t<Message> msg, typename std::remove_cvref_t<Message>::data_type &data, uint8_t *buf) {
-    { msg.PROTO_ID } -> std::convertible_to<int>;
-    { msg.MESSAGE_ID } -> std::convertible_to<int>;
-    { msg.serialized_size() } -> std::same_as<size_t>;
-    { msg.serialize(buf) } -> std::same_as<size_t>;
-    { msg.deserialize(data) } -> std::same_as<ssize_t>;
-    { msg.deserialize_unsafe(data) } -> std::same_as<ssize_t>;
-};
+concept message = type<typename std::remove_cvref_t<Message>::data_type> &&
+                  requires(std::remove_cvref_t<Message> msg, typename std::remove_cvref_t<Message>::data_type_stor &data, uint8_t *buf) {
+                      { msg.PROTO_ID } -> std::convertible_to<int>;
+                      { msg.MESSAGE_ID } -> std::convertible_to<int>;
+                      { msg.serialized_size() } -> std::same_as<size_t>;
+                      { msg.serialize(buf) } -> std::same_as<size_t>;
+                      { msg.deserialize(data) } -> std::same_as<ssize_t>;
+                      { msg.deserialize_unsafe(data) } -> std::same_as<ssize_t>;
+                  };
 
 template <class Protocol>
 concept protocol = requires(std::remove_cvref_t<Protocol> proto, int msg_id, messgen::bytes payload, detail::noop_fn fn) {
