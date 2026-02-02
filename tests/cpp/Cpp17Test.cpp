@@ -356,8 +356,8 @@ TEST_F(Cpp17Test, MessageReflectionFieldNames) {
 TEST_F(Cpp17Test, MessageReflection) {
     using namespace messgen;
 
-    auto msg = mynamespace::proto::test_proto::complex_struct_msg{};
-    EXPECT_EQ("mynamespace::proto::test_proto::complex_struct_msg", name_of(reflect_object(msg)));
+    auto msg = mynamespace::proto::test_proto::complex_struct{};
+    EXPECT_EQ("mynamespace::proto::test_proto::complex_struct", name_of(reflect_object(msg)));
 }
 
 TEST_F(Cpp17Test, EnumReflection) {
@@ -390,16 +390,16 @@ TEST_F(Cpp17Test, TypeTraits) {
 
     static_assert(is_type_v<mynamespace::types::flat_struct>);
     static_assert(is_type_v<mynamespace::types::subspace::complex_struct>);
-    static_assert(!is_type_v<mynamespace::proto::test_proto::simple_struct_msg>);
+    static_assert(!is_type_v<mynamespace::proto::test_proto::simple_struct>);
     static_assert(!is_type_v<mynamespace::proto::test_proto>);
 
-    static_assert(is_message_v<mynamespace::proto::test_proto::simple_struct_msg>);
+    static_assert(is_message_v<mynamespace::proto::test_proto::simple_struct>);
     static_assert(!is_message_v<mynamespace::types::flat_struct>);
     static_assert(!is_message_v<mynamespace::proto::test_proto>);
 
     static_assert(is_protocol_v<mynamespace::proto::test_proto>);
     static_assert(!is_protocol_v<mynamespace::types::flat_struct>);
-    static_assert(!is_protocol_v<mynamespace::proto::test_proto::simple_struct_msg>);
+    static_assert(!is_protocol_v<mynamespace::proto::test_proto::simple_struct>);
 }
 
 TEST_F(Cpp17Test, ProtoHash) {
@@ -409,13 +409,13 @@ TEST_F(Cpp17Test, ProtoHash) {
     constexpr auto hash_another_proto = hash_of<mynamespace::proto::subspace::another_proto>();
     EXPECT_NE(hash_another_proto, hash_test_proto);
 
-    auto expected_hash = mynamespace::proto::test_proto::simple_struct_msg::HASH ^   //
-                         mynamespace::proto::test_proto::complex_struct_msg::HASH ^  //
-                         mynamespace::proto::test_proto::var_size_struct_msg::HASH ^ //
-                         mynamespace::proto::test_proto::empty_struct_msg::HASH ^    //
-                         mynamespace::proto::test_proto::flat_struct_msg::HASH;
+    auto expected_hash = mynamespace::proto::test_proto::simple_struct::HASH ^   //
+                         mynamespace::proto::test_proto::complex_struct::HASH ^  //
+                         mynamespace::proto::test_proto::var_size_struct::HASH ^ //
+                         mynamespace::proto::test_proto::empty_struct::HASH ^    //
+                         mynamespace::proto::test_proto::flat_struct::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
-    EXPECT_EQ(18394245099761547257U, hash_test_proto);
+    EXPECT_EQ(3626745160181273412, hash_test_proto);
 }
 
 TEST_F(Cpp17Test, BytesPlain) {
@@ -432,7 +432,7 @@ TEST_F(Cpp17Test, SerializeMessage) {
         .f0 = 1,
         .f1 = 2,
     };
-    mynamespace::proto::test_proto::simple_struct_msg::send msg{data};
+    mynamespace::proto::test_proto::simple_struct::send msg{data};
 
     _buf.resize(msg.serialized_size());
     msg.serialize(_buf.data());
@@ -455,7 +455,7 @@ TEST_F(Cpp17Test, DispatchMessageStor) {
         auto res = msg.deserialize(actual_data);
         assert(res == actual_data.FIXED_SIZE);
 
-        if constexpr (std::is_same_v<RecvMsgType, mynamespace::proto::test_proto::simple_struct_msg::recv>) {
+        if constexpr (std::is_same_v<RecvMsgType, mynamespace::proto::test_proto::simple_struct::recv>) {
             EXPECT_EQ(expected.f0, actual_data.f0);
             EXPECT_EQ(expected.f1, actual_data.f1);
             invoked = true;
@@ -464,7 +464,7 @@ TEST_F(Cpp17Test, DispatchMessageStor) {
         }
     };
 
-    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, messgen::bytes{&_buf}, handler);
+    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct::MESSAGE_ID, messgen::bytes{&_buf}, handler);
 
     EXPECT_TRUE(invoked);
 }
@@ -488,7 +488,7 @@ TEST_F(Cpp17Test, DispatchMessageView) {
             assert(res == actual_data.FIXED_SIZE);
         }
 
-        if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct_msg::recv>) {
+        if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct::recv>) {
             EXPECT_EQ(expected.f0, actual_data.f0);
             EXPECT_EQ(expected.f1, actual_data.f1);
             invoked = true;
@@ -497,7 +497,7 @@ TEST_F(Cpp17Test, DispatchMessageView) {
         }
     };
 
-    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct_msg::MESSAGE_ID, messgen::bytes{&_buf}, handler);
+    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct::MESSAGE_ID, messgen::bytes{&_buf}, handler);
 
     EXPECT_TRUE(invoked);
 }

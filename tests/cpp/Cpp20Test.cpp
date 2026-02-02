@@ -13,7 +13,7 @@ TEST_F(CppTest20, TypeConcept) {
     struct not_a_message {};
 
     EXPECT_TRUE(type<mynamespace::types::simple_struct>);
-    EXPECT_FALSE(type<mynamespace::proto::test_proto::simple_struct_msg>);
+    EXPECT_FALSE(type<mynamespace::proto::test_proto::simple_struct>);
     EXPECT_FALSE(type<not_a_message>);
     EXPECT_FALSE(type<int>);
 }
@@ -33,7 +33,7 @@ TEST_F(CppTest20, MessageConcept) {
 
     EXPECT_FALSE(message<mynamespace::types::simple_struct>);
     EXPECT_FALSE(message<int>);
-    EXPECT_TRUE(message<mynamespace::proto::test_proto::simple_struct_msg>);
+    EXPECT_TRUE(message<mynamespace::proto::test_proto::simple_struct>);
 }
 
 TEST_F(CppTest20, ProtoConcept) {
@@ -42,7 +42,7 @@ TEST_F(CppTest20, ProtoConcept) {
     struct not_a_message {};
 
     EXPECT_FALSE(message<mynamespace::types::simple_struct>);
-    EXPECT_FALSE(protocol<mynamespace::proto::test_proto::simple_struct_msg>);
+    EXPECT_FALSE(protocol<mynamespace::proto::test_proto::simple_struct>);
     EXPECT_FALSE(protocol<int>);
     EXPECT_TRUE(protocol<mynamespace::proto::test_proto>);
 }
