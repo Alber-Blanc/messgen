@@ -1,7 +1,8 @@
 #pragma once
 
+#include "traits.h"
+
 #include <cstddef>
-#include <type_traits>
 
 namespace messgen {
 
@@ -41,6 +42,10 @@ public:
 
     [[nodiscard]] bool operator!=(const span &other) const noexcept {
         return !(*this == other);
+    }
+
+    [[nodiscard]] bool empty() const noexcept {
+        return _size == 0;
     }
 
     [[nodiscard]] size_t size() const noexcept {
