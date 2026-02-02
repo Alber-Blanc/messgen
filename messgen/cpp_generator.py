@@ -105,8 +105,6 @@ def _indent(c, levels=1):
 
 
 def _format_code(level: int, s: str):
-    if s[0] == "\n":
-        s = s[1:]
     return textwrap.indent(textwrap.dedent(s), "    " * level).splitlines()
 
 
@@ -222,7 +220,9 @@ class CppGenerator:
 
                 proto_id = proto_def.proto_id
                 if proto_id is not None:
-                    code.append(f"    static constexpr int16_t PROTO_ID = {proto_id};")
+                    code.extend(_format_code(1, f"""\
+                        static constexpr int16_t PROTO_ID = {proto_id};
+                        """))
 
                 code.extend(self._generate_messages(proto_name, class_name, proto_def))
                 code.extend(self._generate_reflect_message_decl())
@@ -246,7 +246,7 @@ class CppGenerator:
                     f"Type '{message.type}' not found for message '{message.name}' in protocol '{proto_name}'")
             is_flat = self._is_flat_type(type_def)
 
-            code.extend(_format_code(1, f"""
+            code.extend(_format_code(1, f"""\
                 struct {message.name} {{
                     using data_type = ::{_qual_name(message.type)};
                     using data_type_stor = ::{_qual_stor_name(message.type)};
@@ -257,118 +257,129 @@ class CppGenerator:
                     static constexpr uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
                     static constexpr std::string_view NAME = "{_qual_name(proto_name)}::{message.name}";
                     
-                    {message.name}() = default;
-                    
-                    explicit {message.name}(messgen::bytes buf) {{
-                        _data = buf.data();
-                        _size = buf.size();
-                    }}
-                """))
+                    class recv {{
+                    public:
+                        using message_type = {message.name};
+                        using data_type = ::{_qual_name(message.type)};
+                        using data_type_stor = ::{_qual_stor_name(message.type)};
+                        using protocol_type = {class_name};
+
+                        explicit recv(messgen::bytes buf) : _buf(buf) {{}}
+                        
+                        """))
 
             if type_def.size is None:
                 # Dynamic size
-                code.extend(_format_code(2, f"""
-                    explicit {message.name}(const data_type& t) : _data(&t), _serialize_func(&messgen::free_serialize<data_type>), _serialized_size_func(&messgen::free_serialized_size<data_type>) {{}}
-
-                    explicit {message.name}(const data_type_stor& t) : _data(&t), _serialize_func(&messgen::free_serialize<data_type_stor>), _serialized_size_func(&messgen::free_serialized_size<data_type_stor>) {{}}
-                    
-                    size_t serialized_size() const {{
-                        return (*_serialized_size_func)(_data);
-                    }}
-                    
-                    size_t serialize(uint8_t* buf) const {{
-                        return (*_serialize_func)(_data, buf);
-                    }}
-                    
-                """))
-
                 if self._need_alloc(message.type):
                     self._add_include("messgen/Allocator.h", "global")
-                    code.extend(_format_code(2, f"""
+                    code.extend(_format_code(3, f"""\
                             ssize_t deserialize(data_type &v, ::messgen::Allocator &alloc) const {{
-                                return v.deserialize({{reinterpret_cast<const uint8_t *>(_data), _size}}, alloc);
+                                return v.deserialize(_buf, alloc);
                             }}
                             
                             ssize_t deserialize_unsafe(data_type &v, ::messgen::Allocator &alloc) const {{
-                                return v.deserialize_unsafe(reinterpret_cast<const uint8_t *>(_data), alloc);
+                                return v.deserialize_unsafe(_buf.data(), alloc);
                             }}
                             
                             """))
                 else:
-                    code.extend(_format_code(2, f"""
+                    code.extend(_format_code(3, f"""\
                             ssize_t deserialize(data_type &v) const {{
-                                return v.deserialize({{reinterpret_cast<const uint8_t *>(_data), _size}});
+                                return v.deserialize(_buf);
                             }}
                             
                             ssize_t deserialize_unsafe(data_type &v) const {{
-                                return v.deserialize_unsafe(reinterpret_cast<const uint8_t *>(_data));
+                                return v.deserialize_unsafe(_buf.data());
                             }}
                             
                             """))
-                code.extend(_format_code(2, f"""
+                code.extend(_format_code(3, f"""\
                         ssize_t deserialize(data_type_stor &v) const {{
-                            return v.deserialize({{reinterpret_cast<const uint8_t *>(_data), _size}});
+                            return v.deserialize(_buf);
                         }}
                         
                         ssize_t deserialize_unsafe(data_type_stor &v) const {{
-                            return v.deserialize_unsafe(reinterpret_cast<const uint8_t *>(_data));
+                            return v.deserialize_unsafe(_buf.data());
                         }}
                         
                         """))
+
+            else:
+                # Static size, data_type == data_type_view
+                code.extend(_format_code(3, f"""\
+                        ssize_t deserialize(data_type &v) const {{
+                            return v.deserialize(_buf);
+                        }}
+                        
+                        ssize_t deserialize_unsafe(data_type &v) const {{
+                            return v.deserialize_unsafe(_buf.data());
+                        }}
+                        
+                        """))
+
+            code.extend(_format_code(2, f"""\
+                    private:
+                        messgen::bytes _buf{{}};
+                    }};
+
+                    class send {{
+                    public:
+                        using message_type = {message.name};
+                        using data_type = ::{_qual_name(message.type)};
+                        using data_type_stor = ::{_qual_stor_name(message.type)};
+                        using protocol_type = {class_name};
+
+                    """))
+
+            if type_def.size is None:
+                # Dynamic size
+                code.extend(_format_code(3, f"""\
+                        explicit send(const data_type& t) : _data(&t), _serialize_func(&messgen::free_serialize<data_type>), _serialized_size_func(&messgen::free_serialized_size<data_type>) {{}}
+    
+                        explicit send(const data_type_stor& t) : _data(&t), _serialize_func(&messgen::free_serialize<data_type_stor>), _serialized_size_func(&messgen::free_serialized_size<data_type_stor>) {{}}
+                        
+                        size_t serialized_size() const {{
+                            return (*_serialized_size_func)(_data);
+                        }}
+                        
+                        size_t serialize(uint8_t* buf) const {{
+                            return (*_serialize_func)(_data, buf);
+                        }}
+                    
+                """))
 
             else:
                 consteval_str = ""
                 if self._get_cpp_standard() >= 20:
                     consteval_str = "consteval "
                 # Static size, data_type == data_type_view
-                code.extend(_format_code(2, f"""
-                    explicit {message.name}(const data_type& t) : _data(&t) {{}}
-
-                    {consteval_str}size_t serialized_size() const {{
-                        return data_type::FIXED_SIZE;
-                    }}
-                    
-                    size_t serialize(uint8_t* buf) const {{
-                        return reinterpret_cast<const data_type *>(_data)->serialize(buf);
-                    }}
+                code.extend(_format_code(3, f"""\
+                        explicit send(const data_type& t) : _data(&t) {{}}
+    
+                        {consteval_str}size_t serialized_size() const {{
+                            return data_type::FIXED_SIZE;
+                        }}
+                        
+                        size_t serialize(uint8_t* buf) const {{
+                            return reinterpret_cast<const data_type *>(_data)->serialize(buf);
+                        }}
                     
                 """))
 
-                code.extend(_format_code(2, f"""
-                        ssize_t deserialize(data_type &v) const {{
-                            return v.deserialize({{reinterpret_cast<const uint8_t *>(_data), _size}});
-                        }}
-                        
-                        ssize_t deserialize_unsafe(data_type &v) const {{
-                            return v.deserialize_unsafe(reinterpret_cast<const uint8_t *>(_data));
-                        }}
-                        
-                        """))
-
-            code.extend(_format_code(1, f"""
+            code.extend(_format_code(2, f"""\
                 private:
                     const void *_data{{}};
-                    size_t _size{{}};
                 """))
             if type_def.size is None:
-                code.extend(_format_code(2, f"""\
+                code.extend(_format_code(3, f"""\
                     ::messgen::serialize_func _serialize_func{{}};
                     ::messgen::serialized_size_func _serialized_size_func{{}};
                 """))
 
-            if self._get_cpp_standard() >= 20:
-                code.append(f"    auto operator<=>(const struct {message.name} &) const = default;")
-            else:
-                code.extend(_format_code(2, f"""
-                            friend bool operator==(const struct {message.name}& l, const struct {message.name}& r) {{
-                                return l._data == r._data;
-                            }}
-
-                            friend bool operator!=(const struct {message.name}& l, const struct {message.name}& r) {{
-                                return !(l == r);
-                            }}
-                        """))
-            code.append("    };")
+            code.extend(_format_code(3, """\
+                };
+            };
+            """))
         return code
 
     def _generate_protocol_members_of(self, class_name: str, proto_def: Protocol):
@@ -421,7 +432,7 @@ class CppGenerator:
             constexpr bool {class_name}::dispatch_message(int16_t msg_id, messgen::bytes payload, Fn &&fn) {{
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
-                    using message_type = messgen::splice_t<R>;
+                    using message_type = messgen::splice_t<R>::recv;
                     if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
                         std::forward<Fn>(fn).operator()(message_type{{payload}});
                         result = true;

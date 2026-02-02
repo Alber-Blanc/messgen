@@ -432,7 +432,7 @@ TEST_F(Cpp17Test, SerializeMessage) {
         .f0 = 1,
         .f1 = 2,
     };
-    mynamespace::proto::test_proto::simple_struct_msg msg{data};
+    mynamespace::proto::test_proto::simple_struct_msg::send msg{data};
 
     _buf.resize(msg.serialized_size());
     msg.serialize(_buf.data());
@@ -450,12 +450,12 @@ TEST_F(Cpp17Test, DispatchMessageStor) {
 
     auto invoked = false;
     auto handler = [&](auto &&msg) {
-        using ActualType = std::decay_t<decltype(msg)>;
-        typename ActualType::data_type_stor actual_data;
+        using RecvMsgType = std::decay_t<decltype(msg)>;
+        typename RecvMsgType::data_type_stor actual_data;
         auto res = msg.deserialize(actual_data);
         assert(res == actual_data.FIXED_SIZE);
 
-        if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct_msg>) {
+        if constexpr (std::is_same_v<RecvMsgType, mynamespace::proto::test_proto::simple_struct_msg::recv>) {
             EXPECT_EQ(expected.f0, actual_data.f0);
             EXPECT_EQ(expected.f1, actual_data.f1);
             invoked = true;
@@ -488,7 +488,7 @@ TEST_F(Cpp17Test, DispatchMessageView) {
             assert(res == actual_data.FIXED_SIZE);
         }
 
-        if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct_msg>) {
+        if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct_msg::recv>) {
             EXPECT_EQ(expected.f0, actual_data.f0);
             EXPECT_EQ(expected.f1, actual_data.f1);
             invoked = true;
