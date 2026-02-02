@@ -2,6 +2,7 @@
 
 #include "decimal.h"
 #include "messgen.h"
+#include "concepts.h"
 
 #include <fmt/format.h>
 
