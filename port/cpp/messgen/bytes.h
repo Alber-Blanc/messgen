@@ -17,8 +17,8 @@ public:
     bytes() noexcept = default;
 
     bytes(const_pointer ptr, size_t size) noexcept
-        : _ptr(const_cast<pointer>(ptr)),
-          _size(size) {
+        : _size(size),
+          _ptr(const_cast<pointer>(ptr)) {
     }
 
     template <class VIEW>
