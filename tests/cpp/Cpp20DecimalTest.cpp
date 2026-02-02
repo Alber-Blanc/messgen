@@ -473,7 +473,7 @@ TEST_F(CppDecimalTest, GeneratedFlatType) {
     expected.serialize(buff.data());
 
     auto actual = flat_struct_with_decimal{};
-    actual.deserialize(buff.data());
+    actual.deserialize(bytes{buff.data(), buff.size()});
 
     EXPECT_EQ(expected, actual);
 }
