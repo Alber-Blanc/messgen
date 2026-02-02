@@ -93,7 +93,7 @@ def test_struct_with_decimal_serialization(codec):
 def test_protocol_deserialization(codec, simple_struct):
     message_info_by_name = codec.message_info_by_name(
         proto_name="mynamespace/proto/test_proto",
-        message_name="simple_struct_msg",
+        message_name="simple_struct",
     )
     expected_bytes = message_info_by_name.type_converter().serialize(simple_struct)
     assert expected_bytes
@@ -107,7 +107,7 @@ def test_protocol_deserialization(codec, simple_struct):
     assert message_info_by_name.proto_id() == 1
     assert message_info_by_name.message_id() == 0
     assert message_info_by_name.proto_name() == "mynamespace/proto/test_proto"
-    assert message_info_by_name.message_name() == "simple_struct_msg"
+    assert message_info_by_name.message_name() == "simple_struct"
     assert message_info_by_name.type_name() == "mynamespace/types/simple_struct"
 
     assert message_info_by_name.proto_id() == message_info_by_id.proto_id()
@@ -127,11 +127,11 @@ def test_protocol_info(codec):
     assert protocol_by_name.proto_name() == test_proto_name
     assert protocol_by_name.proto_id() == 1
     assert protocol_by_name.proto_hash() == (
-            codec.message_info_by_name(proto_name=test_proto_name, message_name="simple_struct_msg").message_hash()
-            ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct_msg").message_hash()
-            ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="var_size_struct_msg").message_hash()
-            ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="empty_struct_msg").message_hash()
-            ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="flat_struct_msg").message_hash()
+        codec.message_info_by_name(proto_name=test_proto_name, message_name="simple_struct").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="var_size_struct").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="empty_struct").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="flat_struct").message_hash()
     )
 
     protocol_by_id = codec.protocol_info_by_id(1)
@@ -230,24 +230,15 @@ def test_decimal_encoding():
 
     # Boundary Cases
     assert 0x6C7386F26FC0FFFF == int.from_bytes(converter.serialize(Decimal("9999999999999999")), byteorder="little")
-    assert 0x77FB86F26FC0FFFF == int.from_bytes(converter.serialize(Decimal("9999999999999999e369")),
-                                                byteorder="little")
-    assert 0x7800000000000000 == int.from_bytes(converter.serialize(Decimal("999999999999999999e369")),
-                                                byteorder="little")
-    assert 0x7800000000000000 == int.from_bytes(converter.serialize(Decimal("9999999999999999e370")),
-                                                byteorder="little")
-    assert 0xF800000000000000 == int.from_bytes(converter.serialize(Decimal("-9999999999999999e370")),
-                                                byteorder="little")
-    assert 0x607B86F26FC0FFFF == int.from_bytes(converter.serialize(Decimal("9999999999999999e-383")),
-                                                byteorder="little")
-    assert 0x600386F26FC0FFFF == int.from_bytes(converter.serialize(Decimal("9999999999999999e-398")),
-                                                byteorder="little")
-    assert 0xE00386F26FC0FFFF == int.from_bytes(converter.serialize(Decimal("-9999999999999999e-398")),
-                                                byteorder="little")
-    assert 0x0000000000000000 == int.from_bytes(converter.serialize(Decimal("9999999999999999e-399")),
-                                                byteorder="little")
-    assert 0x8000000000000000 == int.from_bytes(converter.serialize(Decimal("-9999999999999999e-399")),
-                                                byteorder="little")
+    assert 0x77FB86F26FC0FFFF == int.from_bytes(converter.serialize(Decimal("9999999999999999e369")), byteorder="little")
+    assert 0x7800000000000000 == int.from_bytes(converter.serialize(Decimal("999999999999999999e369")), byteorder="little")
+    assert 0x7800000000000000 == int.from_bytes(converter.serialize(Decimal("9999999999999999e370")), byteorder="little")
+    assert 0xF800000000000000 == int.from_bytes(converter.serialize(Decimal("-9999999999999999e370")), byteorder="little")
+    assert 0x607B86F26FC0FFFF == int.from_bytes(converter.serialize(Decimal("9999999999999999e-383")), byteorder="little")
+    assert 0x600386F26FC0FFFF == int.from_bytes(converter.serialize(Decimal("9999999999999999e-398")), byteorder="little")
+    assert 0xE00386F26FC0FFFF == int.from_bytes(converter.serialize(Decimal("-9999999999999999e-398")), byteorder="little")
+    assert 0x0000000000000000 == int.from_bytes(converter.serialize(Decimal("9999999999999999e-399")), byteorder="little")
+    assert 0x8000000000000000 == int.from_bytes(converter.serialize(Decimal("-9999999999999999e-399")), byteorder="little")
     assert 0x5FE05AF3107A4000 == int.from_bytes(converter.serialize(Decimal("1e+383")), byteorder="little")
     assert 0x5FE38D7EA4C68000 == int.from_bytes(converter.serialize(Decimal("1e+384")), byteorder="little")
 
