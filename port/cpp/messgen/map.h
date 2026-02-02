@@ -14,10 +14,9 @@ struct map {
 
     map() = default;
 
-    map(const map &other) {
-        _ptr = other._ptr;
-        _size = other._size;
-    }
+    map(const map &other) = default;
+
+    map &operator=(const map &other) = default;
 
     map(value_type *ptr, size_t size)
         : _ptr(ptr),
