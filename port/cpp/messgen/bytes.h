@@ -40,6 +40,10 @@ public:
         return !(*this == other);
     }
 
+    [[nodiscard]] bool empty() const noexcept {
+        return _size == 0;
+    }
+
     [[nodiscard]] size_t size() const noexcept {
         return _size;
     }
