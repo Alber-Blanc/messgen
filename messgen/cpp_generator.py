@@ -270,6 +270,10 @@ class CppGenerator:
                             _buf(buf) {{
                         }}
 
+                        [[nodiscard]] const uint8_t *data() const noexcept {{
+                            return _buf.data();
+                        }}
+
                         """,
                 )
             )
