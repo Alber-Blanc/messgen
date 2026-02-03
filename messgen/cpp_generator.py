@@ -432,7 +432,7 @@ class CppGenerator:
             constexpr bool {class_name}::dispatch_message(int16_t msg_id, messgen::bytes payload, Fn &&fn) {{
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
-                    using message_type = messgen::splice_t<R>::recv;
+                    using message_type = typename messgen::splice_t<R>::recv;
                     if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
                         std::forward<Fn>(fn).operator()(message_type{{payload}});
                         result = true;
@@ -482,6 +482,23 @@ class CppGenerator:
         code.extend(_format_code(0, """
                  };
              }"""))
+
+        code.extend(_format_code(0, f"""
+            inline std::string_view to_string({unqual_name} e) noexcept {{
+                switch (e) {{
+            """))
+        for enum_value in type_def.values:
+            code.extend(_format_code(1, f"""\
+                case {unqual_name}::{enum_value.name}:
+                    return "{enum_value.name}";
+                """))
+        code.extend(_format_code(0, f"""\
+                default:
+                    return "unknown";
+                }}
+            }}
+            """))
+
 
         return code
 
