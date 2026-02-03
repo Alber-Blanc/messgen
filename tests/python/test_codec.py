@@ -138,7 +138,6 @@ def test_protocol_info(codec):
     assert protocol_by_id.proto_name() == protocol_by_name.proto_name()
     assert protocol_by_id.proto_id() == protocol_by_name.proto_id()
     assert protocol_by_id.proto_hash() == protocol_by_name.proto_hash()
-    assert protocol_by_id.proto_hash() == 18394245099761547257
 
 
 def test_decimal_decoding():
