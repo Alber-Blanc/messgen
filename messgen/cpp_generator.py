@@ -530,6 +530,7 @@ class CppGenerator:
     def _generate_type_enum(self, type_name, type_def):
         self._add_include("messgen/messgen.h")
         self._add_include("string_view")
+        self._add_include("string")
 
         unqual_name = _unqual_name(type_name)
         qual_name = _qual_name(type_name)
@@ -595,7 +596,7 @@ class CppGenerator:
                 }}
             }}
             
-            [[nodiscard]] constexpr std::string to_string({unqual_name} e) noexcept {{
+            [[nodiscard]] inline std::string to_string({unqual_name} e) noexcept {{
                 auto s = to_string_view(e);
                 if (s != messgen::UNKNOWN_ENUM_STR) {{
                     return std::string(s);

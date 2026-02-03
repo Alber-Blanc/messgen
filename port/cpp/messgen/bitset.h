@@ -61,6 +61,10 @@ struct bitset_base {
         return U(_bits);
     }
 
+    operator bool() const {
+        return _bits != 0;
+    }
+
     U to_underlying() const {
         return U(_bits);
     }
