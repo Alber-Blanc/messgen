@@ -609,7 +609,7 @@ class CppGenerator:
         code.append(f"class {unqual_name} : public messgen::detail::bitset_base<{unqual_name}, {underlying_type}> {{")
         code.append(f"    enum class Values : {underlying_type} {{")
         for bit in type_def.bits:
-            code.append("        %s = %s,%s" % (bit.name, 1 << bit.offset, _inline_comment(bit)))
+            code.append(f"        {bit.name} = {1 << bit.offset},{_inline_comment(bit)}")
         code.append("    };")
 
         code.append("")
@@ -624,7 +624,7 @@ class CppGenerator:
             code.append("    using enum Values;")
         else:
             for bit in type_def.bits:
-                code.append("    static constexpr Values %s = Values::%s;" % (bit.name, bit.name))
+                code.append(f"    static constexpr Values {bit.name} = Values::{bit.name};")
         code.append("")
         code.append(f"    friend {unqual_name} operator|(const Values &lhs, const Values &rhs) {{")
         code.append(f"        return {unqual_name}(lhs) | {unqual_name}(rhs);")
@@ -676,7 +676,7 @@ class CppGenerator:
             return max(a_sz, a_key, a_value)
 
         else:
-            raise RuntimeError("Unsupported type_class in _get_alignment: type_class=%s type_def=%s" % (type_class, type_def))
+            raise RuntimeError(f"Unsupported type_class in _get_alignment: type_class={type_class} type_def={type_def}")
 
     def _check_alignment(self, type_def, offs):
         align = self._get_alignment(type_def)
@@ -714,7 +714,7 @@ class CppGenerator:
 
         groups = self._field_groups(fields)
         if len(groups) > 1 and self._all_fields_scalar(fields):
-            print("Warn: padding in '%s' after '%s' causes extra memcpy call during serialization." % (type_name, groups[0].fields[0].name))
+            print(f"Warn: padding in '{type_name}' after '{groups[0].fields[0].name}' causes extra memcpy call during serialization.")
 
         # Flat type
         is_flat = self._is_flat_type(type_def)
