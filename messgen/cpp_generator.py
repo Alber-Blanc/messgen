@@ -587,13 +587,13 @@ class CppGenerator:
                 0,
                 f"""\
                 default:
-                    return "";
+                    return messgen::UNKNOWN_ENUM_STR;
                 }}
             }}
             
             [[nodiscard]] constexpr std::string to_string({unqual_name} e) noexcept {{
                 auto s = to_string_view(e);
-                if (not s.empty()) {{
+                if (s != messgen::UNKNOWN_ENUM_STR) {{
                     return std::string(s);
                 }}
                 return "<unknown (" + std::to_string({underlying_cpp_type}(e)) + ")>";

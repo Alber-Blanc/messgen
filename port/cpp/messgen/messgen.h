@@ -11,6 +11,7 @@ namespace messgen {
 using size_type = uint32_t;
 using serialize_func = size_t (*)(const void *, uint8_t *);
 using serialized_size_func = size_t (*)(const void *);
+constexpr std::string_view UNKNOWN_ENUM_STR = "<unknown>";
 
 template <class T>
 size_t free_serialize(const void *ptr, uint8_t *payload) {
