@@ -529,10 +529,11 @@ class CppGenerator:
 
         unqual_name = _unqual_name(type_name)
         qual_name = _qual_name(type_name)
+        underlying_cpp_type = self._cpp_type(type_def.base_type, Mode.VIEW)
 
         code = []
         code.extend(self._generate_comment_type(type_def))
-        code.append(f"enum class {unqual_name}: {self._cpp_type(type_def.base_type, Mode.VIEW)} {{")
+        code.append(f"enum class {unqual_name}: {underlying_cpp_type} {{")
         for enum_value in type_def.values:
             code.append(f"    {enum_value.name} = {enum_value.value},{_inline_comment(enum_value)}")
         code.append("};")
@@ -566,7 +567,7 @@ class CppGenerator:
             _format_code(
                 0,
                 f"""
-            inline std::string_view to_string({unqual_name} e) noexcept {{
+            [[nodiscard]] constexpr std::string_view to_string_view({unqual_name} e) noexcept {{
                 switch (e) {{
             """,
             )
@@ -584,11 +585,19 @@ class CppGenerator:
         code.extend(
             _format_code(
                 0,
-                """\
+                f"""\
                 default:
-                    return "unknown";
-                }
-            }
+                    return "";
+                }}
+            }}
+            
+            [[nodiscard]] constexpr std::string to_string({unqual_name} e) noexcept {{
+                auto s = to_string_view(e);
+                if (not s.empty()) {{
+                    return std::string(s);
+                }}
+                return "<unknown (" + std::to_string({underlying_cpp_type}(e)) + ")>";
+            }}            
             """,
             )
         )

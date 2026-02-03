@@ -418,6 +418,14 @@ TEST_F(Cpp17Test, ProtoHash) {
     EXPECT_EQ(3626745160181273412, hash_test_proto);
 }
 
+TEST_F(Cpp17Test, EnumToString) {
+    using namespace messgen;
+
+    EXPECT_EQ(mynamespace::types::to_string(mynamespace::types::simple_enum::one_value), "one_value");
+    EXPECT_EQ(mynamespace::types::to_string(mynamespace::types::simple_enum::another_value), "another_value");
+    EXPECT_EQ(mynamespace::types::to_string(mynamespace::types::simple_enum(15)), "<unknown (15)>");
+}
+
 TEST_F(Cpp17Test, BytesPlain) {
     std::array<uint8_t, 2> buf{1, 2};
     messgen::bytes bs{&buf};
