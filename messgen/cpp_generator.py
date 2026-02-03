@@ -17,21 +17,21 @@ from .common import (
 from .model import (
     ArrayType,
     BasicType,
+    BitsetBit,
+    BitsetType,
     DecimalType,
     EnumType,
     EnumValue,
+    ExternalType,
     FieldType,
+    hash_message,
+    hash_type,
     MapType,
     MessgenType,
     Protocol,
     StructType,
-    ExternalType,
     TypeClass,
     VectorType,
-    hash_message,
-    hash_type,
-    BitsetBit,
-    BitsetType,
 )
 
 
@@ -88,21 +88,21 @@ def _struct(name: str, code: list[str]):
 
 def _inline_comment(type_def: FieldType | EnumValue | BitsetBit):
     if type_def.comment:
-        return " ///< %s" % type_def.comment
+        return f" ///< {type_def.comment}"
     return ""
 
 
 def _indent(c, levels=1):
     spaces = "    " * levels
-    if type(c) is str:
+    if isinstance(c, str):
         return spaces + c
-    elif type(c) is list:
+    elif isinstance(c, list):
         r = []
         for i in c:
             r.append(spaces + i if i else "")
         return r
     else:
-        raise RuntimeError("Unsupported type for indent: %s" % type(c))
+        raise RuntimeError(f"Unsupported type for indent: {type(c)}")
 
 
 def _format_code(level: int, s: str):
@@ -120,7 +120,7 @@ class FieldsGroup:
         return str(self)
 
     def __str__(self) -> str:
-        return "<FieldsGroup size=%s fields=%s>" % (self.size, self.field_names)
+        return f"<FieldsGroup size={self.size} fields={self.field_names}>"
 
 
 class CppGenerator:
@@ -199,7 +199,7 @@ class CppGenerator:
         return code
 
     def _generate_proto_file(self, proto_name: str, proto_def: Protocol) -> list[str]:
-        print("Generate protocol: %s" % proto_name)
+        print(f"Generate protocol: {proto_name}")
 
         self._reset_file()
         code: list[str] = []
@@ -519,7 +519,7 @@ class CppGenerator:
 
         code = []
         code.append("/**")
-        code.append(" * %s" % type_def.comment)
+        code.append(f" * {type_def.comment}")
         code.append(" */")
         return code
 
@@ -534,7 +534,7 @@ class CppGenerator:
         code.extend(self._generate_comment_type(type_def))
         code.append(f"enum class {unqual_name}: {self._cpp_type(type_def.base_type, Mode.VIEW)} {{")
         for enum_value in type_def.values:
-            code.append("    %s = %s,%s" % (enum_value.name, enum_value.value, _inline_comment(enum_value)))
+            code.append(f"    {enum_value.name} = {enum_value.value},{_inline_comment(enum_value)}")
         code.append("};")
 
         code.extend(
@@ -562,22 +562,36 @@ class CppGenerator:
             )
         )
 
-        code.extend(_format_code(0, f"""
+        code.extend(
+            _format_code(
+                0,
+                f"""
             inline std::string_view to_string({unqual_name} e) noexcept {{
                 switch (e) {{
-            """))
+            """,
+            )
+        )
         for enum_value in type_def.values:
-            code.extend(_format_code(1, f"""\
+            code.extend(
+                _format_code(
+                    1,
+                    f"""\
                 case {unqual_name}::{enum_value.name}:
                     return "{enum_value.name}";
-                """))
-        code.extend(_format_code(0, f"""\
+                """,
+                )
+            )
+        code.extend(
+            _format_code(
+                0,
+                """\
                 default:
                     return "unknown";
-                }}
-            }}
-            """))
-
+                }
+            }
+            """,
+            )
+        )
 
         return code
 
@@ -1288,10 +1302,10 @@ class CppGenerator:
             c.extend(
                 _format_code(
                     0,
-                    f"""
-            _field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);
-            _size += sizeof(messgen::size_type);
-            """,
+                    """
+                    _field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);
+                    _size += sizeof(messgen::size_type);
+                    """,
                 )
             )
 
@@ -1300,9 +1314,9 @@ class CppGenerator:
                 _format_code(
                     0,
                     f"""
-            {field_name} = {{reinterpret_cast<const char *>(&_buf[_size]), size_t(_field_size)}};
-            _size += _field_size;
-            """,
+                    {field_name} = {{reinterpret_cast<const char *>(&_buf[_size]), size_t(_field_size)}};
+                    _size += _field_size;
+                    """,
                 )
             )
 
@@ -1311,10 +1325,10 @@ class CppGenerator:
             c.extend(
                 _format_code(
                     0,
-                    f"""
-            _field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);
-            _size += sizeof(messgen::size_type);
-            """,
+                    """
+                    _field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);
+                    _size += sizeof(messgen::size_type);
+                    """,
                 )
             )
 
