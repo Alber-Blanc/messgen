@@ -5,6 +5,10 @@
 #include <cstring>
 #include <type_traits>
 
+#if defined(__cpp_lib_ranges)
+#include <ranges>
+#endif
+
 namespace messgen {
 
 class bytes;
@@ -206,11 +210,20 @@ inline constexpr bool is_contiguous_container_v = is_contiguous_container<T>::va
 template <typename T, typename V, typename = void>
 struct is_data_view : std::false_type {};
 
+#if defined(__cpp_lib_ranges)
+template <typename T>
+constexpr bool is_std_view_v = std::ranges::view<T>;
+#else
+template <typename T>
+constexpr bool is_std_view_v = false;
+#endif
+
 template <typename T, typename V>
 struct is_data_view<T, V, std::void_t<decltype(T::IS_VIEW)>>
     : std::bool_constant<is_contiguous_container_v<T> && T::IS_VIEW &&
                          (std::is_same_v<remove_cvref_t<decltype(std::declval<T>().data())>, T *> ||
-                          std::is_same_v<remove_cvref_t<decltype(std::declval<T>().data())>, uint8_t *>)> {};
+                          std::is_same_v<remove_cvref_t<decltype(std::declval<T>().data())>, uint8_t *> || //
+                          is_std_view_v<T>)> {};
 
 template <class T, typename V>
 inline constexpr bool is_data_view_v = is_data_view<T, V>::value;
