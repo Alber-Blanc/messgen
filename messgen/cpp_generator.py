@@ -410,7 +410,7 @@ class CppGenerator:
                             _data(&t) {{
                         }}
 
-                        [[nodiscard]]{consteval_str}size_t serialized_size() const {{
+                        [[nodiscard]] {consteval_str}static size_t serialized_size() {{
                             return data_type::FIXED_SIZE;
                         }}
 
@@ -595,14 +595,14 @@ class CppGenerator:
                     return messgen::UNKNOWN_ENUM_STR;
                 }}
             }}
-            
+
             [[nodiscard]] inline std::string to_string({unqual_name} e) noexcept {{
                 auto s = to_string_view(e);
                 if (s != messgen::UNKNOWN_ENUM_STR) {{
                     return std::string(s);
                 }}
                 return "<unknown (" + std::to_string({underlying_cpp_type}(e)) + ")>";
-            }}            
+            }}
             """,
             )
         )
