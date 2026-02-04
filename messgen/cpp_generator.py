@@ -398,25 +398,22 @@ class CppGenerator:
                 )
 
             else:
-                consteval_str = ""
-                if self._get_cpp_standard() >= 20:
-                    consteval_str = "consteval "
                 # Static size, data_type == data_type_view
                 code.extend(
                     _format_code(
                         3,
-                        f"""\
+                        """\
                         explicit send(const data_type& t) :
-                            _data(&t) {{
-                        }}
+                            _data(&t) {
+                        }
 
-                        [[nodiscard]]{consteval_str}size_t serialized_size() const {{
+                        [[nodiscard]] constexpr size_t serialized_size() const {
                             return data_type::FIXED_SIZE;
-                        }}
+                        }
 
-                        size_t serialize(uint8_t* buf) const {{
+                        size_t serialize(uint8_t* buf) const {
                             return reinterpret_cast<const data_type *>(_data)->serialize(buf);
-                        }}
+                        }
 
                 """,
                     )
@@ -595,14 +592,14 @@ class CppGenerator:
                     return messgen::UNKNOWN_ENUM_STR;
                 }}
             }}
-            
+
             [[nodiscard]] inline std::string to_string({unqual_name} e) noexcept {{
                 auto s = to_string_view(e);
                 if (s != messgen::UNKNOWN_ENUM_STR) {{
                     return std::string(s);
                 }}
                 return "<unknown (" + std::to_string({underlying_cpp_type}(e)) + ")>";
-            }}            
+            }}
             """,
             )
         )
