@@ -13,14 +13,18 @@ namespace messgen {
  */
 class Allocator {
 public:
-    Allocator() noexcept {}
+    Allocator() noexcept {
+    }
 
-    Allocator(uint8_t *ptr, size_t size) noexcept : _ptr(ptr), _size(size) {}
+    Allocator(uint8_t *ptr, size_t size) noexcept
+        : _ptr(ptr),
+          _size(size) {
+    }
 
     template <class VIEW>
-    explicit Allocator(VIEW *v, std::enable_if_t<is_data_view_v<VIEW>> * = nullptr) noexcept
+    explicit Allocator(VIEW *v, std::enable_if_t<is_contiguous_container_v<VIEW>> * = nullptr) noexcept
         : Allocator(v->data(), v->size()) {
-        }
+    }
 
     /**
      * @brief Allocates memory for num objects of type T
@@ -28,7 +32,7 @@ public:
      * @param n   -   number of objects
      * @return pointer to allocated memory or nullptr if not enough memory
      */
-    template<class T>
+    template <class T>
     T *alloc(size_t n) noexcept {
         if (n == 0) {
             return reinterpret_cast<T *>(_ptr);
@@ -52,9 +56,8 @@ public:
     }
 
 protected:
-
     uint8_t *_ptr = nullptr;
     size_t _size = 0;
 };
 
-}// namespace messgen
+} // namespace messgen

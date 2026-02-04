@@ -1,9 +1,12 @@
+
 #include <messgen/messgen.h>
 #include <mynamespace/proto/test_proto.h>
 #include <mynamespace/proto/subspace/another_proto.h>
 #include <mynamespace/types/another_simple_bitset.h>
 
 #include <gtest/gtest.h>
+
+#include <cstdint>
 
 class Cpp17Test : public ::testing::Test {
 protected:
@@ -168,7 +171,7 @@ TEST_F(Cpp17Test, VarSizeStructView) {
 
     s.f0 = 1;
     std::vector<int64_t> f1_vec{3, 4};
-    s.f1_vec = messgen::span<int64_t>(&f1_vec);
+    s.f1_vec = messgen::span<int64_t>(messgen::bytes{reinterpret_cast<uint8_t *>(f1_vec.data()), f1_vec.size()});
     test_serialization(s);
 }
 
@@ -428,7 +431,7 @@ TEST_F(Cpp17Test, EnumToString) {
 
 TEST_F(Cpp17Test, BytesPlain) {
     std::array<uint8_t, 2> buf{1, 2};
-    messgen::bytes bs{&buf};
+    messgen::bytes bs{messgen::span{buf.data(), buf.size()}};
     EXPECT_EQ(1, bs.data()[0]);
     EXPECT_EQ(2, bs.data()[1]);
 }

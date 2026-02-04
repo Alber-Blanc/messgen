@@ -77,8 +77,7 @@ struct has_deserialize_alloc_method : std::false_type {};
 class Allocator;
 
 template <typename T>
-struct has_deserialize_alloc_method<T, std::void_t<decltype(static_cast<ssize_t (T::*)(messgen::bytes, Allocator &)>(&T::deserialize))>> : std::true_type {
-};
+struct has_deserialize_alloc_method<T, std::void_t<decltype(static_cast<ssize_t (T::*)(messgen::bytes, Allocator &)>(&T::deserialize))>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool has_deserialize_alloc_method_v = has_deserialize_alloc_method<T>::value;
@@ -190,7 +189,7 @@ template <typename T, typename = void>
 struct has_data_method : std::false_type {};
 
 template <typename T>
-struct has_data_method<T, std::void_t<decltype(static_cast<typename T::pointer (T::*)()>(&T::data))>> : std::true_type {};
+struct has_data_method<T, std::void_t<decltype(static_cast<typename T::const_pointer (T::*)() const>(&T::data))>> : std::true_type {};
 
 template <typename T, typename = void>
 struct has_size_method : std::false_type {};
@@ -199,9 +198,21 @@ template <typename T>
 struct has_size_method<T, std::void_t<decltype(static_cast<size_t (T::*)() const>(&T::size))>> : std::true_type {};
 
 template <class T>
-struct is_data_view : std::bool_constant<has_data_method<remove_cvref_t<T>>::value && has_size_method<remove_cvref_t<T>>::value> {};
+struct is_contiguous_container : std::bool_constant<has_data_method<remove_cvref_t<T>>::value && has_size_method<remove_cvref_t<T>>::value> {};
 
 template <class T>
-inline constexpr bool is_data_view_v = is_data_view<T>::value;
+inline constexpr bool is_contiguous_container_v = is_contiguous_container<T>::value;
+
+template <typename T, typename V, typename = void>
+struct is_data_view : std::false_type {};
+
+template <typename T, typename V>
+struct is_data_view<T, V, std::void_t<decltype(T::IS_VIEW)>>
+    : std::bool_constant<is_contiguous_container_v<T> && T::IS_VIEW &&
+                         (std::is_same_v<remove_cvref_t<decltype(std::declval<T>().data())>, T *> ||
+                          std::is_same_v<remove_cvref_t<decltype(std::declval<T>().data())>, uint8_t *>)> {};
+
+template <class T, typename V>
+inline constexpr bool is_data_view_v = is_data_view<T, V>::value;
 
 } // namespace messgen

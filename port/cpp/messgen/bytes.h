@@ -1,16 +1,18 @@
 #pragma once
 
 #include "messgen.h"
+#include "traits.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <type_traits>
 
 namespace messgen {
 
 class bytes {
 public:
+    constexpr static bool IS_VIEW = true;
+
     using pointer = uint8_t *;
     using const_pointer = const uint8_t *;
 
@@ -18,12 +20,17 @@ public:
 
     bytes(const_pointer ptr, size_t size) noexcept
         : _size(size),
-          _ptr(const_cast<pointer>(ptr)) {
+          _ptr{const_cast<pointer>(ptr)} {
     }
 
-    template <class VIEW>
-    explicit bytes(VIEW *v, std::enable_if_t<is_data_view_v<VIEW>> * = nullptr) noexcept
-        : bytes(v->data(), v->size()) {
+    template <class Container>
+    explicit bytes(Container *v, std::enable_if_t<is_contiguous_container_v<Container>> * = nullptr) noexcept
+        : bytes{v->data(), v->size()} {
+    }
+
+    template <class View>
+    explicit bytes(View &&v, std::enable_if_t<is_data_view_v<View, uint8_t>> * = nullptr) noexcept
+        : bytes{std::forward<View>(v).data(), std::forward<View>(v).size()} {
     }
 
     bytes(bytes &&other) noexcept = default;

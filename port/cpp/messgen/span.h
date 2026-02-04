@@ -3,12 +3,15 @@
 #include "traits.h"
 
 #include <cstddef>
+#include <utility>
 
 namespace messgen {
 
 template <class T>
 class span {
 public:
+    constexpr static bool IS_VIEW = true;
+
     using value_type = T;
     using pointer = T *;
     using const_pointer = const T *;
@@ -16,8 +19,8 @@ public:
     span() noexcept = default;
 
     span(pointer ptr, size_t size)
-        : _ptr(ptr),
-          _size(size) {
+        : _ptr{ptr},
+          _size{size} {
     }
 
     span(const_pointer ptr, size_t size)
@@ -25,9 +28,14 @@ public:
           _size(size) {
     }
 
-    template <class VIEW>
-    explicit span(VIEW *v, std::enable_if_t<is_data_view_v<VIEW>> * = nullptr) noexcept
-        : span(v->data(), v->size()) {
+    template <class Container>
+    explicit span(Container *v, std::enable_if_t<is_contiguous_container_v<Container>> * = nullptr) noexcept
+        : span{v->data(), v->size()} {
+    }
+
+    template <class View>
+    explicit span(View &&v, std::enable_if_t<is_data_view_v<View, T>> * = nullptr) noexcept
+        : span{reinterpret_cast<const T *>(std::forward<View>(v).data()), std::forward<View>(v).size()} {
     }
 
     span(span &&other) noexcept = default;
