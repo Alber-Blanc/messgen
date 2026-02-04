@@ -1,9 +1,11 @@
 #pragma once
 
-#include "decimal.h"
-#include "messgen.h"
+#include "bytes.h"
 #include "concepts.h"
+#include "decimal.h"
+#include "span.h"
 
+#include <cstdint>
 #include <fmt/format.h>
 
 namespace messgen {
@@ -163,17 +165,7 @@ struct formatter<detail::MessgenFormat<std::vector<T, Allocator>>> {
 
     template <class FormatContext>
     auto format(const detail::MessgenFormat<std::vector<T, Allocator>> &vec, FormatContext &ctx) const -> decltype(ctx.out()) {
-        fmt::format_to(ctx.out(), "[");
-        auto it = vec.value.begin();
-        auto end = vec.value.end();
-        if (it != end) {
-            fmt::format_to(ctx.out(), "{}", detail::MessgenFormat{*it});
-            ++it;
-        }
-        for (; it != end; ++it) {
-            fmt::format_to(ctx.out(), ", {}", detail::MessgenFormat{*it});
-        }
-        return fmt::format_to(ctx.out(), "]");
+        return fmt::format_to(ctx.out(), "{}", detail::MessgenFormat{messgen::span<T>{vec.value.data(), vec.value.size()}});
     }
 };
 
@@ -185,9 +177,33 @@ struct formatter<detail::MessgenFormat<std::array<T, N>>> {
 
     template <class FormatContext>
     auto format(const detail::MessgenFormat<std::array<T, N>> &arr, FormatContext &ctx) const -> decltype(ctx.out()) {
+        return fmt::format_to(ctx.out(), "{}", detail::MessgenFormat{messgen::span<T>{arr.value.data(), arr.value.size()}});
+    }
+};
+
+template <>
+struct formatter<detail::MessgenFormat<messgen::bytes>> {
+    constexpr auto parse(format_parse_context &ctx) -> decltype(ctx.begin()) {
+        return ctx.end();
+    }
+
+    template <class FormatContext>
+    auto format(const detail::MessgenFormat<messgen::bytes> &bytes, FormatContext &ctx) const -> decltype(ctx.out()) {
+        return fmt::format_to(ctx.out(), "{}", detail::MessgenFormat{messgen::span<uint8_t>{bytes.value.data(), bytes.value.size()}});
+    }
+};
+
+template <class T>
+struct formatter<detail::MessgenFormat<messgen::span<T>>> {
+    constexpr auto parse(format_parse_context &ctx) -> decltype(ctx.begin()) {
+        return ctx.end();
+    }
+
+    template <class FormatContext>
+    auto format(const detail::MessgenFormat<messgen::span<T>> &span, FormatContext &ctx) const -> decltype(ctx.out()) {
         fmt::format_to(ctx.out(), "[");
-        auto it = arr.value.begin();
-        auto end = arr.value.end();
+        auto it = span.value.begin();
+        auto end = span.value.end();
         if (it != end) {
             fmt::format_to(ctx.out(), "{}", detail::MessgenFormat{*it});
             ++it;
@@ -196,6 +212,18 @@ struct formatter<detail::MessgenFormat<std::array<T, N>>> {
             fmt::format_to(ctx.out(), ", {}", detail::MessgenFormat{*it});
         }
         return fmt::format_to(ctx.out(), "]");
+    }
+};
+
+template <class T, class Traits>
+struct formatter<detail::MessgenFormat<std::basic_string_view<T, Traits>>> {
+    constexpr auto parse(format_parse_context &ctx) -> decltype(ctx.begin()) {
+        return ctx.end();
+    }
+
+    template <class FormatContext>
+    auto format(const detail::MessgenFormat<std::basic_string_view<T, Traits>> &str, FormatContext &ctx) const -> decltype(ctx.out()) {
+        return fmt::format_to(ctx.out(), "\"{}\"", str.value.c_str());
     }
 };
 
