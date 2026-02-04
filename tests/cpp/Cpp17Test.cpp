@@ -460,22 +460,21 @@ TEST_F(Cpp17Test, DispatchMessageStor) {
     expected.serialize(_buf.data());
 
     auto invoked = false;
-    auto handler = [&](auto &&msg) {
+
+    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct::MESSAGE_ID, messgen::bytes{&_buf}, [&](auto &&msg) {
         using RecvMsgType = std::decay_t<decltype(msg)>;
         typename RecvMsgType::data_type_stor actual_data;
         auto res = msg.deserialize(actual_data);
         assert(res == actual_data.FIXED_SIZE);
-
-        if constexpr (std::is_same_v<RecvMsgType, mynamespace::proto::test_proto::simple_struct::recv>) {
-            EXPECT_EQ(expected.f0, actual_data.f0);
-            EXPECT_EQ(expected.f1, actual_data.f1);
-            invoked = true;
-        } else {
-            FAIL() << "Unexpected message type handled.";
-        }
-    };
-
-    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct::MESSAGE_ID, messgen::bytes{&_buf}, handler);
+        dispatch(
+            actual_data,
+            [&](mynamespace::types::simple_struct &m) {
+                EXPECT_EQ(expected.f0, m.f0);
+                EXPECT_EQ(expected.f1, m.f1);
+                invoked = true;
+            },
+            [&](auto &m) { FAIL() << "Unexpected message type handled."; });
+    });
 
     EXPECT_TRUE(invoked);
 }
@@ -491,24 +490,23 @@ TEST_F(Cpp17Test, DispatchMessageView) {
     expected.serialize(_buf.data());
 
     auto invoked = false;
-    auto handler = [&](auto &&msg) {
+
+    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct::MESSAGE_ID, messgen::bytes{&_buf}, [&](auto &&msg) {
         using ActualType = std::decay_t<decltype(msg)>;
         typename ActualType::data_type actual_data;
         if constexpr (not ActualType::data_type::NEED_ALLOC) {
             auto res = msg.deserialize(actual_data);
             assert(res == actual_data.FIXED_SIZE);
+            dispatch(
+                actual_data,
+                [&](mynamespace::types::simple_struct &m) {
+                    EXPECT_EQ(expected.f0, m.f0);
+                    EXPECT_EQ(expected.f1, m.f1);
+                    invoked = true;
+                },
+                [&](auto &m) { FAIL() << "Unexpected message type handled."; });
         }
-
-        if constexpr (std::is_same_v<ActualType, mynamespace::proto::test_proto::simple_struct::recv>) {
-            EXPECT_EQ(expected.f0, actual_data.f0);
-            EXPECT_EQ(expected.f1, actual_data.f1);
-            invoked = true;
-        } else {
-            FAIL() << "Unexpected message type handled.";
-        }
-    };
-
-    mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct::MESSAGE_ID, messgen::bytes{&_buf}, handler);
+    });
 
     EXPECT_TRUE(invoked);
 }

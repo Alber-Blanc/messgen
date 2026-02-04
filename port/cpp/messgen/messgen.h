@@ -23,4 +23,20 @@ size_t free_serialized_size(const void *ptr) {
     return reinterpret_cast<const T *>(ptr)->serialized_size();
 }
 
+template <typename Message, typename Fn>
+void dispatch(Message&& msg, Fn&& fn) {
+    if constexpr (std::is_invocable_v<Fn, Message>) {
+        std::forward<Fn>(fn)(std::forward<Message>(msg));
+    }
+}
+
+template <typename Message, typename Fn, typename... Rest>
+void dispatch(Message&& msg, Fn&& fn, Rest&&... rest) {
+    if constexpr (std::is_invocable_v<Fn, Message>) {
+        std::forward<Fn>(fn)(std::forward<Message>(msg));
+    } else {
+        dispatch(std::forward<Message>(msg), std::forward<Rest>(rest)...);
+    }
+}
+
 } // namespace messgen
