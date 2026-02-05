@@ -398,25 +398,22 @@ class CppGenerator:
                 )
 
             else:
-                consteval_str = ""
-                if self._get_cpp_standard() >= 20:
-                    consteval_str = "consteval "
                 # Static size, data_type == data_type_view
                 code.extend(
                     _format_code(
                         3,
-                        f"""\
+                        """\
                         explicit send(const data_type& t) :
-                            _data(&t) {{
-                        }}
+                            _data(&t) {
+                        }
 
-                        [[nodiscard]] {consteval_str}static size_t serialized_size() {{
+                        [[nodiscard]] constexpr static size_t serialized_size() {
                             return data_type::FIXED_SIZE;
-                        }}
+                        }
 
-                        size_t serialize(uint8_t* buf) const {{
+                        size_t serialize(uint8_t* buf) const {
                             return reinterpret_cast<const data_type *>(_data)->serialize(buf);
-                        }}
+                        }
 
                 """,
                     )
