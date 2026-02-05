@@ -543,12 +543,12 @@ class CppGenerator:
             _format_code(0, f"""
             static constexpr ::messgen::metadata _{unqual_name}_metadata{{
                 .hash = 0ULL,
-                .name = "{_qual_name(type_name)}",
+                .name = "{type_name}",
                 .schema = R"_({self._generate_schema(type_def)})_"
             }};
 
-            constexpr const ::messgen::metadata *metadata_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
-                return &_{unqual_name}_metadata;
+            constexpr const ::messgen::metadata &metadata_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return _{unqual_name}_metadata;
             }}
             
             [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
@@ -642,6 +642,19 @@ class CppGenerator:
         code.append(f"        return {unqual_name}(lhs) | {unqual_name}(rhs);")
         code.append("    }")
         code.append("};")
+
+        code.extend(
+            _format_code(0, f"""
+            static constexpr ::messgen::metadata _{unqual_name}_metadata{{
+                .hash = 0ULL,
+                .name = "{type_name}",
+                .schema = R"_({self._generate_schema(type_def)})_"
+            }};
+
+            constexpr const ::messgen::metadata &metadata_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return _{unqual_name}_metadata;
+            }}
+            """))
 
         return code
 
@@ -758,10 +771,14 @@ class CppGenerator:
         type_hash = hash_type(type_def, types)
         deps = []
         for dep in self._get_type_dependencies(type_def):
-            deps.append(f"::metadata_of(::messgen::reflect_type<{_qual_name(dep)}>)")
+            deps.append(
+                f"&::{_qual_name(_split_last_name(dep)[0])}::metadata_of(::messgen::reflect_type<::{_qual_name(dep)}>)")
         deps_str = ", ".join(deps)
         code.extend(_format_code(1, f"""\
-            static constexpr std::array<const ::messgen::metadata *, 2> DEPENDENCIES{{{deps_str}}};
+            static constexpr uint64_t HASH = {type_hash}ULL;
+            static constexpr std::string_view NAME = "{type_name}";
+            static constexpr std::string_view SCHEMA = R"_({self._generate_schema(type_def)})_";
+            static constexpr std::array<const ::messgen::metadata *, {len(deps)}> DEPENDENCIES{{{deps_str}}};
         """))
 
         for field in type_def.fields:
@@ -924,7 +941,8 @@ class CppGenerator:
             code.append("")
 
             if len(fields) > 0:
-                code.append(_indent(f"friend bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"))
+                code.append(
+                    _indent(f"friend bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"))
                 field_name = fields[0].name
                 code.append(_indent(f"return l.{field_name} == r.{field_name}", 2))
                 for field in fields[1:]:
@@ -932,7 +950,8 @@ class CppGenerator:
                     code.append(_indent(f"   and l.{field_name} == r.{field_name}", 3))
                 code[-1] += ";"
             else:
-                code.append(_indent(f"friend bool operator==(const struct {unqual_name}&, const struct {unqual_name}&) {{"))
+                code.append(
+                    _indent(f"friend bool operator==(const struct {unqual_name}&, const struct {unqual_name}&) {{"))
                 code.append(_indent("return true;", 2))
             code.append(_indent("}"))
 
@@ -962,14 +981,16 @@ class CppGenerator:
         code.extend(_format_code(0, f"""
                 }};
             }}
+
+            static constexpr messgen::metadata _{unqual_name}_metadata{{
+                .hash = {unqual_name}::HASH,
+                .name = {unqual_name}::NAME,
+                .schema = {unqual_name}::SCHEMA,
+                .dependencies = ::messgen::span<const ::messgen::metadata *>(&{unqual_name}::DEPENDENCIES)
+            }};
             
-            constexpr messgen::metadata metadata_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
-                return messgen::metadata{{
-                    .hash = {type_hash}ULL,
-                    .name = "{_qual_name(type_name)}",
-                    .schema = R"_({self._generate_schema(type_def)})_",
-                    .dependencies = ::messgen::span<const ::messgen::metadata *>(&{unqual_name}::DEPENDENCIES)
-                }};
+            constexpr const messgen::metadata &metadata_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return _{unqual_name}_metadata;
             }}
         """))
 
