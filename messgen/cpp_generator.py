@@ -779,6 +779,13 @@ class CppGenerator:
             static constexpr std::string_view NAME = "{type_name}";
             static constexpr std::string_view SCHEMA = R"_({self._generate_schema(type_def)})_";
             static constexpr std::array<const ::messgen::metadata *, {len(deps)}> DEPENDENCIES{{{deps_str}}};
+            static constexpr messgen::metadata METADATA{{
+                .hash = HASH,
+                .name = NAME,
+                .schema = SCHEMA,
+                .dependencies = ::messgen::span<const ::messgen::metadata *>(&DEPENDENCIES)
+            }};
+            
         """))
 
         for field in type_def.fields:
@@ -982,15 +989,8 @@ class CppGenerator:
                 }};
             }}
 
-            static constexpr messgen::metadata _{unqual_name}_metadata{{
-                .hash = {unqual_name}::HASH,
-                .name = {unqual_name}::NAME,
-                .schema = {unqual_name}::SCHEMA,
-                .dependencies = ::messgen::span<const ::messgen::metadata *>(&{unqual_name}::DEPENDENCIES)
-            }};
-            
             constexpr const messgen::metadata &metadata_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
-                return _{unqual_name}_metadata;
+                return {unqual_name}::METADATA;
             }}
         """))
 
