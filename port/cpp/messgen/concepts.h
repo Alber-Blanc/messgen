@@ -77,7 +77,7 @@ concept message_recv =                                                  //
 template <class MessageSend>
 concept message_send =                                                  //
     message<typename std::remove_cvref_t<MessageSend>::message_type> && //
-    requires(std::remove_cvref_t<MessageSend>::send msg_send, uint8_t *buf) {
+    requires(std::remove_cvref_t<MessageSend> msg_send, uint8_t *buf) {
         { msg_send.serialized_size() } -> std::same_as<size_t>;
         { msg_send.serialize(buf) } -> std::same_as<size_t>;
     };
