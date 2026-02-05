@@ -911,7 +911,7 @@ class CppGenerator:
         )
         code.extend(_indent(code_ss))
 
-        if self._get_cpp_standard() >= 20 and (mode != Mode.VIEW or not self._need_alloc(type_name)):
+        if self._get_cpp_standard() >= 20 and (mode != Mode.VIEW or is_fixed_size):
             # Operator <=>
             code.append("")
             code.append(_indent(f"auto operator<=>(const struct {unqual_name} &) const = default;"))
