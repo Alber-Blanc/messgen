@@ -918,25 +918,23 @@ class CppGenerator:
 
         if self._get_cpp_standard() < 20 or mode == Mode.VIEW:
             # Operator ==
-            code_eq = []
+            code.append("")
+
             if len(fields) > 0:
+                code.append(_indent(f"friend bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"))
                 field_name = fields[0].name
-                code_eq.append(f"return l.{field_name} == r.{field_name}")
+                code.append(_indent(f"return l.{field_name} == r.{field_name}", 2))
                 for field in fields[1:]:
                     field_name = field.name
-                    code_eq.append(f"   and l.{field_name} == r.{field_name}")
+                    code.append(_indent(f"   and l.{field_name} == r.{field_name}", 3))
+                code[-1] += ";"
             else:
-                code_eq.append("return true")
-            code_eq[-1] += ";"
+                code.append(_indent(f"friend bool operator==(const struct {unqual_name}&, const struct {unqual_name}&) {{"))
+                code.append(_indent("return true;", 2))
+            code.append(_indent("}"))
 
             code.extend(
                 [
-                    "",
-                    _indent(f"friend bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"),
-                ]
-                + _indent(_indent(code_eq))
-                + [
-                    _indent("}"),
                     "",
                     _indent(f"friend bool operator!=(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"),
                     _indent("   return !(l == r);"),
