@@ -814,9 +814,9 @@ class CppGenerator:
         code_deser = _format_code(
             0,
             f"""
-            ssize_t deserialize(messgen::bytes _buf_bytes{alloc}) {{
-                auto _buf = _buf_bytes.data();
-                auto _buf_size = _buf_bytes.size();
+            ssize_t deserialize(messgen::bytes buf_bytes{alloc}) {{
+                [[maybe_unused]]  auto _buf = buf_bytes.data();
+                [[maybe_unused]]  auto _buf_size = buf_bytes.size();
                 size_t _size = 0;
                 [[maybe_unused]] ssize_t _field_size;
                 """,
