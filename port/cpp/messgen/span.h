@@ -16,25 +16,25 @@ public:
     using pointer = T *;
     using const_pointer = const T *;
 
-    span() noexcept = default;
+    constexpr span() noexcept = default;
 
-    span(pointer ptr, size_t size)
+    constexpr span(pointer ptr, size_t size)
         : _ptr{ptr},
           _size{size} {
     }
 
-    span(const_pointer ptr, size_t size)
+    constexpr span(const_pointer ptr, size_t size)
         : _ptr(const_cast<T *>(ptr)),
           _size(size) {
     }
 
     template <class Container>
-    explicit span(Container *v, std::enable_if_t<is_contiguous_container_v<Container>> * = nullptr) noexcept
+    constexpr explicit span(Container *v, std::enable_if_t<is_contiguous_container_v<Container>> * = nullptr) noexcept
         : span{v->data(), v->size()} {
     }
 
     template <class View>
-    explicit span(View &&v, std::enable_if_t<is_data_view_v<View, T>> * = nullptr) noexcept
+    constexpr explicit span(View &&v, std::enable_if_t<is_data_view_v<View, T>> * = nullptr) noexcept
         : span{reinterpret_cast<const T *>(std::forward<View>(v).data()), std::forward<View>(v).size()} {
     }
 

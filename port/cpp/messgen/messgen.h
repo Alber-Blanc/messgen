@@ -3,6 +3,7 @@
 #include "reflection.h"
 #include "traits.h"
 #include "Allocator.h"
+#include "span.h"
 
 #include <cstdint>
 
@@ -12,6 +13,13 @@ using size_type = uint32_t;
 using serialize_func = size_t (*)(const void *, uint8_t *);
 using serialized_size_func = size_t (*)(const void *);
 constexpr std::string_view UNKNOWN_ENUM_STR = "<unknown>";
+
+struct metadata {
+    uint64_t hash{};
+    std::string_view name;
+    std::string_view schema;
+    span<const metadata *> dependencies{};
+};
 
 template <class T>
 size_t free_serialize(const void *ptr, uint8_t *payload) {
@@ -24,14 +32,14 @@ size_t free_serialized_size(const void *ptr) {
 }
 
 template <typename Message, typename Fn>
-void dispatch(Message&& msg, Fn&& fn) {
+void dispatch(Message &&msg, Fn &&fn) {
     if constexpr (std::is_invocable_v<Fn, Message>) {
         std::forward<Fn>(fn)(std::forward<Message>(msg));
     }
 }
 
 template <typename Message, typename Fn, typename... Rest>
-void dispatch(Message&& msg, Fn&& fn, Rest&&... rest) {
+void dispatch(Message &&msg, Fn &&fn, Rest &&...rest) {
     if constexpr (std::is_invocable_v<Fn, Message>) {
         std::forward<Fn>(fn)(std::forward<Message>(msg));
     } else {
