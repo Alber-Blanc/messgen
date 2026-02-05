@@ -911,20 +911,20 @@ class CppGenerator:
         )
         code.extend(_indent(code_ss))
 
-        if self._get_cpp_standard() >= 20:
+        if self._get_cpp_standard() >= 20 and mode != Mode.VIEW:
             # Operator <=>
             code.append("")
-            code.append(_indent("auto operator<=>(const struct %s &) const = default;" % unqual_name))
+            code.append(_indent(f"auto operator<=>(const struct {unqual_name} &) const = default;"))
 
-        if self._get_cpp_standard() < 20:
+        if self._get_cpp_standard() < 20 or mode == Mode.VIEW:
             # Operator ==
             code_eq = []
             if len(fields) > 0:
                 field_name = fields[0].name
-                code_eq.append("return l.%s == r.%s" % (field_name, field_name))
+                code_eq.append(f"return l.{field_name} == r.{field_name}")
                 for field in fields[1:]:
                     field_name = field.name
-                    code_eq.append("   and l.%s == r.%s" % (field_name, field_name))
+                    code_eq.append(f"   and l.{field_name} == r.{field_name}")
             else:
                 code_eq.append("return true")
             code_eq[-1] += ";"
