@@ -360,7 +360,7 @@ TEST_F(Cpp17Test, MessageReflection) {
     using namespace messgen;
 
     auto msg = mynamespace::proto::test_proto::complex_struct{};
-    EXPECT_EQ("mynamespace::proto::test_proto::complex_struct", name_of(reflect_object(msg)));
+    EXPECT_EQ("mynamespace/proto/test_proto/complex_struct", name_of(reflect_object(msg)));
 }
 
 TEST_F(Cpp17Test, EnumReflection) {
@@ -368,7 +368,7 @@ TEST_F(Cpp17Test, EnumReflection) {
     using namespace std::literals;
 
     auto enum_name = messgen::name_of(messgen::reflect_type<mynamespace::types::simple_enum>);
-    EXPECT_STREQ(enum_name.data(), "mynamespace::types::simple_enum");
+    EXPECT_STREQ(enum_name.data(), "mynamespace/types/simple_enum");
 
     constexpr auto enums = enumerators_of(reflect_type<mynamespace::types::simple_enum>);
 
@@ -418,7 +418,7 @@ TEST_F(Cpp17Test, ProtoHash) {
                          mynamespace::proto::test_proto::empty_struct::HASH ^    //
                          mynamespace::proto::test_proto::flat_struct::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
-    EXPECT_EQ(3626745160181273412, hash_test_proto);
+    EXPECT_EQ(16131239015239389397ULL, hash_test_proto);
 }
 
 TEST_F(Cpp17Test, EnumToString) {
@@ -516,7 +516,7 @@ TEST_F(Cpp17Test, ConstexprNameReflection) {
 
     constexpr auto name = name_of(reflect_type<std::map<std::string, std::array<std::vector<mynamespace::types::var_size_struct>, 4>>>);
 
-    EXPECT_EQ("mynamespace::types::var_size_struct[][4]{string}", name);
+    EXPECT_EQ("mynamespace/types/var_size_struct[][4]{string}", name);
 }
 
 TEST_F(Cpp17Test, MessageReflectionFieldTypes) {
@@ -529,14 +529,14 @@ TEST_F(Cpp17Test, MessageReflectionFieldTypes) {
     EXPECT_EQ(types.size(), 15);
 
     auto expected_types = std::vector<std::string_view>{
-        "mynamespace::types::simple_bitset",
-        "mynamespace::types::simple_struct[2]",
+        "mynamespace/types/simple_bitset",
+        "mynamespace/types/simple_struct[2]",
         "int64[4]",
-        "mynamespace::types::var_size_struct[2]",
+        "mynamespace/types/var_size_struct[2]",
         "float64[]",
-        "mynamespace::types::simple_enum[]",
-        "mynamespace::types::simple_struct[]",
-        "mynamespace::types::var_size_struct[][]",
+        "mynamespace/types/simple_enum[]",
+        "mynamespace/types/simple_struct[]",
+        "mynamespace/types/var_size_struct[][]",
         "int16[][4][]",
         "string",
         "bytes",

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "metadata.h"
 #include "traits.h"
 
 #include <array>
@@ -224,6 +225,11 @@ template <class T>
 constexpr auto hash_of() -> std::enable_if_t<is_protocol_v<T> || is_message_v<T>, uint64_t> {
     constexpr auto hash = hash_of(reflect_type<T>);
     return hash;
+}
+
+template <class T>
+constexpr auto metadata_of(reflect_t<T>) noexcept -> std::enable_if_t<has_metadata_member<T>::value, ::messgen::metadata> {
+    return T::METADATA;
 }
 
 [[nodiscard]] constexpr std::string_view name_of(reflect_t<std::string>) noexcept {

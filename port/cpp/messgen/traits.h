@@ -40,6 +40,15 @@ template <typename T>
 inline constexpr bool has_schema_member_v = has_schema_member<T>::value;
 
 template <typename T, typename = void>
+struct has_metadata_member : std::false_type {};
+
+template <typename T>
+struct has_metadata_member<T, std::void_t<decltype(T::METADATA)>> : std::bool_constant<std::is_object_v<decltype(T::METADATA)>> {};
+
+template <typename T>
+inline constexpr bool has_metadata_member_v = has_metadata_member<T>::value;
+
+template <typename T, typename = void>
 struct has_is_flat_member : std::false_type {};
 
 template <typename T>

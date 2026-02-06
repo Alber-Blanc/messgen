@@ -29,6 +29,9 @@ class BasicType:
     def dependencies(self) -> set[str]:
         return set()
 
+    def signature(self):
+        return [("type", self.type)]
+
 
 @dataclass
 class DecimalType:
@@ -38,6 +41,9 @@ class DecimalType:
 
     def dependencies(self) -> set[str]:
         return set()
+
+    def signature(self):
+        return [("type", self.type)]
 
 
 @dataclass
@@ -51,6 +57,9 @@ class ArrayType:
     def dependencies(self) -> set[str]:
         return {self.element_type}
 
+    def signature(self):
+        return [("type", self.type), ("element_type", self.element_type), ("array_size", self.array_size)]
+
 
 @dataclass
 class VectorType:
@@ -61,6 +70,9 @@ class VectorType:
 
     def dependencies(self) -> set[str]:
         return {self.element_type}
+
+    def signature(self):
+        return [("type", self.type)]
 
 
 @dataclass
@@ -73,6 +85,9 @@ class MapType:
 
     def dependencies(self) -> set[str]:
         return {self.key_type, self.value_type}
+
+    def signature(self):
+        return [("type", self.type)]
 
 
 @dataclass
@@ -97,6 +112,12 @@ class EnumType:
     def dependencies(self) -> set[str]:
         return set()
 
+    def signature(self):
+        values_sig = []
+        for v in self.values:
+            values_sig.append((v.name, v.value))
+        return [("type", self.type), ("base_type", self.base_type), ("values", values_sig)]
+
 
 @dataclass
 class FieldType:
@@ -118,6 +139,12 @@ class StructType:
 
     def dependencies(self) -> set[str]:
         return {field.type for field in self.fields}
+
+    def signature(self):
+        fields_sig = []
+        for field in self.fields:
+            fields_sig.append((field.name, field.type))
+        return [("type", self.type), ("fields", fields_sig)]
 
 
 @dataclass
@@ -153,6 +180,12 @@ class BitsetType:
     def dependencies(self) -> set[str]:
         return set()
 
+    def signature(self):
+        bits_sig = []
+        for b in self.bits:
+            bits_sig.append((b.name, b.offset))
+        return [("type", self.type), ("base_type", self.base_type), ("bits", bits_sig)]
+
 
 MessgenType = Union[
     ArrayType,
@@ -178,6 +211,8 @@ class Message:
     def dependencies(self) -> set[str]:
         return set()
 
+    def signature(self):
+        return [("name", self.name), ("proto_id", self.proto_id), ("message_id", self.message_id)]
 
 @dataclass
 class Protocol:
@@ -192,7 +227,7 @@ class Protocol:
 def hash_type(dt: MessgenType, types: dict[str, MessgenType]) -> int | None:
     combined_hash = _hash_dataclass(dt)
 
-    for dependency in dt.dependencies():
+    for dependency in sorted(list(dt.dependencies())):
         if dependency not in types:
             return None
 
@@ -210,9 +245,8 @@ def hash_message(dt: Message) -> int:
 
 
 def _hash_dataclass(dt) -> int:
-    type_dict = asdict(dt)
-    _remove_keys(type_dict, "comment")
-    return _hash_bytes(json.dumps(sorted(type_dict.items()), separators=(",", ":")).encode())
+    type_sig = dt.signature()
+    return _hash_bytes(json.dumps(type_sig, separators=(",", ":")).encode())
 
 
 def _hash_bytes(payload: bytes) -> int:

@@ -149,13 +149,13 @@ class CppGenerator:
 
     def generate_types(self, out_dir: Path, types: dict[str, MessgenType]) -> None:
         self._types = types
-        for type_name, type_def in types.items():
+        for type_name, type_def in self._types.items():
             if type_def.type_class not in [TypeClass.struct, TypeClass.enum, TypeClass.bitset]:
                 continue
 
             file_name = out_dir / (type_name + self._EXT_HEADER)
             file_name.parent.mkdir(parents=True, exist_ok=True)
-            write_file_if_diff(file_name, self._generate_type_file(type_name, type_def, types))
+            write_file_if_diff(file_name, self._generate_type_file(type_name, type_def))
 
     def generate_protocols(self, out_dir: Path, types: dict[str, MessgenType], protocols: dict[str, Protocol]) -> None:
         self._types = types
@@ -170,7 +170,7 @@ class CppGenerator:
     def _reset_file(self):
         self._includes.clear()
 
-    def _generate_type_file(self, type_name: str, type_def: MessgenType, types: dict[str, MessgenType]) -> list:
+    def _generate_type_file(self, type_name: str, type_def: MessgenType) -> list:
         print(f"Generate type: {type_name}")
         self._reset_file()
         code: list[str] = []
@@ -178,12 +178,12 @@ class CppGenerator:
         with _namespace(_split_last_name(type_name)[0], code):
             if isinstance(type_def, StructType):
                 # View type
-                code.extend(self._generate_type_struct(type_name, type_def, types, Mode.VIEW))
+                code.extend(self._generate_type_struct(type_name, type_def, Mode.VIEW))
 
                 # Storage type
                 code.extend(["", "namespace stor {", ""])
                 if type_def.size is None:
-                    code.extend(self._generate_type_struct(type_name, type_def, types, Mode.STORAGE))
+                    code.extend(self._generate_type_struct(type_name, type_def, Mode.STORAGE))
                 else:
                     code.append(f"using {type_name.split('/')[-1]} = {self._cpp_type(type_name, Mode.VIEW)};")
                 code.extend(["", "}"])
@@ -256,7 +256,7 @@ class CppGenerator:
                     static constexpr int16_t PROTO_ID = protocol_type::PROTO_ID;
                     static constexpr int16_t MESSAGE_ID = {message.message_id};
                     static constexpr uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
-                    static constexpr std::string_view NAME = "{_qual_name(proto_name)}::{message.name}";
+                    static constexpr std::string_view NAME = "{proto_name}/{message.name}";
 
                     class recv {{
                     public:
@@ -541,18 +541,20 @@ class CppGenerator:
 
         code.extend(
             _format_code(0, f"""
-            static constexpr ::messgen::metadata _{unqual_name}_metadata{{
-                .hash = 0ULL,
+            namespace detail {{
+            static constexpr ::messgen::metadata {unqual_name}_METADATA{{
+                .hash = {hash_type(type_def, self._types)}ULL,
                 .name = "{type_name}",
                 .schema = R"_({self._generate_schema(type_def)})_"
             }};
+            }}
 
             constexpr const ::messgen::metadata &metadata_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
-                return _{unqual_name}_metadata;
+                return detail::{unqual_name}_METADATA;
             }}
             
             [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
-                return "{qual_name}";
+                return "{type_name}";
             }}
 
             [[nodiscard]] constexpr auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
@@ -618,20 +620,32 @@ class CppGenerator:
 
         code = []
         code.extend(self._generate_comment_type(type_def))
-        code.append(f"class {unqual_name} : public messgen::detail::bitset_base<{unqual_name}, {underlying_type}> {{")
-        code.append(f"    enum class Values : {underlying_type} {{")
+
+        code.extend(_format_code(0, f"""
+            class {unqual_name} : public messgen::detail::bitset_base<{unqual_name}, {underlying_type}> {{
+                enum class Values : {underlying_type} {{
+        """))
+
         for bit in type_def.bits:
             code.append(f"        {bit.name} = {1 << bit.offset},{_inline_comment(bit)}")
-        code.append("    };")
-
-        code.append("")
-        code.append("public:")
-        code.append("    using underlying_type = std::underlying_type_t<Values>;")
-        code.append("    using bitset_base::bitset_base;")
-        code.append(f"    constexpr {unqual_name}(Values other) : {unqual_name}{{underlying_type(other)}} {{}}")
-
-        code.append("")
-        code.append(f'    static constexpr std::string_view NAME = "{qual_name}";')
+        code.extend(_format_code(0, f"""\
+            }};
+        
+            public:
+                using underlying_type = std::underlying_type_t<Values>;
+                using bitset_base::bitset_base;
+                constexpr {unqual_name}(Values other) : {unqual_name}{{underlying_type(other)}} {{}}
+            
+                static constexpr uint64_t HASH = {hash_type(type_def, self._types)}ULL;
+                static constexpr std::string_view NAME = "{type_name}";
+                static constexpr std::string_view SCHEMA = R"_({self._generate_schema(type_def)})_";
+                static constexpr ::messgen::metadata METADATA{{
+                    .hash = HASH,
+                    .name = NAME,
+                    .schema = SCHEMA
+                }};
+        
+        """))
         if self._get_cpp_standard() >= 20:
             code.append("    using enum Values;")
         else:
@@ -642,19 +656,6 @@ class CppGenerator:
         code.append(f"        return {unqual_name}(lhs) | {unqual_name}(rhs);")
         code.append("    }")
         code.append("};")
-
-        code.extend(
-            _format_code(0, f"""
-            static constexpr ::messgen::metadata _{unqual_name}_metadata{{
-                .hash = 0ULL,
-                .name = "{type_name}",
-                .schema = R"_({self._generate_schema(type_def)})_"
-            }};
-
-            constexpr const ::messgen::metadata &metadata_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
-                return _{unqual_name}_metadata;
-            }}
-            """))
 
         return code
 
@@ -722,7 +723,7 @@ class CppGenerator:
         else:
             return False
 
-    def _generate_type_struct(self, type_name: str, type_def: StructType, types: dict[str, MessgenType], mode):
+    def _generate_type_struct(self, type_name: str, type_def: StructType, mode):
         fields = type_def.fields
 
         self._add_include("messgen/messgen.h")
@@ -768,17 +769,22 @@ class CppGenerator:
             code.append(_indent(f"static constexpr bool NEED_ALLOC = {need_alloc_str};"))
 
         # Metadata
-        type_hash = hash_type(type_def, types)
-        deps = []
-        for dep in self._get_type_dependencies(type_def):
-            deps.append(
-                f"&::{_qual_name(_split_last_name(dep)[0])}::metadata_of(::messgen::reflect_type<::{_qual_name(dep)}>)")
-        deps_str = ", ".join(deps)
+        type_hash = hash_type(type_def, self._types)
+        deps_str_list = []
+        for dep in sorted(list(self._get_schema_dependencies(type_def))):
+            dep_type_def = self._types[dep]
+            if isinstance(dep_type_def, (StructType, BitsetType)):
+                deps_str_list.append(f"&{_qual_name(dep)}::METADATA")
+            elif isinstance(dep_type_def, EnumType):
+                p = _split_last_name(dep)
+                deps_str_list.append(f"&{_qual_name(p[0])}::detail::{p[1]}_METADATA")
+
+        deps_str = ", ".join(deps_str_list)
         code.extend(_format_code(1, f"""\
             static constexpr uint64_t HASH = {type_hash}ULL;
             static constexpr std::string_view NAME = "{type_name}";
             static constexpr std::string_view SCHEMA = R"_({self._generate_schema(type_def)})_";
-            static constexpr std::array<const ::messgen::metadata *, {len(deps)}> DEPENDENCIES{{{deps_str}}};
+            static constexpr std::array<const ::messgen::metadata *, {len(deps_str_list)}> DEPENDENCIES{{{deps_str}}};
             static constexpr messgen::metadata METADATA{{
                 .hash = HASH,
                 .name = NAME,
@@ -1087,33 +1093,32 @@ class CppGenerator:
 
         raise RuntimeError("Can't get c++ type for %s" % type_name)
 
-    def _is_defined_type(self, type_def) -> bool:
+    def _is_schema_type(self, type_def) -> bool:
         return isinstance(type_def, (StructType, EnumType, BitsetType))
 
-    def _get_type_dependencies(self, type_def) -> set[str]:
+    def _get_schema_dependencies(self, type_def) -> set[str]:
         deps = set()
         if isinstance(type_def, StructType):
             for field in type_def.fields:
                 field_type_def = self._types[field.type]
-                if self._is_defined_type(field_type_def):
+                if self._is_schema_type(field_type_def):
                     deps.add(field.type)
-                deps.update(self._get_type_dependencies(field_type_def))
+                deps.update(self._get_schema_dependencies(field_type_def))
         elif isinstance(type_def, (ArrayType, VectorType)):
             el_type_def = self._types[type_def.element_type]
-            if self._is_defined_type(el_type_def):
+            if self._is_schema_type(el_type_def):
                 deps.add(type_def.element_type)
-            deps.update(self._get_type_dependencies(el_type_def))
+            deps.update(self._get_schema_dependencies(el_type_def))
         elif isinstance(type_def, MapType):
             key_type_def = self._types[type_def.key_type]
-            if self._is_defined_type(key_type_def):
+            if self._is_schema_type(key_type_def):
                 deps.add(type_def.key_type)
-            deps.update(self._get_type_dependencies(key_type_def))
+            deps.update(self._get_schema_dependencies(key_type_def))
 
             value_type_def = self._types[type_def.value_type]
-            if self._is_defined_type(value_type_def):
+            if self._is_schema_type(value_type_def):
                 deps.add(type_def.value_type)
-            deps.update(self._get_type_dependencies(value_type_def))
-
+            deps.update(self._get_schema_dependencies(value_type_def))
         return deps
 
     def _need_alloc(self, type_name: str) -> bool:

@@ -3,7 +3,6 @@
 #include "reflection.h"
 #include "traits.h"
 #include "Allocator.h"
-#include "span.h"
 
 #include <cstdint>
 
@@ -13,13 +12,6 @@ using size_type = uint32_t;
 using serialize_func = size_t (*)(const void *, uint8_t *);
 using serialized_size_func = size_t (*)(const void *);
 constexpr std::string_view UNKNOWN_ENUM_STR = "<unknown>";
-
-struct metadata {
-    uint64_t hash{};
-    std::string_view name;
-    std::string_view schema;
-    span<const metadata *> dependencies{};
-};
 
 template <class T>
 size_t free_serialize(const void *ptr, uint8_t *payload) {
