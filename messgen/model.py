@@ -157,6 +157,9 @@ class ExternalType:
     def dependencies(self) -> set[str]:
         return set()
 
+    def signature(self):
+        return [("type", self.type), ("size", self.size)]
+
 
 @dataclass
 class BitsetBit:
@@ -213,6 +216,7 @@ class Message:
 
     def signature(self):
         return [("name", self.name), ("proto_id", self.proto_id), ("message_id", self.message_id)]
+
 
 @dataclass
 class Protocol:
