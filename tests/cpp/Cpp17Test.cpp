@@ -443,7 +443,7 @@ TEST_F(Cpp17Test, SerializeMessage) {
         .f0 = 1,
         .f1 = 2,
     };
-    mynamespace::proto::test_proto::simple_struct::send msg{data};
+    mynamespace::proto::test_proto::simple_struct::send msg{&data};
 
     _buf.resize(msg.serialized_size());
     msg.serialize(_buf.data());

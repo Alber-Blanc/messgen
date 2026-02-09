@@ -371,17 +371,18 @@ class CppGenerator:
                     _format_code(
                         3,
                         """\
-                        explicit send(const data_type& t) :
-                            _data(&t),
+                        explicit send(const data_type* t) :
+                            _data(t),
                             _serialize_func(&messgen::free_serialize<data_type>),
                             _serialized_size_func(&messgen::free_serialized_size<data_type>) {
-
+                            assert(t != nullptr);
                         }
 
-                        explicit send(const data_type_strg& t) :
+                        explicit send(const data_type_strg* t) :
                             _data(&t),
                             _serialize_func(&messgen::free_serialize<data_type_strg>),
                             _serialized_size_func(&messgen::free_serialized_size<data_type_strg>) {
+                            assert(t != nullptr);
                         }
 
                         [[nodiscard]] size_t serialized_size() const {
@@ -402,8 +403,9 @@ class CppGenerator:
                     _format_code(
                         3,
                         """\
-                        explicit send(const data_type& t) :
-                            _data(&t) {
+                        explicit send(const data_type* t) :
+                            _data(t) {
+                            assert(t != nullptr);
                         }
 
                         [[nodiscard]] constexpr static size_t serialized_size() {
