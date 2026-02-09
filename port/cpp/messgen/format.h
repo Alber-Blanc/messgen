@@ -224,7 +224,7 @@ struct formatter<detail::MessgenFormat<std::basic_string_view<T, Traits>>> {
     template <class FormatContext>
     auto format(const detail::MessgenFormat<std::basic_string_view<T, Traits>> &str, FormatContext &ctx) const -> decltype(ctx.out()) {
         for (auto ch : str.value) {
-            fmt::format_to(ctx.out(), "{}", ch);
+            fmt::format_to(ctx.out(), "\"{}\"", ch);
         }
         return ctx.out();
     }
