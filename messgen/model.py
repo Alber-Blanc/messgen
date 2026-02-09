@@ -99,6 +99,9 @@ class EnumValue:
     def dependencies(self) -> set[str]:
         return set()
 
+    def signature(self):
+        return [("name", self.name), ("value", self.value)]
+
 
 @dataclass
 class EnumType:
