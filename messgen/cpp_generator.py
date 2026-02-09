@@ -1498,7 +1498,7 @@ class CppGenerator:
                 _format_code(
                     0,
                     f"""
-                ::memcpy({dst}, &_buf[_size], {size});
+                ::memcpy(reinterpret_cast<uint8_t*>({dst}), &_buf[_size], {size});
                 _size += {size};
             """,
                 )
