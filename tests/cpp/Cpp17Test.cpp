@@ -159,7 +159,7 @@ TEST_F(Cpp17Test, TwoMsg) {
 }
 
 TEST_F(Cpp17Test, VarSizeStructStor) {
-    mynamespace::types::stor::var_size_struct s{};
+    mynamespace::types::strg::var_size_struct s{};
 
     s.f0 = 1;
     s.f1_vec = {3, 4};
@@ -176,7 +176,7 @@ TEST_F(Cpp17Test, VarSizeStructView) {
 }
 
 TEST_F(Cpp17Test, ComplexStructStor) {
-    mynamespace::types::subspace::stor::complex_struct s{};
+    mynamespace::types::subspace::strg::complex_struct s{};
 
     s.bitset0 = mynamespace::types::simple_bitset::two;
     s.arr_simple_struct[0].f3 = 3;
@@ -463,7 +463,7 @@ TEST_F(Cpp17Test, DispatchMessageStor) {
 
     mynamespace::proto::test_proto::dispatch_message(mynamespace::proto::test_proto::simple_struct::MESSAGE_ID, messgen::bytes{&_buf}, [&](auto &&msg) {
         using RecvMsgType = std::decay_t<decltype(msg)>;
-        typename RecvMsgType::data_type_stor actual_data;
+        typename RecvMsgType::data_type_strg actual_data;
         auto res = msg.deserialize(actual_data);
         assert(res == actual_data.FIXED_SIZE);
         dispatch(

@@ -48,9 +48,9 @@ def _qual_name(type_name: str) -> str:
     return type_name.replace(SEPARATOR, "::")
 
 
-def _qual_stor_name(type_name: str) -> str:
+def _qual_strg_name(type_name: str) -> str:
     p = type_name.split(SEPARATOR)
-    return "::".join(p[:-1] + ["stor", p[-1]])
+    return "::".join(p[:-1] + ["strg", p[-1]])
 
 
 def _split_last_name(type_name) -> tuple[str, str]:
@@ -181,7 +181,7 @@ class CppGenerator:
                 code.extend(self._generate_type_struct(type_name, type_def, Mode.VIEW))
 
                 # Storage type
-                code.extend(["", "namespace stor {", ""])
+                code.extend(["", "namespace strg {", ""])
                 if type_def.size is None:
                     code.extend(self._generate_type_struct(type_name, type_def, Mode.STORAGE))
                 else:
@@ -250,7 +250,7 @@ class CppGenerator:
 
                 struct {message.name} {{
                     using data_type = ::{_qual_name(message.type)};
-                    using data_type_stor = ::{_qual_stor_name(message.type)};
+                    using data_type_strg = ::{_qual_strg_name(message.type)};
                     using protocol_type = {class_name};
 
                     static constexpr int16_t PROTO_ID = protocol_type::PROTO_ID;
@@ -262,7 +262,7 @@ class CppGenerator:
                     public:
                         using message_type = {message.name};
                         using data_type = ::{_qual_name(message.type)};
-                        using data_type_stor = ::{_qual_stor_name(message.type)};
+                        using data_type_strg = ::{_qual_strg_name(message.type)};
                         using protocol_type = {class_name};
 
                         explicit recv(messgen::bytes buf) :
@@ -316,11 +316,11 @@ class CppGenerator:
                     _format_code(
                         3,
                         """\
-                        ssize_t deserialize(data_type_stor &v) const {
+                        ssize_t deserialize(data_type_strg &v) const {
                             return v.deserialize(_buf);
                         }
 
-                        ssize_t deserialize_unsafe(data_type_stor &v) const {
+                        ssize_t deserialize_unsafe(data_type_strg &v) const {
                             return v.deserialize_unsafe(_buf.data());
                         }
 
@@ -358,7 +358,7 @@ class CppGenerator:
                     public:
                         using message_type = {message.name};
                         using data_type = ::{_qual_name(message.type)};
-                        using data_type_stor = ::{_qual_stor_name(message.type)};
+                        using data_type_strg = ::{_qual_strg_name(message.type)};
                         using protocol_type = {class_name};
 
                     """,
@@ -378,10 +378,10 @@ class CppGenerator:
 
                         }
 
-                        explicit send(const data_type_stor& t) :
+                        explicit send(const data_type_strg& t) :
                             _data(&t),
-                            _serialize_func(&messgen::free_serialize<data_type_stor>),
-                            _serialized_size_func(&messgen::free_serialized_size<data_type_stor>) {
+                            _serialize_func(&messgen::free_serialize<data_type_strg>),
+                            _serialized_size_func(&messgen::free_serialized_size<data_type_strg>) {
                         }
 
                         [[nodiscard]] size_t serialized_size() const {
@@ -552,7 +552,7 @@ class CppGenerator:
             constexpr const ::messgen::metadata &metadata_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
                 return detail::{unqual_name}_METADATA;
             }}
-            
+
             [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
                 return "{type_name}";
             }}
@@ -630,12 +630,12 @@ class CppGenerator:
             code.append(f"        {bit.name} = {1 << bit.offset},{_inline_comment(bit)}")
         code.extend(_format_code(0, f"""\
             }};
-        
+
             public:
                 using underlying_type = std::underlying_type_t<Values>;
                 using bitset_base::bitset_base;
                 constexpr {unqual_name}(Values other) : {unqual_name}{{underlying_type(other)}} {{}}
-            
+
                 static constexpr uint64_t HASH = {hash_type(type_def, self._types)}ULL;
                 static constexpr std::string_view NAME = "{type_name}";
                 static constexpr std::string_view SCHEMA = R"_({self._generate_schema(type_def)})_";
@@ -644,7 +644,7 @@ class CppGenerator:
                     .name = NAME,
                     .schema = SCHEMA
                 }};
-        
+
         """))
         if self._get_cpp_standard() >= 20:
             code.append("    using enum Values;")
@@ -791,7 +791,7 @@ class CppGenerator:
                 .schema = SCHEMA,
                 .dependencies = ::messgen::span<const ::messgen::metadata *>(&DEPENDENCIES)
             }};
-            
+
         """))
 
         for field in type_def.fields:
@@ -1083,7 +1083,7 @@ class CppGenerator:
             if mode == Mode.VIEW:
                 return _qual_name(type_name)
             else:
-                return _qual_stor_name(type_name)
+                return _qual_strg_name(type_name)
 
         elif isinstance(type_def, (ExternalType)):
             scope = "global" if SEPARATOR in type_name else "local"

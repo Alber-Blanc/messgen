@@ -57,7 +57,7 @@ template <class Message>
 concept message =                                             //
     type<typename std::remove_cvref_t<Message>::data_type> && //
     requires(std::remove_cvref_t<Message> msg, std::remove_cvref_t<Message>::recv msg_recv, std::remove_cvref_t<Message>::send msg_send,
-             typename std::remove_cvref_t<Message>::data_type_stor &data, uint8_t *buf) {
+             typename std::remove_cvref_t<Message>::data_type_strg &data, uint8_t *buf) {
         { msg.PROTO_ID } -> std::convertible_to<int>;
         { msg.MESSAGE_ID } -> std::convertible_to<int>;
         { msg_send.serialized_size() } -> std::same_as<size_t>;
@@ -69,7 +69,7 @@ concept message =                                             //
 template <class MessageRecv>
 concept message_recv =                                                  //
     message<typename std::remove_cvref_t<MessageRecv>::message_type> && //
-    requires(std::remove_cvref_t<MessageRecv> msg_recv, typename std::remove_cvref_t<MessageRecv>::message_type::data_type_stor &data) {
+    requires(std::remove_cvref_t<MessageRecv> msg_recv, typename std::remove_cvref_t<MessageRecv>::message_type::data_type_strg &data) {
         { msg_recv.deserialize(data) } -> std::same_as<ssize_t>;
         { msg_recv.deserialize_unsafe(data) } -> std::same_as<ssize_t>;
     };
