@@ -36,7 +36,7 @@ class JsonGenerator:
 
         self._write_file(out_dir, "types", combined)
 
-    def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
+    def generate_protocols(self, out_dir: Path, types: dict[str, MessgenType], protocols: dict[str, Protocol]) -> None:
         combined: list = []
 
         for proto_name in sorted(protocols.keys()):
@@ -45,6 +45,9 @@ class JsonGenerator:
 
             for message_id, message_dict in proto_dict["messages"].items():
                 message_obj = proto_def.messages[int(message_id)]
+                type_def = types.get(message_obj.type)
+                if type_def is None:
+                    raise RuntimeError(f"Type '{message_obj.type}' not found for message '{message_obj.name}' in protocol '{proto_def.name}'")
                 message_dict["hash"] = str(hash_message(message_obj))
 
             proto_dict["version"] = version_hash(proto_dict)
