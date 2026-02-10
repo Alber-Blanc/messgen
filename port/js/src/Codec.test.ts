@@ -2,18 +2,21 @@
 /* eslint-disable @typescript-eslint/no-loss-of-precision */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { execSync } from 'child_process';
-import { Codec } from '../src/Codec';
-import { uploadTypes, uploadProtocols } from './utils';
-import type { Protocol, RawType } from '../src/protocol';
+import { Codec } from './Codec';
+import { uploadTypes, uploadProtocols } from '../tests/utils';
+import type { Protocol, RawType } from './protocol';
 
 describe('Codec', () => {
   let types: RawType[];
+  let fixturesTypes: RawType[];
   let protocols: Protocol[];
   let codec: Codec;
 
   beforeAll(() => {
     execSync('npm run gen:json');
+    execSync('npm run gen:fixtures:json');
     types = uploadTypes('./types.json');
+    fixturesTypes = uploadTypes('./fixtures/generated/types.json');
     protocols = uploadProtocols('./protocols.json');
     codec = new Codec(types, protocols);
   });
@@ -24,6 +27,10 @@ describe('Codec', () => {
 
   it('should load types and protocols', () => {
     expect(new Codec(types, protocols)).toBeDefined();
+  });
+
+  it('should load external types', () => {
+    expect(new Codec(fixturesTypes, [])).toBeDefined();
   });
 
   describe('#serialize', () => {
@@ -115,6 +122,25 @@ describe('Codec', () => {
       const message = codec.serialize(1, 2, rawData);
 
       expect(codec.deserializeType('mynamespace/types/var_size_struct', message.buffer)).toEqual(rawData);
+    });
+  });
+
+  describe('#messageInfo', () => {
+    it('should get message info by id', () => {
+      const messageInfo = codec.messageInfo(1, 1);
+
+      expect(messageInfo.messageHash()).toBe(12088864483134247070n);
+    });
+  });
+
+  describe('#getTypeConverter', () => {
+    it('should get type converter by type name', () => {
+      const converter = codec.getTypeConverter('mynamespace/types/var_size_struct');
+      expect(converter.name).toBe('mynamespace/types/var_size_struct');
+    });
+
+    it('should throw error if type converter not found', () => {
+      expect(() => codec.getTypeConverter('non/existent/type')).toThrowError();
     });
   });
 });

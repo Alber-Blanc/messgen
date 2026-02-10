@@ -160,9 +160,9 @@ class ResolvedBuiltin(ResolvedType):
             if self._model.type_class in [TypeClass.scalar]:
                 return self._model.size
             elif self._model.type_class in [TypeClass.string]:
-                return 16
+                return 16 # len + pointer
             elif self._model.type_class in [TypeClass.bytes]:
-                return 24
+                return 24 # len + cap + pointer
         raise Exception("Unknown builtin type class for '%s'" % self._model.type)
 
     def render(self):
@@ -195,7 +195,7 @@ class ResolvedSlice(ResolvedType):
     def type_size(self):
         if isinstance(self._model, ArrayType):
             return self._model.array_size * self._element.type_size()
-        return 24
+        return 24 # cap + len + pointer
 
     def data_size(self):
         if isinstance(self._model, ArrayType) and self._element.data_size() != None:
@@ -226,7 +226,7 @@ class ResolvedMap(ResolvedType):
         return 8
 
     def type_size(self):
-        return 16
+        return 8 # only pointer
 
     def data_size(self):
         return None
@@ -733,7 +733,7 @@ class ResolvedStruct(ResolvedType):
             group.pad = (max_align - offset % max_align) % max_align
             yield group
 
-def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict):
+def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, resolved_types: dict, messgen_types: dict):
     yield CODEGEN_FILE_PREFIX + "\n"
     yield f"package {pkg}\n"
     yield "import ("
@@ -744,7 +744,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
 
     seen = set()
     for _, msg in proto_def.messages.items():
-        tp = types[msg.type]
+        tp = resolved_types[msg.type]
         fp = tp.package_full()
         if fp in seen:
             continue
@@ -755,7 +755,16 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
 
     yield f"const Id messgen.ProtocolId = {proto_def.proto_id}"
     yield f"const Name  = \"{proto_def.name}\""
-    yield f"const Hash  = {0}"
+
+    proto_hash = 0
+    message_hashes = dict()
+    for id, msg in proto_def.messages.items():
+        type_hash =  hash_type(messgen_types[msg.type], messgen_types)
+        msg_hash = hash_message(msg) ^ type_hash if type_hash else 0
+        proto_hash ^= msg_hash
+        message_hashes[id] = msg_hash
+
+    yield f"const Hash = {proto_hash}\n"
 
     maxid = 0
     yield "const ("
@@ -764,11 +773,11 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, types: dict)
         maxid = max(maxid, id)
     yield "\n"
     for id, msg in proto_def.messages.items():
-        yield f"\t{toGoName(msg.name)}_Hash = uint64({hash_message(msg)})"
+        yield f"\t{toGoName(msg.name)}_Hash = uint64({message_hashes[id]})"
     yield ")"
     yield ""
     for id, msg in proto_def.messages.items():
-        tp = types[msg.type]
+        tp = resolved_types[msg.type]
         yield f"type {toGoName(msg.name)} {tp.reference(pkg)}"
         yield f""
         yield f"func (m *{toGoName(msg.name)}) ID() messgen.PayloadId {{"
@@ -964,7 +973,7 @@ class GolangGenerator:
             file_name.parent.mkdir(parents=True, exist_ok=True)
 
             with open(file_name, 'w') as file:
-                for line in render_protocol(proto_name, toGoName(proto_name), proto_def, self._resolved):
+                for line in render_protocol(proto_name, toGoName(proto_name), proto_def, self._resolved, self._types):
                     print(line, file=file)
                 file.close()
 

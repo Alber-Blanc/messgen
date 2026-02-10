@@ -35,5 +35,6 @@
   "include": [
     "src/**/*.ts",
     "benchmarks/perf-process/index.ts",
+    "tests/**/*.ts",
   ]
 }

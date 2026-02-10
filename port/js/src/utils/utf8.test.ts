@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeUTF8, decodeUTF8 } from '../src/utils/utf8.ts';
+import { encodeUTF8, decodeUTF8 } from './utf8.js';
 
 describe('UTF8 function test', () => {
   it('Encoding decoding test', () => {

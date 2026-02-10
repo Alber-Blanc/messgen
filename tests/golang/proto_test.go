@@ -54,3 +54,33 @@ func TestProtocol(t *testing.T) {
 		t.Fatal("Dispatching message with wrong id should fail")
 	}
 }
+
+func TestProtocolHash(t *testing.T) {
+	if test_proto.Id != 1 {
+		t.Fatalf("Protocol Id has unexpected value: %d", test_proto.Id)
+	}
+
+	if test_proto.Name != "mynamespace/proto/test_proto" {
+		t.Fatalf("Protocol Name has unexpected value: %s", test_proto.Name)
+	}
+
+	exceptedProtoHash := uint64(615801888777759705)
+
+	if test_proto.Hash != exceptedProtoHash {
+		t.Fatalf("Protocol Hash has unexpected value: %d != %d", exceptedProtoHash, test_proto.Hash)
+	}
+
+	calculatedProtocolHash := test_proto.SimpleStructMsg_Hash ^
+		test_proto.ComplexStructMsg_Hash ^
+		test_proto.VarSizeStructMsg_Hash ^
+		test_proto.StructWithEnumMsg_Hash ^
+		test_proto.EmptyStructMsg_Hash ^
+		test_proto.ComplexStructWithEmptyMsg_Hash ^
+		test_proto.ComplexStructNostlMsg_Hash ^
+		test_proto.FlatStructMsg_Hash ^
+		test_proto.ComplexTypesWithFlatGroupsMsg_Hash
+
+	if calculatedProtocolHash != exceptedProtoHash {
+		t.Fatalf("Calculated Protocol Hash has unexpected value: %d != %d", exceptedProtoHash, calculatedProtocolHash)
+	}
+}

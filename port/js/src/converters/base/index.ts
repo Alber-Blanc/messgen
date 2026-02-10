@@ -6,3 +6,4 @@ export { EnumConverter } from './EnumConverter';
 export { StructConverter } from './StructConverter';
 export { DecimalConverter } from './DecimalConverter';
 export { BitsetConverter } from './BitsetConverter';
+export { ExternalConverter } from './ExternalConverter';

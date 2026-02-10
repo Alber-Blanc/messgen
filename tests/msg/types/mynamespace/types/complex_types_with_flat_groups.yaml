@@ -1,0 +1,28 @@
+type_class: struct
+comment: "Array, Map, String, Bytes followed by a flat groups to validate right alignment and padding"
+fields:
+  # some array, map first that may be serialized differently and affect alignment and offset calculation
+  - { name: "array1", type: "uint16[]", comment: "An array of uint16" }
+  - { name: "map1", type: "string{uint32}", comment: "A map of uint32 to string" }
+  - { name: "string1", type: "string", comment: "A string field" }
+  - { name: "bytes1", type: "bytes", comment: "A bytes field" }
+  # the flat group after an array and a map
+  - { name: "f0", type: "uint64" }
+  - { name: "f1", type: "int64", }
+  - { name: "f2", type: "float64" }
+  - { name: "f3", type: "uint32" }
+  - { name: "f4", type: "int32" }
+  - { name: "f5", type: "float32" }
+  - { name: "f6", type: "uint16" }
+  - { name: "f7", type: "uint8" }
+  - { name: "f8", type: "int8" }
+  # Another array, map and string after the flat group
+  - { name: "array2", type: "int32[]", comment: "A fixed-size array of int32" }
+  - { name: "map2", type: "float64{string}", comment: "A map of string to float64" }
+  - { name: "string2", type: "string", comment: "Another string field" }
+  - { name: "bytes2", type: "bytes", comment: "Another bytes field" }
+  # Another small flag group to check alignment after variable-size fields
+  - { name: "flag1", type: "uint8" }
+  - { name: "flag2", type: "int8" }
+  - { name: "flag3", type: "uint16" }
+  - { name: "flag4", type: "int16" }

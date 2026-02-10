@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { ConverterFactory } from '../src/converters/ConverterFactory';
-import type { IType } from '../src/types';
-import type { Converter } from '../src/converters/Converter';
-import { Buffer } from '../src/Buffer';
+import { ConverterFactory } from './ConverterFactory';
+import type { IType } from '../types';
+import type { Converter } from './Converter';
+import { Buffer } from '../Buffer';
 
 describe('ConverterFactory', () => {
   it('should serialize scalar correctly', () => {

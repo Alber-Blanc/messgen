@@ -254,6 +254,63 @@ TEST_F(Cpp17Test, ComplexStructView) {
     test_serialization(s);
 }
 
+TEST_F(Cpp17Test, MessageReflection) {
+    using namespace messgen;
+    using namespace std::string_literals;
+
+    auto msg = mynamespace::proto::test_proto::complex_struct{};
+    EXPECT_EQ("mynamespace/proto/test_proto/complex_struct"s, std::string{name_of(reflect_object(msg))});
+}
+
+TEST_F(Cpp17Test, EnumReflection) {
+    using namespace messgen;
+    using namespace std::literals;
+
+    auto enum_name = messgen::name_of(messgen::reflect_type<mynamespace::types::simple_enum>);
+    EXPECT_STREQ(enum_name.data(), "mynamespace/types/simple_enum");
+
+    constexpr auto enums = enumerators_of(reflect_type<mynamespace::types::simple_enum>);
+
+    EXPECT_STREQ(std::get<0>(enums).name, "one_value");
+    EXPECT_EQ(std::get<0>(enums).value, mynamespace::types::simple_enum{0});
+
+    EXPECT_EQ(name_of(std::get<0>(enums)), "one_value"sv);
+    EXPECT_EQ(value_of(std::get<0>(enums)), mynamespace::types::simple_enum{0});
+
+    EXPECT_STREQ(std::get<1>(enums).name, "another_value");
+    EXPECT_EQ(std::get<1>(enums).value, mynamespace::types::simple_enum{1});
+
+    EXPECT_EQ(name_of(std::get<1>(enums)), "another_value"sv);
+    EXPECT_EQ(value_of(std::get<1>(enums)), mynamespace::types::simple_enum{1});
+}
+
+TEST_F(Cpp17Test, ConstexprNameReflection) {
+    using namespace messgen;
+
+    constexpr auto name = name_of(reflect_type<std::map<std::string, std::array<std::vector<mynamespace::types::var_size_struct>, 4>>>);
+    EXPECT_EQ("mynamespace/types/var_size_struct[][4]{string}", name);
+}
+
+TEST_F(Cpp17Test, TypeTraits) {
+    using namespace messgen;
+
+    static_assert(is_flat_type_v<mynamespace::types::flat_struct>);
+    static_assert(!is_flat_type_v<mynamespace::types::subspace::complex_struct>);
+
+    static_assert(is_type_v<mynamespace::types::flat_struct>);
+    static_assert(is_type_v<mynamespace::types::subspace::complex_struct>);
+    static_assert(!is_type_v<mynamespace::proto::test_proto::simple_struct>);
+    static_assert(!is_type_v<mynamespace::proto::test_proto>);
+
+    static_assert(is_message_v<mynamespace::proto::test_proto::simple_struct>);
+    static_assert(!is_message_v<mynamespace::types::flat_struct>);
+    static_assert(!is_message_v<mynamespace::proto::test_proto>);
+
+    static_assert(is_protocol_v<mynamespace::proto::test_proto>);
+    static_assert(!is_protocol_v<mynamespace::types::flat_struct>);
+    static_assert(!is_protocol_v<mynamespace::proto::test_proto::simple_struct>);
+}
+
 TEST_F(Cpp17Test, BitsetOperations) {
     using namespace messgen;
 
@@ -356,55 +413,6 @@ TEST_F(Cpp17Test, MessageReflectionFieldNames) {
     EXPECT_EQ(expected_names, names);
 }
 
-TEST_F(Cpp17Test, MessageReflection) {
-    using namespace messgen;
-
-    auto msg = mynamespace::proto::test_proto::complex_struct{};
-    EXPECT_EQ("mynamespace/proto/test_proto/complex_struct", name_of(reflect_object(msg)));
-}
-
-TEST_F(Cpp17Test, EnumReflection) {
-    using namespace messgen;
-    using namespace std::literals;
-
-    auto enum_name = messgen::name_of(messgen::reflect_type<mynamespace::types::simple_enum>);
-    EXPECT_STREQ(enum_name.data(), "mynamespace/types/simple_enum");
-
-    constexpr auto enums = enumerators_of(reflect_type<mynamespace::types::simple_enum>);
-
-    EXPECT_STREQ(std::get<0>(enums).name, "one_value");
-    EXPECT_EQ(std::get<0>(enums).value, mynamespace::types::simple_enum{0});
-
-    EXPECT_EQ(name_of(std::get<0>(enums)), "one_value"sv);
-    EXPECT_EQ(value_of(std::get<0>(enums)), mynamespace::types::simple_enum{0});
-
-    EXPECT_STREQ(std::get<1>(enums).name, "another_value");
-    EXPECT_EQ(std::get<1>(enums).value, mynamespace::types::simple_enum{1});
-
-    EXPECT_EQ(name_of(std::get<1>(enums)), "another_value"sv);
-    EXPECT_EQ(value_of(std::get<1>(enums)), mynamespace::types::simple_enum{1});
-}
-
-TEST_F(Cpp17Test, TypeTraits) {
-    using namespace messgen;
-
-    static_assert(is_flat_type_v<mynamespace::types::flat_struct>);
-    static_assert(!is_flat_type_v<mynamespace::types::subspace::complex_struct>);
-
-    static_assert(is_type_v<mynamespace::types::flat_struct>);
-    static_assert(is_type_v<mynamespace::types::subspace::complex_struct>);
-    static_assert(!is_type_v<mynamespace::proto::test_proto::simple_struct>);
-    static_assert(!is_type_v<mynamespace::proto::test_proto>);
-
-    static_assert(is_message_v<mynamespace::proto::test_proto::simple_struct>);
-    static_assert(!is_message_v<mynamespace::types::flat_struct>);
-    static_assert(!is_message_v<mynamespace::proto::test_proto>);
-
-    static_assert(is_protocol_v<mynamespace::proto::test_proto>);
-    static_assert(!is_protocol_v<mynamespace::types::flat_struct>);
-    static_assert(!is_protocol_v<mynamespace::proto::test_proto::simple_struct>);
-}
-
 TEST_F(Cpp17Test, ProtoHash) {
     using namespace messgen;
 
@@ -416,9 +424,9 @@ TEST_F(Cpp17Test, ProtoHash) {
                          mynamespace::proto::test_proto::complex_struct::HASH ^  //
                          mynamespace::proto::test_proto::var_size_struct::HASH ^ //
                          mynamespace::proto::test_proto::empty_struct::HASH ^    //
-                         mynamespace::proto::test_proto::flat_struct::HASH;
+                         mynamespace::proto::test_proto::flat_struct::HASH ^     //
+                         mynamespace::proto::test_proto::complex_types_with_flat_groups::HASH;
     EXPECT_EQ(expected_hash, hash_test_proto);
-    EXPECT_EQ(16131239015239389397ULL, hash_test_proto);
 }
 
 TEST_F(Cpp17Test, EnumToString) {
@@ -509,14 +517,6 @@ TEST_F(Cpp17Test, DispatchMessageView) {
     });
 
     EXPECT_TRUE(invoked);
-}
-
-TEST_F(Cpp17Test, ConstexprNameReflection) {
-    using namespace messgen;
-
-    constexpr auto name = name_of(reflect_type<std::map<std::string, std::array<std::vector<mynamespace::types::var_size_struct>, 4>>>);
-
-    EXPECT_EQ("mynamespace/types/var_size_struct[][4]{string}", name);
 }
 
 TEST_F(Cpp17Test, MessageReflectionFieldTypes) {

@@ -1,0 +1,3 @@
+type_class: struct
+fields:
+  - { name: "addr_list", type: "asian_string" }

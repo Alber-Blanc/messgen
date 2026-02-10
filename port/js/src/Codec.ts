@@ -1,5 +1,6 @@
-import { type RawType, type Protocol, Protocols } from './protocol';
-import { ConverterFactory } from './converters';
+import type { ProtocolRegistry } from './protocol';
+import { type RawType, type Protocol, Protocols, MessageInfo } from './protocol';
+import { type Converter, ConverterFactory } from './converters';
 import type { ProtocolMap, TypeMap, TypeByName } from './Codec.types';
 import { Buffer } from './Buffer';
 
@@ -7,6 +8,7 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
   private protocols = new Protocols();
   private protocolMap: ProtocolMap = new Map();
   private typesMap: TypeByName = new Map();
+  private nameById: ProtocolRegistry = new Map();
 
   constructor(rawTypes: RawType[] = [], protocols: Protocol[] = []) {
     this.protocols.load(rawTypes);
@@ -24,9 +26,22 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
         const { message_id: messageId, type: typeName } = message;
         const converter = converterFactory.toConverter(typeName);
         typeMap.set(messageId, converter);
+
+        const typeSet = this.nameById.get(protoId) || new Map();
+        typeSet.set(messageId, message);
+        this.nameById.set(protoId, typeSet);
       }
+
       this.protocolMap.set(protoId, typeMap);
     });
+  }
+
+  public getTypeConverter(typeName: string): Converter {
+    const converter = this.typesMap.get(typeName);
+    if (!converter) {
+      throw new Error(`Converter not found for type: ${typeName}`);
+    }
+    return converter;
   }
 
   public serialize<T = unknown>(protocolId: number, messageId: number, data: T): Buffer {
@@ -79,5 +94,20 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
     }
 
     return converter.deserialize(new Buffer(arrayBuffer));
+  }
+
+  public messageInfo(protoId: number, messageId: number): MessageInfo {
+    const protoNameById = this.nameById.get(protoId);
+    if (!protoNameById) {
+      throw new Error(`Unsupported proto_id=${protoId}`);
+    }
+
+    const message = protoNameById.get(messageId);
+    if (!message) {
+      throw new Error(`Unsupported proto_id=${protoId} message_id=${messageId}`);
+    }
+
+    const typeHash = this.protocols.getTypeHash(message.type);
+    return new MessageInfo(protoId, message, typeHash);
   }
 }
