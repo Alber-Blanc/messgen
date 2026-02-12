@@ -30,6 +30,11 @@ TEST_F(CppDecimalTest, Construction) {
     EXPECT_EQ("0.1e-2", d4_str);
 }
 
+TEST_F(CppDecimalTest, Negative) {
+    auto d1 = decimal64::from_double(10.5, 0.001_dd, round_mode::mid);
+    EXPECT_EQ(-d1, -10.5_dd);
+}
+
 TEST_F(CppDecimalTest, Addition) {
     auto d1 = decimal64::from_double(10.5, 0.001_dd, round_mode::mid);
     auto d2 = decimal64::from_double(20.25, 0.001_dd, round_mode::mid);
@@ -73,6 +78,9 @@ TEST_F(CppDecimalTest, Multiplication) {
 
     result = d1 * -2;
     expected = -11_dd;
+    EXPECT_EQ(result, expected);
+
+    result = -2 * d1;
     EXPECT_EQ(result, expected);
 
     d1 *= 3;

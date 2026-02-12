@@ -155,6 +155,13 @@ struct decimal64 {
     /// @return decimal64 The product
     friend constexpr decimal64 operator*(decimal64 decimal, int64_t factor) noexcept;
 
+    /// @brief Multiplies a decimal64 by an integer
+    ///
+    /// @param factor The integer multiplier
+    /// @param decimal The decimal value
+    /// @return decimal64 The product
+    friend constexpr decimal64 operator*(int64_t factor, decimal64 decimal) noexcept;
+
     /// @brief Compares two decimal64 values
     ///
     /// @param lhs The left-hand operand
@@ -613,6 +620,11 @@ constexpr inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coef
 [[nodiscard]] constexpr inline decimal64 operator*(decimal64 lhs, int64_t rhs) noexcept {
     lhs *= rhs;
     return lhs;
+}
+
+[[nodiscard]] constexpr inline decimal64 operator*(int64_t lhs, decimal64 rhs) noexcept {
+    rhs *= lhs;
+    return rhs;
 }
 
 [[nodiscard]] constexpr inline std::partial_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept {
