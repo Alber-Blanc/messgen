@@ -670,11 +670,16 @@ class CppGenerator:
         else:
             for bit in type_def.bits:
                 code.append(f"    static constexpr Values {bit.name} = Values::{bit.name};")
-        code.append("")
-        code.append(f"    friend {unqual_name} operator|(const Values &lhs, const Values &rhs) {{")
-        code.append(f"        return {unqual_name}(lhs) | {unqual_name}(rhs);")
-        code.append("    }")
-        code.append("};")
+        code.extend(_format_code(0, f"""
+            friend {unqual_name} operator|(const Values &lhs, const Values &rhs) {{
+                return {unqual_name}(lhs) | {unqual_name}(rhs);
+            }}
+            
+            friend {unqual_name} operator~(const Values &other) {{
+                return {unqual_name}(~underlying_type(other));
+            }}
+        }};
+        """))
 
         return code
 
