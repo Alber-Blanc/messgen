@@ -261,6 +261,10 @@ def _hash_bytes(payload: bytes) -> int:
     return int.from_bytes(hash_object.digest()[:8], byteorder="little", signed=False)
 
 
+def get_schema(type_def: MessgenType) -> str:
+    return json.dumps(asdict(type_def), separators=(",", ":"))
+
+
 def _remove_keys(container: dict | list, key: str):
     if isinstance(container, dict):
         container.pop(key, None)

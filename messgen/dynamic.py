@@ -18,6 +18,7 @@ from .model import (
     ArrayType,
     EnumType,
     BitsetType,
+    get_schema,
     hash_message,
     hash_type,
     MapType,
@@ -74,6 +75,9 @@ class TypeConverter(ABC):
 
     def type_definition(self) -> MessgenType:
         return self._type_def
+
+    def type_schema(self) -> str:
+        return get_schema(self._type_def)
 
     def serialize(self, data: dict | Decimal) -> bytes:
         return self._serialize(data)

@@ -1,3 +1,4 @@
+import json
 import pytest
 
 from pathlib import Path
@@ -11,6 +12,7 @@ from messgen.model import (
     DecimalType,
     EnumValue,
     TypeClass,
+    get_schema,
 )
 from messgen.dynamic import (
     Codec,
@@ -401,3 +403,17 @@ def test_var_size_string_serialization(codec):
 
     actual_msg = type_def.deserialize(expected_bytes)
     assert actual_msg == expected_msg
+
+
+def test_type_schema_returns_valid_json(codec):
+    converter = codec.type_converter("mynamespace/types/simple_struct")
+    schema = converter.type_schema()
+    parsed = json.loads(schema)
+
+    assert parsed["type"] == "mynamespace/types/simple_struct"
+    assert parsed["type_class"] == "struct"
+
+
+def test_type_schema_matches_get_schema(codec):
+    converter = codec.type_converter("mynamespace/types/simple_struct")
+    assert converter.type_schema() == get_schema(converter.type_definition())

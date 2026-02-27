@@ -1,3 +1,4 @@
+import json
 import pytest
 
 import model
@@ -103,3 +104,30 @@ def test_outer_struct_hash_is_affected_by_nested_changes(nested_struct_type):
     actual = model.hash_type(outer_struct, types)
 
     assert actual != expected
+
+
+def test_get_schema_returns_compact_json(simple_struct_type):
+    struct_type, _ = simple_struct_type
+    schema = model.get_schema(struct_type)
+    parsed = json.loads(schema)
+
+    assert parsed["type"] == "some_struct"
+    assert parsed["type_class"] == "struct"
+    assert len(parsed["fields"]) == 2
+
+
+def test_get_schema_includes_comments(simple_struct_type):
+    struct_type, _ = simple_struct_type
+    schema = model.get_schema(struct_type)
+    parsed = json.loads(schema)
+
+    assert parsed["comment"] == "struct level comment"
+    assert parsed["fields"][0]["comment"] == "first field level comment"
+
+
+def test_get_schema_is_compact(simple_struct_type):
+    struct_type, _ = simple_struct_type
+    schema = model.get_schema(struct_type)
+
+    assert ": " not in schema
+    assert ", " not in schema

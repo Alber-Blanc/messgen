@@ -1,8 +1,6 @@
-import json
 import textwrap
 
 from contextlib import contextmanager
-from dataclasses import asdict
 from enum import Enum
 from pathlib import (
     PosixPath,
@@ -24,6 +22,7 @@ from .model import (
     EnumValue,
     ExternalType,
     FieldType,
+    get_schema,
     hash_message,
     hash_type,
     MapType,
@@ -548,7 +547,7 @@ class CppGenerator:
             static constexpr ::messgen::metadata {unqual_name}_METADATA{{
                 .hash = {hash_type(type_def, self._types)}ULL,
                 .name = "{type_name}",
-                .schema = R"_({self._generate_schema(type_def)})_"
+                .schema = R"_({get_schema(type_def)})_"
             }};
             }}
 
@@ -655,7 +654,7 @@ class CppGenerator:
 
                 static constexpr uint64_t HASH = {hash_type(type_def, self._types)}ULL;
                 static constexpr std::string_view NAME = "{type_name}";
-                static constexpr std::string_view SCHEMA = R"_({self._generate_schema(type_def)})_";
+                static constexpr std::string_view SCHEMA = R"_({get_schema(type_def)})_";
                 static constexpr ::messgen::metadata METADATA{{
                     .hash = HASH,
                     .name = NAME,
@@ -809,7 +808,7 @@ class CppGenerator:
                 f"""\
             static constexpr uint64_t HASH = {type_hash}ULL;
             static constexpr std::string_view NAME = "{type_name}";
-            static constexpr std::string_view SCHEMA = R"_({self._generate_schema(type_def)})_";
+            static constexpr std::string_view SCHEMA = R"_({get_schema(type_def)})_";
             static constexpr std::array<const ::messgen::metadata *, {len(deps_str_list)}> DEPENDENCIES{{{deps_str}}};
             static constexpr messgen::metadata METADATA{{
                 .hash = HASH,
@@ -1037,10 +1036,6 @@ class CppGenerator:
         )
 
         return code
-
-    @staticmethod
-    def _generate_schema(type_def: MessgenType):
-        return json.dumps(asdict(type_def), separators=(",", ":"))
 
     def _add_include(self, inc, scope="global"):
         self._includes.add((inc, scope))
