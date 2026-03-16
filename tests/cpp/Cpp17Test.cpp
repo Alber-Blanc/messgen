@@ -1,4 +1,5 @@
 
+#include "messgen/bytes.h"
 #include <messgen/messgen.h>
 #include <mynamespace/proto/test_proto.h>
 #include <mynamespace/proto/subspace/another_proto.h>
@@ -455,6 +456,36 @@ TEST_F(Cpp17Test, SerializeMessage) {
 
     _buf.resize(msg.serialized_size());
     msg.serialize(_buf.data());
+}
+
+TEST_F(Cpp17Test, SerializeDeserializeMultipleMessage) {
+    using namespace messgen;
+
+    auto expected1 = mynamespace::types::simple_struct{
+        .f0 = 1,
+        .f1 = 2,
+    };
+    auto expected2 = mynamespace::types::simple_struct{
+        .f0 = 3,
+        .f1 = 4,
+    };
+
+    auto msg1 = mynamespace::proto::test_proto::simple_struct::send{&expected1};
+    auto msg2 = mynamespace::proto::test_proto::simple_struct::send{&expected2};
+
+    _buf.resize(msg1.serialized_size() + msg2.serialized_size());
+    msg1.serialize(_buf.data());
+    msg2.serialize(_buf.data() + msg2.serialized_size());
+
+    auto actual1 = mynamespace::types::simple_struct{};
+    auto actual2 = mynamespace::types::simple_struct{};
+
+    auto recv1 = mynamespace::proto::test_proto::simple_struct::recv{messgen::bytes{_buf.data(), _buf.size()}};
+    auto recv2 = recv1.deserialize(actual1).second;
+    recv2.deserialize(actual2);
+
+    EXPECT_EQ(actual1, expected1);
+    EXPECT_EQ(actual2, expected2);
 }
 
 TEST_F(Cpp17Test, DispatchMessageStor) {
