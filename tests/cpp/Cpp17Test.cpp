@@ -473,7 +473,7 @@ TEST_F(Cpp17Test, DispatchMessageStor) {
         using RecvMsgType = std::decay_t<decltype(msg)>;
         typename RecvMsgType::data_type_strg actual_data;
         auto res = msg.deserialize(actual_data);
-        assert(res == actual_data.FIXED_SIZE);
+        assert(res.first == actual_data.FIXED_SIZE);
         dispatch(
             actual_data,
             [&](mynamespace::types::simple_struct &m) {
@@ -504,7 +504,7 @@ TEST_F(Cpp17Test, DispatchMessageView) {
         typename ActualType::data_type actual_data;
         if constexpr (not ActualType::data_type::NEED_ALLOC) {
             auto res = msg.deserialize(actual_data);
-            assert(res == actual_data.FIXED_SIZE);
+            assert(res.first == actual_data.FIXED_SIZE);
             dispatch(
                 actual_data,
                 [&](mynamespace::types::simple_struct &m) {
