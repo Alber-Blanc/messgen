@@ -284,14 +284,12 @@ class CppGenerator:
                         _format_code(
                             3,
                             """\
-                            std::pair<ssize_t, recv> deserialize(data_type &v, ::messgen::Allocator &alloc) const {
-                                auto sz = v.deserialize(_buf, alloc);
-                                return std::pair{sz, recv{messgen::bytes{_buf.data() + sz, _buf.size() - sz}}};
+                            ssize_t deserialize(data_type &v, ::messgen::Allocator &alloc) const {
+                                return v.deserialize(_buf, alloc);
                             }
 
-                            std::pair<ssize_t, recv> deserialize_unsafe(data_type &v, ::messgen::Allocator &alloc) const {
-                                auto sz = v.deserialize_unsafe(_buf.data(), alloc);
-                                return std::pair{sz, recv{messgen::bytes{_buf.data() + sz, _buf.size() - sz}}};
+                            ssize_t deserialize_unsafe(data_type &v, ::messgen::Allocator &alloc) const {
+                                return v.deserialize_unsafe(_buf.data(), alloc);
                             }
 
                             """,
@@ -302,14 +300,12 @@ class CppGenerator:
                         _format_code(
                             3,
                             """\
-                            std::pair<ssize_t, recv> deserialize(data_type &v) const {
-                                auto sz = v.deserialize(_buf);
-                                return std::pair{sz, recv{messgen::bytes{_buf.data() + sz, _buf.size() - sz}}};
+                            ssize_t deserialize(data_type &v) const {
+                                return v.deserialize(_buf);
                             }
 
-                            std::pair<ssize_t, recv> deserialize_unsafe(data_type &v) const {
-                                auto sz = v.deserialize_unsafe(_buf.data());
-                                return std::pair{sz, recv{messgen::bytes{_buf.data() + sz, _buf.size() - sz}}};
+                            ssize_t deserialize_unsafe(data_type &v) const {
+                                return v.deserialize_unsafe(_buf.data());
                             }
 
                             """,
@@ -319,14 +315,12 @@ class CppGenerator:
                     _format_code(
                         3,
                         """\
-                        std::pair<ssize_t, recv> deserialize(data_type_strg &v) const {
-                            auto sz = v.deserialize(_buf);
-                            return std::pair{sz, recv{messgen::bytes{_buf.data() + sz, _buf.size() - sz}}};
+                        ssize_t deserialize(data_type_strg &v) const {
+                            return v.deserialize(_buf);
                         }
 
-                        std::pair<ssize_t, recv> deserialize_unsafe(data_type_strg &v) const {
-                            auto sz = v.deserialize_unsafe(_buf.data());
-                            return std::pair{sz, recv{messgen::bytes{_buf.data() + sz, _buf.size() - sz}}};
+                        ssize_t deserialize_unsafe(data_type_strg &v) const {
+                            return v.deserialize_unsafe(_buf.data());
                         }
 
                         """,
@@ -339,14 +333,12 @@ class CppGenerator:
                     _format_code(
                         3,
                         """\
-                        std::pair<ssize_t, recv> deserialize(data_type &v) const {
-                            auto sz = v.deserialize(_buf);
-                            return std::pair{sz, recv{messgen::bytes{_buf.data() + sz, _buf.size() - sz}}};
+                        ssize_t deserialize(data_type &v) const {
+                            return v.deserialize(_buf);
                         }
 
-                        std::pair<ssize_t, recv> deserialize_unsafe(data_type &v) const {
-                            auto sz = v.deserialize_unsafe(_buf.data());
-                            return std::pair{sz, recv{messgen::bytes{_buf.data() + sz, _buf.size() - sz}}};
+                        ssize_t deserialize_unsafe(data_type &v) const {
+                            return v.deserialize_unsafe(_buf.data());
                         }
 
                         """,
@@ -679,21 +671,16 @@ class CppGenerator:
         else:
             for bit in type_def.bits:
                 code.append(f"    static constexpr Values {bit.name} = Values::{bit.name};")
-        code.extend(
-            _format_code(
-                0,
-                f"""
+        code.extend(_format_code(0, f"""
             friend {unqual_name} operator|(const Values &lhs, const Values &rhs) {{
                 return {unqual_name}(lhs) | {unqual_name}(rhs);
             }}
-
+            
             friend {unqual_name} operator~(const Values &other) {{
                 return {unqual_name}(~underlying_type(other));
             }}
         }};
-        """,
-            )
-        )
+        """))
 
         return code
 

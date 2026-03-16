@@ -62,16 +62,16 @@ concept message =                                             //
         { msg.MESSAGE_ID } -> std::convertible_to<int>;
         { msg_send.serialized_size() } -> std::same_as<size_t>;
         { msg_send.serialize(buf) } -> std::same_as<size_t>;
-        { msg_recv.deserialize(data) } -> std::same_as<std::pair<ssize_t, decltype(msg_recv)>>;
-        { msg_recv.deserialize_unsafe(data) } -> std::same_as<std::pair<ssize_t, decltype(msg_recv)>>;
+        { msg_recv.deserialize(data) } -> std::same_as<ssize_t>;
+        { msg_recv.deserialize_unsafe(data) } -> std::same_as<ssize_t>;
     };
 
 template <class MessageRecv>
 concept message_recv =                                                  //
     message<typename std::remove_cvref_t<MessageRecv>::message_type> && //
     requires(std::remove_cvref_t<MessageRecv> msg_recv, typename std::remove_cvref_t<MessageRecv>::message_type::data_type_strg &data) {
-        { msg_recv.deserialize(data) } -> std::same_as<std::pair<ssize_t, MessageRecv>>;
-        { msg_recv.deserialize_unsafe(data) } -> std::same_as<std::pair<ssize_t, MessageRecv>>;
+        { msg_recv.deserialize(data) } -> std::same_as<ssize_t>;
+        { msg_recv.deserialize_unsafe(data) } -> std::same_as<ssize_t>;
     };
 
 template <class MessageSend>
