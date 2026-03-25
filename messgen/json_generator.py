@@ -37,6 +37,7 @@ class JsonGenerator:
         self._write_file(out_dir, "types", combined)
 
     def generate_protocols(self, out_dir: Path, types: dict[str, MessgenType], protocols: dict[str, Protocol]) -> None:
+        self.generate_types(out_dir, types)
         combined: list = []
 
         for proto_name in sorted(protocols.keys()):

@@ -181,6 +181,8 @@ class TypeScriptGenerator:
         self._write(out_dir / self.TYPES_FILE, root_content)
 
     def generate_protocols(self, out_dir: Path, types: dict[str, MessgenType], protocols: Dict[str, Protocol]) -> None:
+        self.generate_types(out_dir, types)
+
         if not protocols:
             self._write(out_dir / self.PROTOCOLS_FILE, "export type ProtocolMap = {};\n")
             return
