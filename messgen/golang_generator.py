@@ -959,7 +959,9 @@ class GolangGenerator:
             subprocess.call(["gofmt", "-s", "-w", output], text=True)
 
 
-    def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
+    def generate_protocols(self, out_dir: Path, types: dict[str, MessgenType], protocols: dict[str, Protocol]) -> None:
+        self.generate_types(out_dir, types)
+
         for proto_full_name, proto_def in protocols.items():
             proto_name = proto_full_name.split("/")[-1]
 
