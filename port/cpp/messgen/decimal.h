@@ -4,7 +4,6 @@
 #include <cassert>
 #include <charconv>
 #include <cmath>
-#include <compare>
 #include <cstdint>
 #include <ios>
 #include <istream>
@@ -18,7 +17,6 @@
 #endif
 
 namespace messgen {
-namespace detail {} // namespace detail
 
 enum class round_mode {
     down = -1,
@@ -162,19 +160,12 @@ struct decimal64 {
     /// @return decimal64 The product
     friend constexpr decimal64 operator*(int64_t factor, decimal64 decimal) noexcept;
 
-    /// @brief Compares two decimal64 values
-    ///
-    /// @param lhs The left-hand operand
-    /// @param rhs The right-hand operand
-    /// @return std::strong_ordering The ordering relation between the operands
-    friend constexpr std::partial_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept;
-
-    /// @brief Tests equality between two decimal64 values
-    ///
-    /// @param lhs The left-hand operand
-    /// @param rhs The right-hand operand
-    /// @return bool True if the operands are equal, false otherwise
     friend constexpr bool operator==(const decimal64 &lhs, const decimal64 &rhs) noexcept;
+    friend constexpr bool operator<(const decimal64 &lhs, const decimal64 &rhs) noexcept;
+    friend constexpr bool operator>(const decimal64 &lhs, const decimal64 &rhs) noexcept;
+    friend constexpr bool operator<=(const decimal64 &lhs, const decimal64 &rhs) noexcept;
+    friend constexpr bool operator>=(const decimal64 &lhs, const decimal64 &rhs) noexcept;
+    friend constexpr bool operator!=(const decimal64 &lhs, const decimal64 &rhs) noexcept;
 
     /// @brief Writes a decimal64 to an output stream
     ///
@@ -528,8 +519,9 @@ constexpr inline decimal64 &decimal64::operator*=(int64_t other) noexcept {
 }
 
 [[nodiscard]] constexpr inline decimal64 decimal64::operator-() noexcept {
-    _value ^= DEC_SIGN_MASK;
-    return *this;
+    auto tmp = *this;
+    tmp._value ^= DEC_SIGN_MASK;
+    return tmp;
 }
 
 constexpr inline decimal64::decimal64(int8_t sign, uint64_t coeff, int16_t exponent) noexcept {
@@ -627,32 +619,82 @@ constexpr inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coef
     return rhs;
 }
 
-[[nodiscard]] constexpr inline std::partial_ordering operator<=>(const decimal64 &lhs, const decimal64 &rhs) noexcept {
-    if (lhs.is_nan() || rhs.is_nan()) [[unlikely]] {
-        return std::partial_ordering::unordered;
+[[nodiscard]] constexpr inline bool operator<(const decimal64 &lhs, const decimal64 &rhs) noexcept {
+    if (lhs.is_nan() || rhs.is_nan()) [[unlikely]]
+        return false;
+
+    if (lhs.is_negative() != rhs.is_negative()) {
+        return lhs.is_negative();
     }
 
     if (lhs.is_infinite() || rhs.is_infinite()) [[unlikely]] {
-        auto lhs_inf = (!lhs.is_negative() << 1) | lhs.is_infinite();
-        auto rhs_inf = (!rhs.is_negative() << 1) | rhs.is_infinite();
-        return lhs_inf <=> rhs_inf;
+        auto rank = [](const decimal64 &d) { return (1 - 2 * int(d.is_negative())) * (1 + int(d.is_infinite())); };
+        return rank(lhs) < rank(rhs);
     }
 
     auto [lhs_sign, lhs_coeff, lhs_exp] = lhs.decompose();
     auto [rhs_sign, rhs_coeff, rhs_exp] = rhs.decompose();
 
+    if (lhs_coeff == 0 && rhs_coeff == 0) {
+        return false;
+    }
+
     auto exp_diff = lhs_exp - rhs_exp;
-    auto lhs_adjustment = exp_diff * (exp_diff > 0);
-    auto rhs_adjustment = -exp_diff * (exp_diff <= 0);
+    auto rhs_val = __int128(rhs_sign * int64_t(rhs_coeff));
+    auto lhs_val = __int128(lhs_sign * int64_t(lhs_coeff));
 
-    auto lhs_res = lhs_sign * double(lhs_coeff) * decimal64::pow10_dbl(lhs_adjustment);
-    auto rhs_res = rhs_sign * double(rhs_coeff) * decimal64::pow10_dbl(rhs_adjustment);
+    if (exp_diff > 0) {
+        lhs_val *= __int128(decimal64::pow10_int(exp_diff));
+    } else {
+        rhs_val *= __int128(decimal64::pow10_int(-exp_diff));
+    }
 
-    return lhs_res <=> rhs_res;
+    return lhs_val < rhs_val;
+}
+
+[[nodiscard]] constexpr inline bool operator>(const decimal64 &lhs, const decimal64 &rhs) noexcept {
+    return rhs < lhs;
+}
+
+[[nodiscard]] constexpr inline bool operator<=(const decimal64 &lhs, const decimal64 &rhs) noexcept {
+    return !(rhs < lhs);
+}
+
+[[nodiscard]] constexpr inline bool operator>=(const decimal64 &lhs, const decimal64 &rhs) noexcept {
+    return !(lhs < rhs);
 }
 
 [[nodiscard]] constexpr inline bool operator==(const decimal64 &lhs, const decimal64 &rhs) noexcept {
-    return lhs <=> rhs == std::partial_ordering::equivalent;
+    if (lhs._value == rhs._value)
+        return !lhs.is_nan();
+
+    if (lhs.is_nan() || rhs.is_nan()) [[unlikely]]
+        return false;
+
+    if (lhs.is_infinite() || rhs.is_infinite()) [[unlikely]]
+        return false;
+
+    auto [lhs_sign, lhs_coeff, lhs_exp] = lhs.decompose();
+    auto [rhs_sign, rhs_coeff, rhs_exp] = rhs.decompose();
+
+    if (lhs_coeff == 0 && rhs_coeff == 0) {
+        return true;
+    }
+
+    while (lhs_coeff != 0 && lhs_coeff % 10 == 0) {
+        lhs_coeff /= 10;
+        ++lhs_exp;
+    }
+    while (rhs_coeff != 0 && rhs_coeff % 10 == 0) {
+        rhs_coeff /= 10;
+        ++rhs_exp;
+    }
+
+    return lhs_sign == rhs_sign && lhs_coeff == rhs_coeff && lhs_exp == rhs_exp;
+}
+
+[[nodiscard]] constexpr inline bool operator!=(const decimal64 &lhs, const decimal64 &rhs) noexcept {
+    return !(lhs == rhs);
 }
 
 inline std::ostream &operator<<(std::ostream &os, decimal64 dec) {

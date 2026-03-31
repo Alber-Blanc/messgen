@@ -33,6 +33,11 @@ TEST_F(CppDecimalTest, Construction) {
 TEST_F(CppDecimalTest, Negative) {
     auto d1 = decimal64::from_double(10.5, 0.001_dd, round_mode::mid);
     EXPECT_EQ(-d1, -10.5_dd);
+
+    auto d2 = 42.5_dd;
+    auto d3 = -d2;
+    EXPECT_EQ(d2, 42.5_dd);
+    EXPECT_EQ(d3, -42.5_dd);
 }
 
 TEST_F(CppDecimalTest, Addition) {
@@ -123,7 +128,7 @@ TEST_F(CppDecimalTest, Comparison) {
     // NaNs are not equal
     EXPECT_NE(decimal64::from_string("nan"), decimal64::from_string("nan"));
 
-    // Inifities
+    // Infinities
     EXPECT_EQ(decimal64::infinity(), decimal64::infinity());
     EXPECT_EQ(-decimal64::infinity(), -decimal64::infinity());
     EXPECT_LE(-decimal64::infinity(), decimal64::infinity());
@@ -131,6 +136,15 @@ TEST_F(CppDecimalTest, Comparison) {
     EXPECT_NE(decimal64::infinity(), decimal64::from_integer(0));
     EXPECT_GT(decimal64::infinity(), decimal64::from_integer(0));
     EXPECT_LE(-decimal64::infinity(), decimal64::from_integer(0));
+
+    // Negative infinity must be less than any negative finite value
+    EXPECT_LT(-decimal64::infinity(), -1_dd);
+    EXPECT_LT(-decimal64::infinity(), -999999.999_dd);
+    EXPECT_GT(-1_dd, -decimal64::infinity());
+
+    // Positive infinity must be greater than any positive finite value
+    EXPECT_GT(decimal64::infinity(), 999999.999_dd);
+    EXPECT_LT(999999.999_dd, decimal64::infinity());
 }
 
 TEST_F(CppDecimalTest, Conversions) {
