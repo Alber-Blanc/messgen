@@ -773,11 +773,11 @@ class CppGenerator:
         code.append(_indent(f"static constexpr size_t FIXED_SIZE = {fixed_size};"))
 
         # Need alloc
+        need_alloc_str = "false"
         if mode == Mode.VIEW:
-            need_alloc_str = "false"
             if self._need_alloc(type_name):
                 need_alloc_str = "true"
-            code.append(_indent(f"static constexpr bool NEED_ALLOC = {need_alloc_str};"))
+        code.append(_indent(f"static constexpr bool NEED_ALLOC = {need_alloc_str};"))
 
         # Metadata
         type_hash = hash_type(type_def, self._types)
@@ -1251,21 +1251,20 @@ class CppGenerator:
             if mode == Mode.VIEW:
                 alloc = ", _alloc"
 
-            if unsafe:
-                c.append(f"_size += {field_name}.deserialize_unsafe(&_buf[_size]{alloc}, policies...);")
-            else:
-                c.extend(
-                    _format_code(
-                        0,
-                        f"""
-                    _field_size = {field_name}.deserialize({{&_buf[_size], _buf_size - _size}}{alloc}, policies...);
+            c.extend(
+                _format_code(
+                    0,
+                    f"""
+                _field_size = {field_name}.deserialize({{&_buf[_size], _buf_size - _size}}{alloc}, policies...);
+                if constexpr (not ::messgen::is_unsafe<Policies...>) {{
                     if (_field_size < 0) [[unlikely]] {{
                         return -1;
                     }}
-                    _size += _field_size;
-                """,
-                    )
+                }}
+                _size += _field_size;
+            """,
                 )
+            )
 
         elif type_class in [TypeClass.array, TypeClass.vector]:
             # For vector read the size and allocate memory if needed

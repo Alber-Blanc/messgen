@@ -28,9 +28,9 @@ protected:
 
         T msg1{};
         ssize_t deser_size;
-        if constexpr (messgen::has_deserialize_alloc_method_v<T>) {
+        if constexpr (T::NEED_ALLOC) {
             auto alloc = messgen::Allocator(_alloc_buf, sizeof(_alloc_buf));
-            deser_size = msg1.deserialize(messgen::bytes(&_buf), alloc, messgen::DoCopy());
+            deser_size = msg1.deserialize(messgen::bytes(&_buf), alloc);
         } else if (sz_check > 0) {
             deser_size = msg1.deserialize(messgen::bytes(&_buf));
         } else {
