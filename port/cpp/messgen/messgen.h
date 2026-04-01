@@ -39,4 +39,20 @@ void dispatch(Message &&msg, Fn &&fn, Rest &&...rest) {
     }
 }
 
+struct DoCopy{};
+struct Unsafe{};
+
+template<class... Args>
+constexpr bool is_copy = (std::is_same_v<remove_cvref_t<Args>, DoCopy> || ...);
+
+template<class... Args>
+constexpr bool is_unsafe = (std::is_same_v<remove_cvref_t<Args>, Unsafe> || ...);
+
+template<class... Args>
+constexpr void check_supported_policy() {
+    static_assert(sizeof...(Args) == 0 || is_copy<Args...> || is_unsafe<Args...>, "unsupported policy");
+}
+
+static Allocator empty_alloc;
+
 } // namespace messgen

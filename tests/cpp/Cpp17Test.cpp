@@ -30,7 +30,7 @@ protected:
         ssize_t deser_size;
         if constexpr (messgen::has_deserialize_alloc_method_v<T>) {
             auto alloc = messgen::Allocator(_alloc_buf, sizeof(_alloc_buf));
-            deser_size = msg1.deserialize(messgen::bytes(&_buf), alloc);
+            deser_size = msg1.deserialize(messgen::bytes(&_buf), alloc, messgen::DoCopy());
         } else if (sz_check > 0) {
             deser_size = msg1.deserialize(messgen::bytes(&_buf));
         } else {

@@ -288,10 +288,6 @@ class CppGenerator:
                                 return v.deserialize(_buf, alloc);
                             }
 
-                            ssize_t deserialize_unsafe(data_type &v, ::messgen::Allocator &alloc) const {
-                                return v.deserialize_unsafe(_buf.data(), alloc);
-                            }
-
                             """,
                         )
                     )
@@ -301,11 +297,8 @@ class CppGenerator:
                             3,
                             """\
                             ssize_t deserialize(data_type &v) const {
-                                return v.deserialize(_buf);
-                            }
-
-                            ssize_t deserialize_unsafe(data_type &v) const {
-                                return v.deserialize_unsafe(_buf.data());
+                                ::messgen::Allocator _alloc;
+                                return v.deserialize(_buf, _alloc);
                             }
 
                             """,
@@ -319,10 +312,6 @@ class CppGenerator:
                             return v.deserialize(_buf);
                         }
 
-                        ssize_t deserialize_unsafe(data_type_strg &v) const {
-                            return v.deserialize_unsafe(_buf.data());
-                        }
-
                         """,
                     )
                 )
@@ -334,11 +323,8 @@ class CppGenerator:
                         3,
                         """\
                         ssize_t deserialize(data_type &v) const {
-                            return v.deserialize(_buf);
-                        }
-
-                        ssize_t deserialize_unsafe(data_type &v) const {
-                            return v.deserialize_unsafe(_buf.data());
+                            ::messgen::Allocator _alloc;
+                            return v.deserialize(_buf, _alloc);
                         }
 
                         """,
@@ -873,14 +859,16 @@ class CppGenerator:
 
         # Deserialize function
         alloc = ""
-        if need_alloc:
-            alloc = ", messgen::Allocator &_alloc"
+        if mode == Mode.VIEW:
+            alloc = ", ::messgen::Allocator &_alloc = ::messgen::empty_alloc"
 
         self._add_include("messgen/bytes.h", "global")
         code_deser = _format_code(
             0,
             f"""
-            ssize_t deserialize(messgen::bytes buf_bytes{alloc}) {{
+            template<class... Policies>
+            ssize_t deserialize(messgen::bytes buf_bytes{alloc}, Policies... policies) {{
+                ::messgen::check_supported_policy<Policies...>();
                 [[maybe_unused]]  auto _buf = buf_bytes.data();
                 [[maybe_unused]]  auto _buf_size = buf_bytes.size();
                 size_t _size = 0;
@@ -909,42 +897,6 @@ class CppGenerator:
         )
 
         code.extend(_indent(code_deser))
-
-        # Deserialize unsafe
-        code_deser_unsafe = []
-
-        code_deser_unsafe.extend(
-            [
-                "size_t _size = 0;",
-                "[[maybe_unused]] size_t _field_size;",
-                "",
-            ]
-        )
-
-        groups = self._field_groups(fields)
-        for group in groups:
-            if len(group.fields) > 1:
-                code_deser_unsafe.append("// %s" % ", ".join(group.field_names))
-                code_deser_unsafe.extend(self._memcpy_from_buf("&" + group.fields[0].name, group.size, unsafe=True))
-            elif len(group.fields) == 1:
-                field = group.fields[0]
-                field_type_def = self._types.get(field.type)
-                code_deser_unsafe.extend(self._deserialize_field(field.name, field_type_def, mode, unsafe=True))
-            code_deser_unsafe.append("")
-        code_deser_unsafe.append("return _size;")
-
-        alloc = ""
-        if need_alloc:
-            alloc = ", messgen::Allocator &_alloc"
-        code_deser_unsafe = (
-                [
-                    "",
-                    "ssize_t deserialize_unsafe(const uint8_t *" + ("_buf" if not is_empty else "") + alloc + ") {",
-                ]
-                + _indent(code_deser_unsafe)
-                + ["}"]
-        )
-        code.extend(_indent(code_deser_unsafe))
 
         # Size function
         code_ss = []
@@ -1296,17 +1248,17 @@ class CppGenerator:
 
         elif type_class in [TypeClass.struct, TypeClass.external]:
             alloc = ""
-            if mode == Mode.VIEW and self._need_alloc(field_type_def.type):
+            if mode == Mode.VIEW:
                 alloc = ", _alloc"
 
             if unsafe:
-                c.append(f"_size += {field_name}.deserialize_unsafe(&_buf[_size]{alloc});")
+                c.append(f"_size += {field_name}.deserialize_unsafe(&_buf[_size]{alloc}, policies...);")
             else:
                 c.extend(
                     _format_code(
                         0,
                         f"""
-                    _field_size = {field_name}.deserialize({{&_buf[_size], _buf_size - _size}}{alloc});
+                    _field_size = {field_name}.deserialize({{&_buf[_size], _buf_size - _size}}{alloc}, policies...);
                     if (_field_size < 0) [[unlikely]] {{
                         return -1;
                     }}
@@ -1437,15 +1389,32 @@ class CppGenerator:
             )
 
             c.extend(self._check_buf_size("_field_size", unsafe))
-            c.extend(
-                _format_code(
-                    0,
-                    f"""
-                    {field_name} = {{reinterpret_cast<const char *>(&_buf[_size]), size_t(_field_size)}};
-                    _size += _field_size;
-                    """,
+            if mode == Mode.VIEW:
+                c.extend(
+                    _format_code(
+                        0,
+                        f"""
+                        if constexpr (::messgen::is_copy<Policies...>) {{
+                            auto _buf_ptr = _alloc.alloc<char>(_field_size);
+                            ::memcpy(_buf_ptr, &_buf[_size], _field_size);
+                            {field_name} = {{_buf_ptr, size_t(_field_size)}};
+                        }} else {{
+                            {field_name} = {{reinterpret_cast<const char *>(&_buf[_size]), size_t(_field_size)}};
+                        }}
+                        _size += _field_size;
+                        """,
+                    )
                 )
-            )
+            else:
+                c.extend(
+                    _format_code(
+                        0,
+                        f"""
+                        {field_name} = {{reinterpret_cast<const char *>(&_buf[_size]), size_t(_field_size)}};
+                        _size += _field_size;
+                        """,
+                    )
+                )
 
         elif type_class == TypeClass.bytes:
             c.extend(self._check_buf_size("sizeof(messgen::size_type)", unsafe))
@@ -1548,8 +1517,10 @@ class CppGenerator:
             return _format_code(
                 0,
                 f"""
-                if (_buf_size < _size + {size}) [[unlikely]] {{
-                    return -1;
+                if constexpr (not ::messgen::is_unsafe<Policies...>) {{
+                    if (_buf_size < _size + {size}) [[unlikely]] {{
+                        return -1;
+                    }}
                 }}
             """,
             )
