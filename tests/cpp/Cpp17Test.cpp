@@ -26,13 +26,15 @@ protected:
         }
         EXPECT_EQ(ser_size, sz_check);
 
+        T msg1_nocopy{};
         T msg1{};
         ssize_t deser_size;
         if constexpr (T::NEED_ALLOC) {
             // Don't copy fields that are safe to reference (alignment == 1)
             auto alloc = messgen::Allocator(_alloc_buf, sizeof(_alloc_buf));
-            ssize_t deser_size_nocopy = msg1.deserialize(messgen::bytes(&_buf), alloc, ::messgen::NoCopy());
+            ssize_t deser_size_nocopy = msg1_nocopy.deserialize(messgen::bytes(&_buf), alloc, ::messgen::NoCopy());
             EXPECT_EQ(deser_size_nocopy, sz_check);
+            EXPECT_EQ(msg, msg1_nocopy);
             // Normal, copy all dynamic fields
             deser_size = msg1.deserialize(messgen::bytes(&_buf), alloc);
         } else if (sz_check > 0) {
@@ -175,7 +177,7 @@ TEST_F(Cpp17Test, VarSizeStructView) {
 
     s.f0 = 1;
     std::vector<int64_t> f1_vec{3, 4};
-    s.f1_vec = messgen::span<int64_t>(messgen::bytes{reinterpret_cast<uint8_t *>(f1_vec.data()), f1_vec.size()});
+    s.f1_vec = messgen::span<int64_t>(&f1_vec);
     test_serialization(s);
 }
 
