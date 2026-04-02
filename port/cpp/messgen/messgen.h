@@ -39,18 +39,18 @@ void dispatch(Message &&msg, Fn &&fn, Rest &&...rest) {
     }
 }
 
-struct DoCopy{};
+struct NoCopy{};
 struct Unsafe{};
 
 template<class... Args>
-constexpr bool is_copy = (std::is_same_v<remove_cvref_t<Args>, DoCopy> || ...);
+constexpr bool is_nocopy = (std::is_same_v<remove_cvref_t<Args>, NoCopy> || ...);
 
 template<class... Args>
 constexpr bool is_unsafe = (std::is_same_v<remove_cvref_t<Args>, Unsafe> || ...);
 
 template<class... Args>
 constexpr void check_supported_policy() {
-    static_assert(sizeof...(Args) == 0 || is_copy<Args...> || is_unsafe<Args...>, "unsupported policy");
+    static_assert(sizeof...(Args) == 0 || is_nocopy<Args...> || is_unsafe<Args...>, "unsupported policy");
 }
 
 static Allocator empty_alloc;

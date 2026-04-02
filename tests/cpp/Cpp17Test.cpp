@@ -29,7 +29,11 @@ protected:
         T msg1{};
         ssize_t deser_size;
         if constexpr (T::NEED_ALLOC) {
+            // Don't copy fields that are safe to reference (alignment == 1)
             auto alloc = messgen::Allocator(_alloc_buf, sizeof(_alloc_buf));
+            ssize_t deser_size_nocopy = msg1.deserialize(messgen::bytes(&_buf), alloc, ::messgen::NoCopy());
+            EXPECT_EQ(deser_size_nocopy, sz_check);
+            // Normal, copy all dynamic fields
             deser_size = msg1.deserialize(messgen::bytes(&_buf), alloc);
         } else if (sz_check > 0) {
             deser_size = msg1.deserialize(messgen::bytes(&_buf));

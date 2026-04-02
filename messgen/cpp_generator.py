@@ -278,32 +278,18 @@ class CppGenerator:
 
             if type_def.size is None:
                 # Dynamic size
-                if self._need_alloc(message.type):
-                    self._add_include("messgen/Allocator.h", "global")
-                    code.extend(
-                        _format_code(
-                            3,
-                            """\
-                            ssize_t deserialize(data_type &v, ::messgen::Allocator &alloc) const {
-                                return v.deserialize(_buf, alloc);
-                            }
+                self._add_include("messgen/Allocator.h", "global")
+                code.extend(
+                    _format_code(
+                        3,
+                        """\
+                        ssize_t deserialize(data_type &v, ::messgen::Allocator &alloc) const {
+                            return v.deserialize(_buf, alloc);
+                        }
 
-                            """,
-                        )
+                        """,
                     )
-                else:
-                    code.extend(
-                        _format_code(
-                            3,
-                            """\
-                            ssize_t deserialize(data_type &v) const {
-                                ::messgen::Allocator _alloc;
-                                return v.deserialize(_buf, _alloc);
-                            }
-
-                            """,
-                        )
-                    )
+                )
                 code.extend(
                     _format_code(
                         3,
@@ -323,8 +309,7 @@ class CppGenerator:
                         3,
                         """\
                         ssize_t deserialize(data_type &v) const {
-                            ::messgen::Allocator _alloc;
-                            return v.deserialize(_buf, _alloc);
+                            return v.deserialize(_buf);
                         }
 
                         """,
@@ -774,9 +759,8 @@ class CppGenerator:
 
         # Need alloc
         need_alloc_str = "false"
-        if mode == Mode.VIEW:
-            if self._need_alloc(type_name):
-                need_alloc_str = "true"
+        if self._need_alloc(type_name, mode):
+            need_alloc_str = "true"
         code.append(_indent(f"static constexpr bool NEED_ALLOC = {need_alloc_str};"))
 
         # Metadata
@@ -818,9 +802,8 @@ class CppGenerator:
             code.append(_indent(f"{field_c_type} {field.name}; {_inline_comment(field)}"))
 
         need_alloc = False
-        if mode == Mode.VIEW:
-            for field in type_def.fields:
-                need_alloc = need_alloc or self._need_alloc(field.type)
+        for field in type_def.fields:
+            need_alloc = need_alloc or self._need_alloc(field.type, mode)
 
         # Serialize function
         code_ser = []
@@ -859,18 +842,18 @@ class CppGenerator:
 
         # Deserialize function
         alloc = ""
-        if mode == Mode.VIEW:
-            alloc = ", ::messgen::Allocator &_alloc = ::messgen::empty_alloc"
+        if mode == Mode.VIEW and not is_fixed_size:
+            alloc = ", ::messgen::Allocator &_alloc"
 
         self._add_include("messgen/bytes.h", "global")
         code_deser = _format_code(
             0,
             f"""
             template<class... Policies>
-            ssize_t deserialize(messgen::bytes buf_bytes{alloc}, Policies... policies) {{
+            ssize_t deserialize(messgen::bytes _buf_bytes{alloc}, Policies... policies) {{
                 ::messgen::check_supported_policy<Policies...>();
-                [[maybe_unused]]  auto _buf = buf_bytes.data();
-                [[maybe_unused]]  auto _buf_size = buf_bytes.size();
+                [[maybe_unused]]  auto _buf = _buf_bytes.data();
+                [[maybe_unused]]  auto _buf_size = _buf_bytes.size();
                 size_t _size = 0;
                 [[maybe_unused]] ssize_t _field_size;
                 """,
@@ -1112,26 +1095,32 @@ class CppGenerator:
             deps.update(self._get_schema_dependencies(value_type_def))
         return deps
 
-    def _need_alloc(self, type_name: str) -> bool:
+    def _need_alloc(self, type_name: str, mode: Mode) -> bool:
+        if mode != Mode.VIEW:
+            return False
+        type_def = self._types[type_name]
+        return type_def.size is None
+
+    def _need_alloc_nocopy(self, type_name: str) -> bool:
         type_def = self._types[type_name]
 
         if isinstance(type_def, (BasicType, DecimalType, EnumType, BitsetType)):
             return False
 
         elif isinstance(type_def, ArrayType):
-            return self._need_alloc(type_def.element_type)
+            return self._need_alloc_nocopy(type_def.element_type)
 
         elif isinstance(type_def, VectorType):
             el_type_def = self._types[type_def.element_type]
-            return self._need_alloc(type_def.element_type) or self._get_alignment(el_type_def) > 1
+            return self._need_alloc_nocopy(type_def.element_type) or self._get_alignment(el_type_def) > 1
 
         elif isinstance(type_def, MapType):
             value_type_def = self._types[type_def.value_type]
-            return self._need_alloc(type_def.value_type) or self._get_alignment(value_type_def) > 1
+            return self._need_alloc_nocopy(type_def.value_type) or self._get_alignment(value_type_def) > 1
 
         elif isinstance(type_def, StructType):
             for field in type_def.fields:
-                if self._need_alloc(field.type):
+                if self._need_alloc_nocopy(field.type):
                     return True
             return False
 
@@ -1247,8 +1236,9 @@ class CppGenerator:
             c.extend(self._memcpy_from_buf(f"&{field_name}", size, unsafe))
 
         elif type_class in [TypeClass.struct, TypeClass.external]:
+            is_fixed_size = field_type_def.size is not None
             alloc = ""
-            if mode == Mode.VIEW:
+            if mode == Mode.VIEW and not is_fixed_size:
                 alloc = ", _alloc"
 
             c.extend(
@@ -1393,7 +1383,7 @@ class CppGenerator:
                     _format_code(
                         0,
                         f"""
-                        if constexpr (::messgen::is_copy<Policies...>) {{
+                        if constexpr (not ::messgen::is_nocopy<Policies...>) {{
                             auto _buf_ptr = _alloc.alloc<char>(_field_size);
                             ::memcpy(_buf_ptr, &_buf[_size], _field_size);
                             {field_name} = {{_buf_ptr, size_t(_field_size)}};
