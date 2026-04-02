@@ -1241,10 +1241,8 @@ class CppGenerator:
             if mode == Mode.VIEW and not is_fixed_size:
                 alloc = ", _alloc"
 
-            c.extend(
-                _format_code(
-                    0,
-                    f"""
+            c.extend(_format_code(0,
+                                  f"""
                 _field_size = {field_name}.deserialize({{&_buf[_size], _buf_size - _size}}{alloc}, policies...);
                 if constexpr (not ::messgen::is_unsafe<Policies...>) {{
                     if (_field_size < 0) [[unlikely]] {{
@@ -1252,23 +1250,17 @@ class CppGenerator:
                     }}
                 }}
                 _size += _field_size;
-            """,
-                )
-            )
+            """))
 
         elif type_class in [TypeClass.array, TypeClass.vector]:
             # For vector read the size and allocate memory if needed
             if type_class == TypeClass.vector:
                 c.extend(self._check_buf_size("sizeof(messgen::size_type)", unsafe))
-                c.extend(
-                    _format_code(
-                        0,
-                        """
+                c.extend(_format_code(0,
+                                      """
                     _field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);
                     _size += sizeof(messgen::size_type);
-                    """,
-                    )
-                )
+                """))
                 if mode == Mode.STORAGE:
                     c.append(f"{field_name}.resize(_field_size);")
 
@@ -1284,19 +1276,43 @@ class CppGenerator:
                 # Vector or array of flat aligned elements, optimize with single memcpy or zero-copy
                 if mode == Mode.VIEW:
                     if el_align == 1 and type_class == TypeClass.vector:
-                        # For the vector (messgen::span) with alignment == 1 point to data in source buffer, zero-copy
+                        # For the vector (messgen::span) with alignment == 1 point to data in source buffer, zero-copy if NoCopy policy is set
                         c.extend(self._check_buf_size(f"_field_size * {el_size}", unsafe))
-                        c.append(
-                            f"{field_name} = {{const_cast<{el_c_type} *>(reinterpret_cast<const {el_c_type} *>(&_buf[_size])), size_t(_field_size)}};"
-                        )
-                        c.append(f"_size += _field_size * {el_size};")
+                        c.extend(_format_code(0,
+                                              f"""
+                            if constexpr (::messgen::is_nocopy<Policies...>) {{
+                                {field_name} = {{reinterpret_cast<{el_c_type} *>(&_buf[_size]), size_t(_field_size)}};
+                            }} else {{
+                                {el_c_type} *_buf_ptr = _alloc.alloc<{el_c_type}>(_field_size);
+                                if (_buf_ptr == nullptr) [[unlikely]] {{
+                                    return -1;
+                                }}
+                                ::memcpy(_buf_ptr, &_buf[_size], _field_size);
+                                {field_name} = {{_buf_ptr, size_t(_field_size)}};
+                            }}
+                            _size += _field_size * {el_size};
+                        """))
+
                     else:
                         # Allocate memory if needed and copy data
                         if type_class == TypeClass.vector:
-                            c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), size_t(_field_size)}};")
-                        # Vector or array of flat aligned elements, optimize with single memcpy
-                        c.append(f"_field_size = {el_size} * {field_name}.size();")
-                        c.extend(self._memcpy_from_buf("%s.data()" % field_name, "_field_size", unsafe))
+                            c.extend(self._check_buf_size(f"_field_size * {el_size}", unsafe))
+                            c.extend(_format_code(0,
+                                                  f"""
+                                {{
+                                    {el_c_type} *_buf_ptr = _alloc.alloc<{el_c_type}>(_field_size);
+                                    if (_buf_ptr == nullptr) [[unlikely]] {{
+                                        return -1;
+                                    }}
+                                    ::memcpy(_buf_ptr, &_buf[_size], _field_size);
+                                    {field_name} = {{_buf_ptr, size_t(_field_size)}};
+                                    _size += _field_size * {el_size};
+                                }}
+                            """))
+                        else:
+                            # Vector or array of flat aligned elements, optimize with single memcpy
+                            c.append(f"_field_size = {el_size} * {field_name}.size();")
+                            c.extend(self._memcpy_from_buf("%s.data()" % field_name, "_field_size", unsafe))
                 else:
                     c.append(f"_field_size = {el_size} * {field_name}.size();")
                     c.extend(self._memcpy_from_buf(f"{field_name}.data()", "_field_size", unsafe))
