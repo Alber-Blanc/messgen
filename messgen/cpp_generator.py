@@ -289,8 +289,9 @@ class CppGenerator:
                     _format_code(
                         3,
                         """\
-                        ssize_t deserialize(data_type &v, ::messgen::Allocator &alloc) const {
-                            return v.deserialize(_buf, alloc);
+                        template <class... Policies>
+                        ssize_t deserialize(data_type &v, ::messgen::Allocator &alloc, Policies... policies) const {
+                            return v.deserialize(_buf, alloc, std::forward<Policies>(policies)...);
                         }
 
                         """,
