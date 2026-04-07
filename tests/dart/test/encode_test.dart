@@ -23,7 +23,7 @@ void main() {
         f7: 0x12,
         f8: -0x12,
         f9: true,
-        e0: SimpleEnum(0),
+        e0: const SimpleEnum(0),
         b0: SimpleBitset(0),
       );
 

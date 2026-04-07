@@ -17,13 +17,13 @@ void main() {
       expect(TestProtoProtocol.messageIdToConstructor.containsKey(2), isTrue);
       
       // Verify that calling the constructors creates valid instances
-      var simpleStruct = TestProtoProtocol.messageIdToConstructor[0]!();
+      final simpleStruct = TestProtoProtocol.messageIdToConstructor[0]!();
       expect(simpleStruct, isA<SimpleStruct>());
       
-      var complexStruct = TestProtoProtocol.messageIdToConstructor[1]!();
+      final complexStruct = TestProtoProtocol.messageIdToConstructor[1]!();
       expect(complexStruct, isA<ComplexStruct>());
       
-      var varSizeStruct = TestProtoProtocol.messageIdToConstructor[2]!();
+      final varSizeStruct = TestProtoProtocol.messageIdToConstructor[2]!();
       expect(varSizeStruct, isA<VarSizeStruct>());
     });
 
@@ -35,19 +35,19 @@ void main() {
       expect(AnotherProtoProtocol.messageIdToConstructor.containsKey(0), isTrue);
       
       // Verify that calling the constructor creates a valid instance
-      var simpleStruct = AnotherProtoProtocol.messageIdToConstructor[0]!();
+      final simpleStruct = AnotherProtoProtocol.messageIdToConstructor[0]!();
       expect(simpleStruct, isA<SimpleStruct>());
     });
 
     test('Constructor map creates empty instances that can be deserialized', () {
       // Create an instance using the constructor map
-      var struct = TestProtoProtocol.messageIdToConstructor[0]!();
+      final struct = TestProtoProtocol.messageIdToConstructor[0]!();
       
       // Verify it's a SimpleStruct
       expect(struct, isA<SimpleStruct>());
       
       // Verify it has the empty() constructor behavior
-      var simpleStruct = struct as SimpleStruct;
+      final simpleStruct = struct as SimpleStruct;
       expect(simpleStruct.f0, equals(0));
       expect(simpleStruct.f9, equals(false));
     });
@@ -57,7 +57,7 @@ void main() {
       final expectedIds = [0, 1, 2, 4, 9, 10];
       for (var id in expectedIds) {
         expect(TestProtoProtocol.messageIdToConstructor.containsKey(id), isTrue,
-            reason: 'Missing constructor for message ID $id');
+            reason: 'Missing constructor for message ID $id',);
       }
     });
   });

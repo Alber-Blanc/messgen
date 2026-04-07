@@ -1,5 +1,5 @@
 /// Messgen - Lightweight and fast message serialization library for Dart/Flutter
-library messgen;
+library;
 
 export 'src/types.dart';
 export 'src/interfaces.dart';

@@ -19,10 +19,10 @@ class BufferTooShortException extends MessgenException {
 
 /// Exception thrown when serialization fails
 class SerializationException extends MessgenException {
-  SerializationException(String message) : super(message);
+  SerializationException(super.message);
 }
 
 /// Exception thrown when deserialization fails
 class DeserializationException extends MessgenException {
-  DeserializationException(String message) : super(message);
+  DeserializationException(super.message);
 }

@@ -91,7 +91,7 @@ final List<TestCase> testData = [
         0x1234567890abcdef,
         0x1234567890abcdef,
         0x1234567890abcdef,
-        0x1234567890abcdef
+        0x1234567890abcdef,
       ],
       arrVarSizeStruct: [varSize, varSize],
       vecFloat: [1.2345678901234567890, 1.2345678901234567890, 1.2345678901234567890],
@@ -107,13 +107,13 @@ final List<TestCase> testData = [
           [0x1234, 0x1234, 0x1234],
           [0x1234, 0x1234, 0x1234],
           [0x1234, 0x1234, 0x1234],
-          [0x1234, 0x1234, 0x1234]
+          [0x1234, 0x1234, 0x1234],
         ],
         [
           [0x1234, 0x1234, 0x1234],
           [0x1234, 0x1234, 0x1234],
           [0x1234, 0x1234, 0x1234],
-          [0x1234, 0x1234, 0x1234]
+          [0x1234, 0x1234, 0x1234],
         ],
       ],
       str: "Example String",
