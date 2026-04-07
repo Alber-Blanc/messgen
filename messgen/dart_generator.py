@@ -836,6 +836,14 @@ class ResolvedStruct(ResolvedType):
         else:
             yield f"    return BigInt.zero;"
         yield f"  }}"
+
+        yield f"  @override"
+        yield f"  String toString() {{"
+        yield f"    return '{self._name}(" + ", ".join(
+            [f"{field_name}: ${{{toDartName(field_name, False)}}}" for field_name, _ in self._fields]
+        ) + ")';"
+        yield f"  }}"
+
         yield f"}}"
 
     def _getDefaultValue(self, field: ResolvedType) -> str:
