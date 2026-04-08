@@ -13,8 +13,7 @@ void main() {
       final file = File('../serialized_data/simple_struct.bin');
       final data = file.readAsBytesSync();
 
-      final struct = SimpleStruct.empty();
-      final bytesRead = struct.deserialize(data);
+      final (struct, bytesRead) = SimpleStruct.deserialize(data);
 
       expect(bytesRead, equals(data.length));
       expect(struct.serializedSize(), equals(data.length));
@@ -35,8 +34,7 @@ void main() {
       final file = File('../serialized_data/var_size_struct.bin');
       final data = file.readAsBytesSync();
 
-      final struct = VarSizeStruct.empty();
-      final bytesRead = struct.deserialize(data);
+      final (struct, bytesRead) = VarSizeStruct.deserialize(data);
 
       expect(bytesRead, equals(data.length));
       expect(struct.f0, equals(0x1234567890abcdef));
@@ -51,8 +49,7 @@ void main() {
       final file = File('../serialized_data/empty_struct.bin');
       final data = file.readAsBytesSync();
 
-      final struct = EmptyStruct();
-      final bytesRead = struct.deserialize(data);
+      final (struct, bytesRead) = EmptyStruct.deserialize(data);
 
       expect(bytesRead, equals(0));
       expect(struct.serializedSize(), equals(0));
@@ -62,8 +59,7 @@ void main() {
       final file = File('../serialized_data/flat_struct.bin');
       final data = file.readAsBytesSync();
 
-      final struct = FlatStruct.empty();
-      final bytesRead = struct.deserialize(data);
+      final (struct, bytesRead)= FlatStruct.deserialize(data);
 
       expect(bytesRead, equals(data.length));
       expect(struct.serializedSize(), equals(data.length));
@@ -82,8 +78,7 @@ void main() {
       final file = File('../serialized_data/complex_struct.bin');
       final data = file.readAsBytesSync();
 
-      final struct = ComplexStruct.empty();
-      final bytesRead = struct.deserialize(data);
+      final (struct, bytesRead) = ComplexStruct.deserialize(data);
 
       expect(bytesRead, equals(data.length));
       expect(struct.arrSimpleStruct.length, equals(2));
@@ -102,8 +97,7 @@ void main() {
       final file = File('../serialized_data/complex_types_with_flat_groups.bin');
       final data = file.readAsBytesSync();
 
-      final struct = ComplexTypesWithFlatGroups.empty();
-      final bytesRead = struct.deserialize(data);
+      final (struct, bytesRead) = ComplexTypesWithFlatGroups.deserialize(data);
 
       expect(bytesRead, equals(data.length));
       expect(struct.array1.length, equals(6));
@@ -119,8 +113,7 @@ void main() {
       final file = File('../serialized_data/complex_types_with_flat_groups_with_single_item_map.bin');
       final data = file.readAsBytesSync();
 
-      final struct = ComplexTypesWithFlatGroups.empty();
-      final bytesRead = struct.deserialize(data);
+      final (struct, bytesRead) = ComplexTypesWithFlatGroups.deserialize(data);
 
       expect(bytesRead, equals(data.length));
       expect(struct.array1.length, equals(6));

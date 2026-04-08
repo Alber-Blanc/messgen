@@ -312,6 +312,13 @@ class ResolvedEnum(ResolvedType):
         yield f"  int get hashCode => value.hashCode;"
         yield ""
 
+        yield f"  {self._name} copyWith({{int? value}}) {{"
+        yield f"    return {self._name}(value ?? this.value);"
+        yield f"  }}"
+        yield ""
+        yield f"  {self._name} copy() => copyWith();"
+        yield ""
+
         # 3. Generate Static List of all values
         all_const_names = [toDartName(val.name, False) for val in model.values]
         yield f"  static List<{self._name}> values = [{', '.join(all_const_names)}];"
@@ -337,7 +344,7 @@ class ResolvedBitset(ResolvedType):
 
     def model(self):
         return cast(BitsetType, self._model)
-    
+
     def reference(self, caller_pkg = None):
         # Bitsets are represented as their bitset class type in field declarations
         return self._name
@@ -356,29 +363,29 @@ class ResolvedBitset(ResolvedType):
 
     def render(self):
         model = self.model()
-        
+
         yield f"{CODEGEN_FILE_PREFIX}\n"
         yield f"import 'dart:typed_data';\n"
         yield f"import 'package:messgen/messgen.dart';\n"
-        
+
         if model.comment:
             yield f"/// {model.comment}"
-        
+
         yield f"class {self._name} {{"
         yield f"  late int value;"
         yield ""
         yield f"  {self._name}(this.value);"
         yield ""
-        
+
         # Bit constants
         for bit in model.bits:
             if bit.comment:
                 yield f"  /// {bit.comment}"
             bit_name = toDartName(bit.name, False)
             yield f"  static const int {bit_name} = {bit.offset};"
-        
+
         yield ""
-        
+
         # has method
         yield f"  bool has(int bit) {{"
         yield f"    return (value & (1 << bit)) != 0;"
@@ -398,7 +405,14 @@ class ResolvedBitset(ResolvedType):
         yield f"    return this;"
         yield f"  }}"
         yield ""
-        
+
+        yield f"  {self._name} copyWith({{int? value}}) {{"
+        yield f"    return {self._name}(value ?? this.value);"
+        yield f"  }}"
+        yield ""
+        yield f"  {self._name} copy() => copyWith();"
+        yield ""
+
         # toString method
         yield f"  @override"
         yield f"  String toString() {{"
@@ -523,7 +537,7 @@ class ResolvedStruct(ResolvedType):
             elem_name = f"elem{step}"
             if cur._model.type_class != TypeClass.array:
                 yield f"    writer.writeUint32({name}.length);"
-            
+
             if cur._element.data_size() != None and cur._element.is_flat():
                 # For flat types, we can serialize efficiently
                 yield f"    for (final {elem_name} in {name}) {{"
@@ -543,124 +557,129 @@ class ResolvedStruct(ResolvedType):
             yield f"    }});"
 
     def renderDeserialize(self, name: str, cur: ResolvedType, step = 0):
-        if cur._model.type_class == TypeClass.string:
-            yield f"    {name} = reader.readString();"
+        # --- Nested Structs (Return Record) ---
+        if cur._model.type_class == TypeClass.struct:
+            res_var = f"res{step}"
+            yield f"    final ({cur.reference()} {name}, int {res_var}) ="
+            yield f"        {cur.reference()}.deserialize(Uint8List.sublistView(input, reader.offset));"
+            yield f"    reader.advance({res_var});"
+
+        # --- Strings & Bytes ---
+        elif cur._model.type_class == TypeClass.string:
+            yield f"    final {name} = reader.readString();"
         elif cur._model.type_class == TypeClass.bytes:
-            yield f"    {name} = reader.readBytes();"
-        elif cur._model.type_class == TypeClass.struct:
-            yield f"    final bytesRead = {name}.deserialize(Uint8List.sublistView(input, reader.offset));"
-            yield f"    reader.advance(bytesRead);"
-        elif isinstance(cur, ResolvedEnum):
-            # Enums are deserialized by wrapping the int value in the enum constructor
+            yield f"    final {name} = reader.readBytes();"
+
+        # --- Enums / Bitsets ---
+        elif isinstance(cur, (ResolvedEnum, ResolvedBitset)):
             temp_var = f"temp{step}"
-            yield f"    int {temp_var};"
             yield from self.renderDeserialize(temp_var, cur._base, step)
-            yield f"    {name} = {cur.reference()}({temp_var});"
-        elif isinstance(cur, ResolvedBitset):
-            # Bitsets are deserialized by wrapping the int value in the bitset constructor
-            temp_var = f"temp{step}"
-            yield f"    int {temp_var};"
-            yield from self.renderDeserialize(temp_var, cur._base, step)
-            yield f"    {name} = {cur.reference()}({temp_var});"
+            yield f"    final {name} = {cur.reference()}({temp_var});"
+
+        # --- Builtin Scalars ---
         elif isinstance(cur, ResolvedBuiltin):
             type_name = cur._model.type
-            if type_name == "int8":
-                yield f"    {name} = reader.readInt8();"
-            elif type_name == "uint8":
-                yield f"    {name} = reader.readUint8();"
-            elif type_name == "int16":
-                yield f"    {name} = reader.readInt16();"
-            elif type_name == "uint16":
-                yield f"    {name} = reader.readUint16();"
-            elif type_name == "int32":
-                yield f"    {name} = reader.readInt32();"
-            elif type_name == "uint32":
-                yield f"    {name} = reader.readUint32();"
-            elif type_name == "int64":
-                yield f"    {name} = reader.readInt64();"
-            elif type_name == "uint64":
-                yield f"    {name} = reader.readUint64();"
-            elif type_name == "float32":
-                yield f"    {name} = reader.readFloat32();"
-            elif type_name == "float64":
-                yield f"    {name} = reader.readFloat64();"
-            elif type_name == "bool":
-                yield f"    {name} = reader.readBool();"
+            # reader methods are usually readUint32, readFloat64, etc.
+            yield f"    final {name} = reader.read{type_name.capitalize()}();"
+
+        # --- Slices (Lists/Vectors) ---
         elif isinstance(cur, ResolvedSlice):
-            elem_name = f"elem{step}"
+            yield f"    final {name} = <{cur._element.reference()}>[];"
+
             if cur._model.type_class == TypeClass.array:
-                size = cast(ArrayType, cur._model).array_size
-                yield f"    for (int i{step} = 0; i{step} < {size}; i{step}++) {{"
-                if cur._element._model.type_class == TypeClass.struct:
-                    yield f"      final {elem_name} = {cur._element.reference()}.empty();"
-                    yield from self.renderDeserialize(elem_name, cur._element, step+1)
-                    yield f"      {name}[i{step}] = {elem_name};"
-                elif isinstance(cur._element, ResolvedSlice):
-                    # Element is an array/list - need to declare and let recursion initialize
-                    yield f"      {cur._element.reference()} {elem_name};"
-                    yield from self.renderDeserialize(elem_name, cur._element, step+1)
-                    yield f"      {name}[i{step}] = {elem_name};"
-                else:
-                    yield f"      {cur._element.reference()} {elem_name};"
-                    yield from self.renderDeserialize(elem_name, cur._element, step+1)
-                    yield f"      {name}[i{step}] = {elem_name};"
-                yield f"    }}"
+                count_expr = str(cur._model.array_size)
             else:
-                yield f"    final size{step} = reader.readUint32();"
-                yield f"    {name} = [];"
-                yield f"    for (int i{step} = 0; i{step} < size{step}; i{step}++) {{"
-                if cur._element._model.type_class == TypeClass.struct:
-                    yield f"      final {elem_name} = {cur._element.reference()}.empty();"
-                    yield from self.renderDeserialize(elem_name, cur._element, step+1)
-                    yield f"      {name}.add({elem_name});"
-                elif isinstance(cur._element, ResolvedSlice) and isinstance(cur._element._model, ArrayType):
-                    # Element is a fixed-size array - need to pre-allocate before the loop
-                    array_size = cur._element._model.array_size
-                    if cur._element._element._model.type_class == TypeClass.struct:
-                        # Fixed array of structs - pre-allocate with empty instances
-                        yield f"      {cur._element.reference()} {elem_name} = List.generate({array_size}, (_) => {cur._element._element.reference()}.empty());"
-                    elif isinstance(cur._element._element, ResolvedSlice):
-                        # Fixed array of lists - pre-allocate with empty lists
-                        yield f"      {cur._element.reference()} {elem_name} = List.generate({array_size}, (_) => []);"
-                    else:
-                        # Fixed array of primitives - pre-allocate with default values
-                        yield f"      {cur._element.reference()} {elem_name} = List.filled({array_size}, {self._getDefaultValue(cur._element._element)});"
-                    yield from self.renderDeserialize(elem_name, cur._element, step+1)
-                    yield f"      {name}.add({elem_name});"
-                elif isinstance(cur._element, ResolvedSlice):
-                    # Element is a dynamic vector - need to declare and let recursion initialize
-                    yield f"      {cur._element.reference()} {elem_name};"
-                    yield from self.renderDeserialize(elem_name, cur._element, step+1)
-                    yield f"      {name}.add({elem_name});"
-                else:
-                    yield f"      {cur._element.reference()} {elem_name};"
-                    yield from self.renderDeserialize(elem_name, cur._element, step+1)
-                    yield f"      {name}.add({elem_name});"
-                yield f"    }}"
-        elif isinstance(cur, ResolvedMap):
-            yield f"    final size{step} = reader.readUint32();"
-            yield f"    {name} = {{}};"
-            yield f"    for (int i{step} = 0; i{step} < size{step}; i{step}++) {{"
-            yield f"      {cur._key.reference()} key;"
-            yield from self.renderDeserialize("key", cur._key, step+1)
-            # For struct values, we need to create an instance before deserializing
-            if cur._value._model.type_class == TypeClass.struct:
-                yield f"      final value = {cur._value.reference()}.empty();"
-                yield from self.renderDeserialize("value", cur._value, step+1)
-            else:
-                yield f"      {cur._value.reference()} value;"
-                yield from self.renderDeserialize("value", cur._value, step+1)
-            yield f"      {name}[key] = value;"
+                yield f"    final count{step} = reader.readUint32();"
+                count_expr = f"count{step}"
+
+            yield f"    for (var i{step} = 0; i{step} < {count_expr}; i{step}++) {{"
+            elem_name = f"elem{step}"
+            yield from self.renderDeserialize(elem_name, cur._element, step + 1)
+            yield f"      {name}.add({elem_name});"
             yield f"    }}"
+
+        # --- Maps ---
+        elif isinstance(cur, ResolvedMap):
+            yield f"    final {name} = <{cur._key.reference()}, {cur._value.reference()}>{{}};"
+            yield f"    final mapCount{step} = reader.readUint32();"
+            yield f"    for (var i{step} = 0; i{step} < mapCount{step}; i{step}++) {{"
+            key_name = f"key{step}"
+            val_name = f"val{step}"
+            yield from self.renderDeserialize(key_name, cur._key, step + 1)
+            yield from self.renderDeserialize(val_name, cur._value, step + 2)
+            yield f"      {name}[{key_name}] = {val_name};"
+            yield f"    }}"
+
+    def _generateDeepCopyExpr(self, expr: str, field_type: ResolvedType) -> str:
+        """Recursively generates the Dart expression to deep copy a type."""
+
+        # 1. Handle Lists (Arrays/Vectors)
+        if isinstance(field_type, ResolvedSlice):
+            # We need to map the inner elements
+            inner_copy = self._generateDeepCopyExpr("e", field_type._element)
+            return f"{expr}.map((e) => {inner_copy}).toList()"
+
+        # 2. Handle Maps
+        elif isinstance(field_type, ResolvedMap):
+            # Maps need to copy both keys (usually primitives) and values
+            key_copy = self._generateDeepCopyExpr("k", field_type._key)
+            val_copy = self._generateDeepCopyExpr("v", field_type._value)
+            return f"{expr}.map((k, v) => MapEntry({key_copy}, {val_copy}))"
+
+        # 3. Handle Structs, Enums, and Bitsets (Anything with a .copy() method)
+        elif field_type._model.type_class in [TypeClass.struct, TypeClass.enum, TypeClass.bitset]:
+            return f"{expr}.copy()"
+
+        # 4. Handle Primitives (int, double, bool, String, Uint8List)
+        # Uint8List is handled via sublist for a true memory copy
+        if field_type.reference() == "Uint8List":
+            return f"{expr}.sublist(0)"
+
+        # Absolute primitives are passed by value
+        return expr
+
+    def renderCopyWith(self):
+        yield "  /// Creates a deep copy of this class with the given fields replaced."
+        yield f"  {self._name} copyWith("
+
+        if self._fields:
+            yield f" {{"
+
+        for field_name, field in self._fields:
+            dart_field_name = toDartName(field_name, False)
+            yield f"    {field.reference(self._package)}? {dart_field_name},"
+
+        if self._fields:
+            yield f"}}"
+
+        yield "  ) {"
+        yield f"    return {self._name}("
+
+        for field_name, field in self._fields:
+            dname = toDartName(field_name, False)
+
+            # Generate the recursive copy logic for the existing 'this' value
+            this_copy = self._generateDeepCopyExpr(f"this.{dname}", field)
+
+            # Generate the recursive copy logic for the provided parameter
+            param_copy = self._generateDeepCopyExpr(dname, field)
+
+            # Final Dart line logic:
+            # If param is provided, deep copy it.
+            # Otherwise, deep copy the current field to maintain isolation.
+            yield f"      {dname}: {dname} != null ? {param_copy} : {this_copy},"
+
+        yield "    );"
+        yield "  }"
 
     def render(self):
         model = self.model()
-        
-        yield f"{CODEGEN_FILE_PREFIX}\n"
-        yield f"import 'dart:typed_data';\n"
-        yield f"import 'dart:convert';\n"
-        yield f"import 'package:messgen/messgen.dart';\n"
-        
+
+        yield f"{CODEGEN_FILE_PREFIX}"
+        yield f"import 'dart:typed_data';"
+        yield f"import 'dart:convert';"
+        yield f"import 'package:messgen/messgen.dart';"
+
         # Helper function to collect all types that need imports
         def collect_import_types(resolved_type, imports_set):
             """Recursively collect all struct/enum/bitset types that need imports"""
@@ -679,16 +698,16 @@ class ResolvedStruct(ResolvedType):
                 # Recursively check key and value types for maps
                 collect_import_types(resolved_type._key, imports_set)
                 collect_import_types(resolved_type._value, imports_set)
-        
+
         # Import dependencies
         imported_packages = set()
         for _, field in self._fields:
             collect_import_types(field, imported_packages)
-        
+
         for pkg_tuple, type_name in sorted(imported_packages):
             # Convert type name to snake_case for filename
             filename = toSnakeCase(type_name) + "_gen.dart"
-            
+
             # Calculate relative path from this file's package to the imported type's package
             if pkg_tuple and pkg_tuple != tuple(self._package):
                 # Different package - calculate relative import path
@@ -696,7 +715,7 @@ class ResolvedStruct(ResolvedType):
                 # Convert to strings for path calculation
                 from_path = "/".join(self._package) if self._package else ""
                 to_path = "/".join(pkg_tuple) if pkg_tuple else ""
-                
+
                 # Use posixpath to calculate relative path
                 if from_path and to_path:
                     rel_path = posixpath.relpath(to_path, start=from_path)
@@ -707,76 +726,77 @@ class ResolvedStruct(ResolvedType):
             else:
                 # Same package - import by filename only
                 yield f"import '{filename}';\n"
-        
+
         if model.comment:
             yield f"/// {model.comment}"
-        
+
         yield f"class {self._name} implements Serializable {{"
-        
+
         # Fields (no default values since we use required constructor parameters)
         for field_name, field in self._fields:
             dart_field_name = toDartName(field_name, False)
             field_type = field.reference(self._package)
-            
-            # Get comment from stored field definition
             field_comment = self._field_defs.get(field_name)
             if field_comment:
                 yield f"  /// {field_comment}"
             yield f"  {field_type} {dart_field_name};"
-        
+
         yield ""
-        
-        # Constructor with required named parameters
+
+        # 2. Constructor
         if self._fields:
             yield f"  {self._name}({{"
-            for field_name, field in self._fields:
+            for field_name, _ in self._fields:
                 dart_field_name = toDartName(field_name, False)
                 yield f"    required this.{dart_field_name},"
             yield f"  }});"
         else:
             yield f"  {self._name}();"
-        
+
         yield ""
-        # Add a factory method for creating empty instances (used in deserialization)
-        # This is needed even for empty structs to keep API consistent
+
+        # 3. Empty Factory (Returns a default immutable instance)
         yield f"  factory {self._name}.empty() {{"
         if self._fields:
             yield f"    return {self._name}("
             for field_name, field in self._fields:
-                dart_field_name = toDartName(field_name, False)
-                field_type = field.reference(self._package)
-                
-                # Get default value for empty factory
-                default_val = "0"
-                if isinstance(field, ResolvedBuiltin):
-                    if field._model.type == "bool":
-                        default_val = "false"
-                    elif field._model.type_class == TypeClass.scalar:
-                        default_val = "0"
-                    elif field._model.type == "string":
-                        default_val = "''"
-                    elif field._model.type_class == TypeClass.bytes:
-                        default_val = "Uint8List(0)"
-                elif isinstance(field, ResolvedSlice):
-                    default_val = "[]"
-                elif isinstance(field, ResolvedMap):
-                    default_val = "{}"
-                elif field._model.type_class == TypeClass.struct:
-                    default_val = f"{field_type}.empty()"
-                elif field._model.type_class == TypeClass.enum:
-                    default_val = f"{field_type}(0)"
-                elif field._model.type_class == TypeClass.bitset:
-                    default_val = f"{field_type}(0)"
-                
-                yield f"      {dart_field_name}: {default_val},"
-            yield f"    );"
+                dart_name = toDartName(field_name, False)
+                # Use a helper to get the correct 'zero' value for the type
+                yield f"      {dart_name}: {self._getDefaultValue(field)},"
+            yield "    );"
         else:
             yield f"    return {self._name}();"
-        yield f"  }}"
+        yield "  }"
         yield ""
-        
-        # serializedSize method
-        yield f"  @override"
+
+        # 4. CopyWith support
+        yield from self.renderCopyWith()
+        yield ""
+
+        yield f"  {self._name} copy() => copyWith();"
+        yield ""
+
+        # 5. Static deserialize factory
+        yield f"  static ({self._name}, int) deserialize(Uint8List input) {{"
+        yield f"    final reader = BufferReader(input);"
+
+        # Iterate and generate local variable assignments
+        for i, (field_name, field) in enumerate(self._fields):
+            dart_name = toDartName(field_name, False)
+            yield from self.renderDeserialize(dart_name, field, i * 100)
+
+        yield "    return ("
+        yield f"      {self._name}("
+        for field_name, _ in self._fields:
+            dart_name = toDartName(field_name, False)
+            yield f"        {dart_name}: {dart_name},"
+        yield "      ),"
+        yield "      reader.offset"
+        yield "    );"
+        yield "  }"
+        yield ""
+
+        # 6. SerializedSize method
         yield f"  int serializedSize() {{"
         yield f"    int result = 0;"
         for field_name, field in self._fields:
@@ -785,9 +805,8 @@ class ResolvedStruct(ResolvedType):
         yield f"    return result;"
         yield f"  }}"
         yield ""
-        
-        # serialize method
-        yield f"  @override"
+
+        # 7. Serialize method
         yield f"  int serialize(Uint8List output) {{"
         yield f"    final writer = BufferWriter(output);"
         for field_name, field in self._fields:
@@ -796,42 +815,10 @@ class ResolvedStruct(ResolvedType):
         yield f"    return writer.offset;"
         yield f"  }}"
         yield ""
-        
-        # deserialize method
-        yield f"  @override"
-        yield f"  int deserialize(Uint8List input) {{"
-        yield f"    final reader = BufferReader(input);"
-        field_index = 0
-        for field_name, field in self._fields:
-            dart_field_name = toDartName(field_name, False)
-            # For arrays, we need to initialize them first
-            if isinstance(field, ResolvedSlice) and isinstance(field._model, ArrayType):
-                size = field._model.array_size
-                if field._element._model.type_class == TypeClass.struct:
-                    # Use List.generate to avoid shared references
-                    yield f"    {dart_field_name} = List.generate({size}, (_) => {field._element.reference()}.empty());"
-                elif isinstance(field._element, ResolvedSlice):
-                    # Element is a list - use List.generate to create empty lists
-                    yield f"    {dart_field_name} = List.generate({size}, (_) => []);"
-                else:
-                    # For primitives, List.filled is safe
-                    yield f"    {dart_field_name} = List.filled({size}, {self._getDefaultValue(field._element)});"
-            # For structs, initialize them
-            elif field._model.type_class == TypeClass.struct:
-                yield f"    {dart_field_name} = {field.reference(self._package)}.empty();"
-            
-            # Pass field_index as the starting step to ensure unique variable names
-            yield from self.renderDeserialize(dart_field_name, field, field_index * 100)
-            field_index += 1
-        yield f"    return reader.offset;"
-        yield f"  }}"
-        yield ""
-        
-        # hash method
-        yield f"  @override"
+
+        # 8. Hash method
         yield f"  BigInt hash() {{"
         if self._hash is not None:
-            # Use BigInt for large hash values
             yield f"    return BigInt.parse('{self._hash}');"
         else:
             yield f"    return BigInt.zero;"
@@ -847,23 +834,38 @@ class ResolvedStruct(ResolvedType):
         yield f"}}"
 
     def _getDefaultValue(self, field: ResolvedType) -> str:
-        """Get default value for a type"""
+        """Returns the Dart literal for a default 'empty' value."""
+        # 1. Check for Enums/Bitsets (They are classes wrapping an int)
+        if isinstance(field, (ResolvedEnum, ResolvedBitset)):
+            return f"{field.reference()}(0)"
+
+        # 2. Check for Nested Structs
+        if field._model.type_class == TypeClass.struct:
+            return f"{field.reference()}.empty()"
+
+        # 3. Check for Collections (Slices/Vectors/Arrays)
+        if isinstance(field, ResolvedSlice):
+            return "[]" # Standard Lists are empty
+
+        if isinstance(field, ResolvedMap):
+            return "{}"
+
+        # 4. Builtins
         if isinstance(field, ResolvedBuiltin):
-            if field._model.type == "bool":
-                return "false"
-            elif field._model.type_class == TypeClass.scalar:
-                return "0"
-            elif field._model.type == "string":
-                return "''"
-        elif field._model.type_class in [TypeClass.enum, TypeClass.bitset]:
+            t = field._model.type
+            if t == "bool": return "false"
+            if t == "string": return "''"
+            if t == "bytes": return "Uint8List(0)"
+            # All numeric scalars (int8, uint32, float64, etc.)
             return "0"
-        return "null"
+
+        return "null" # Fallback (should be avoided for final fields)
 
 
-def render_protocol(proto_name: str, proto_class_name: str, proto_full_path: str, proto: Protocol, 
+def render_protocol(proto_name: str, proto_class_name: str, proto_full_path: str, proto: Protocol,
                    resolved: dict[str, ResolvedType], types: dict[str, MessgenType]):
     """Generate protocol dispatcher code"""
-    
+
     # Compute protocol hash
     proto_hash = 0
     message_hashes = {}
@@ -873,16 +875,16 @@ def render_protocol(proto_name: str, proto_class_name: str, proto_full_path: str
         proto_hash ^= msg_hash
         # Store message hash as-is for BigInt
         message_hashes[msg_id] = msg_hash
-    
+
     yield f"{CODEGEN_FILE_PREFIX}\n"
     yield f"import 'dart:typed_data';\n"
     yield f"import 'package:messgen/messgen.dart';\n"
-    
+
     # Import message types with proper relative paths
     # Group imports by their type folder
     type_imports = {}  # Maps type folder to set of filenames
     msg_type_names = {}  # Map message IDs to type class names
-    
+
     for msg_id, msg in proto.messages.items():
         if msg.type in types:
             msg_type = types[msg.type]
@@ -890,7 +892,7 @@ def render_protocol(proto_name: str, proto_class_name: str, proto_full_path: str
                 if msg.type in resolved:
                     resolved_type = resolved[msg.type]
                     msg_type_names[msg_id] = resolved_type.name()
-                    
+
                     # Extract the type folder from the full type path
                     # e.g., "mynamespace/types/subspace/complex_struct" -> "mynamespace/types/subspace"
                     #       "mynamespace/types/simple_struct" -> "mynamespace/types"
@@ -900,48 +902,48 @@ def render_protocol(proto_name: str, proto_class_name: str, proto_full_path: str
                         type_folder = "/".join(type_path_parts[:-1])
                     else:
                         type_folder = msg.type.rsplit("/", 1)[0]
-                    
+
                     # Calculate relative path from protocol directory to type directory
                     rel_path = posixpath.relpath(type_folder, start=proto_full_path)
-                    
+
                     # Use the actual generated filename with snake_case
                     filename = toSnakeCase(resolved_type.name()) + "_gen.dart"
-                    
+
                     if rel_path not in type_imports:
                         type_imports[rel_path] = set()
                     type_imports[rel_path].add(filename)
-    
+
     # Generate import statements
     for rel_path in sorted(type_imports.keys()):
         for filename in sorted(type_imports[rel_path]):
             yield f"import '{rel_path}/{filename}';\n"
 
     yield ""
-    
+
     # Message handler type - must be outside class
     yield f"typedef MessageHandler = Future<void> Function(dynamic context, Uint8List body);"
     yield ""
-    
+
     yield f"class {proto_class_name}Protocol {{"
     yield f"  static const int id = {proto.proto_id};"
     yield f"  static const String name = '{proto.name}';"
     yield f"  static final BigInt hash = BigInt.parse('{proto_hash}');"
     yield ""
-    
+
     # Message IDs and hashes
     for msg_id, msg in proto.messages.items():
         msg_name = toDartName(msg.name, False)
         yield f"  static const int {msg_name}Id = {msg_id};"
         yield f"  static final BigInt {msg_name}Hash = BigInt.parse('{message_hashes[msg_id]}');"
-    
+
     yield ""
-    
+
     # Message ID to constructor map
-    yield f"  static final Map<int, Serializable Function()> messageIdToConstructor = {{"
+    yield f"  static final Map<int, (Serializable, int) Function(Uint8List)> messageIdToConstructor = {{"
     for msg_id, msg in proto.messages.items():
         if msg_id in msg_type_names:
             type_name = msg_type_names[msg_id]
-            yield f"    {msg_id}: () => {type_name}.empty(),"
+            yield f"    {msg_id}: (input) => {type_name}.deserialize(input),"
     yield f"  }};"
     yield ""
     
