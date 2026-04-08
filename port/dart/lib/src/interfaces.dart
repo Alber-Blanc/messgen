@@ -9,10 +9,6 @@ abstract class Serializable {
   /// Returns the number of bytes written
   int serialize(Uint8List output);
 
-  /// Deserialize the object from the input buffer
-  /// Returns the number of bytes read
-  int deserialize(Uint8List input);
-
   /// Get the serialized size in bytes
   int serializedSize();
 

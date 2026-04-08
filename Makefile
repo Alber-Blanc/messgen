@@ -39,7 +39,7 @@ $(GOLANGCI_LINT):
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(BIN_DIR) $(GOLANGCI_LINT_VERSION)
 
 generate-dart:
-	rm -rf build-dart-test/msgs
+	-rm -rf build-dart-test/msgs
 	python3 messgen-generate.py --types tests/msg/types --protocol tests/msg/protocols:mynamespace/proto/test_proto --protocol tests/msg/protocols:mynamespace/proto/subspace/another_proto --outdir build-dart-test/msgs --lang dart
 
 test-dart: generate-dart

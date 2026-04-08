@@ -34,8 +34,7 @@ void main() {
       expect(bytesWritten, equals(size));
 
       // Round-trip: deserialize and verify
-      final decoded = SimpleStruct.empty();
-      decoded.deserialize(buffer);
+      final (decoded, _) = SimpleStruct.deserialize(buffer);
 
       expect(decoded.f0, equals(struct.f0));
       expect(decoded.f1, equals(struct.f1));
@@ -64,8 +63,7 @@ void main() {
       expect(bytesWritten, equals(size));
 
       // Round-trip: deserialize and verify
-      final decoded = VarSizeStruct.empty();
-      decoded.deserialize(buffer);
+      final (decoded, _) = VarSizeStruct.deserialize(buffer);
 
       expect(decoded.f0, equals(struct.f0));
       expect(decoded.f1Vec.length, equals(struct.f1Vec.length));
@@ -106,8 +104,7 @@ void main() {
       expect(bytesWritten, equals(size));
 
       // Round-trip: deserialize and verify
-      final decoded = FlatStruct.empty();
-      decoded.deserialize(buffer);
+      final (decoded, _) = FlatStruct.deserialize(buffer);
 
       expect(decoded.f0, equals(struct.f0));
       expect(decoded.f1, equals(struct.f1));
@@ -152,8 +149,7 @@ void main() {
       expect(bytesWritten, equals(size));
 
       // Round-trip: deserialize and verify
-      final decoded = ComplexTypesWithFlatGroups.empty();
-      decoded.deserialize(buffer);
+      final (decoded, _) = ComplexTypesWithFlatGroups.deserialize(buffer);
 
       expect(decoded.array1.length, equals(struct.array1.length));
       expect(decoded.map1.length, equals(struct.map1.length));
