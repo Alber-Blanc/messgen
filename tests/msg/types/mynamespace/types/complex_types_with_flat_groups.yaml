@@ -1,8 +1,8 @@
 type_class: struct
-comment: "Array, Map, String, Bytes followed by a flat groups to validate right alignment and padding"
+comment: "Vector, Map, String, Bytes followed by a flat groups to validate right alignment and padding"
 fields:
   # some array, map first that may be serialized differently and affect alignment and offset calculation
-  - { name: "array1", type: "uint16[]", comment: "An array of uint16" }
+  - { name: "vec1", type: "uint16[]", comment: "A vector of uint16" }
   - { name: "map1", type: "string{uint32}", comment: "A map of uint32 to string" }
   - { name: "string1", type: "string", comment: "A string field" }
   - { name: "bytes1", type: "bytes", comment: "A bytes field" }
@@ -17,7 +17,7 @@ fields:
   - { name: "f7", type: "uint8" }
   - { name: "f8", type: "int8" }
   # Another array, map and string after the flat group
-  - { name: "array2", type: "int32[]", comment: "A fixed-size array of int32" }
+  - { name: "vec2", type: "int32[]", comment: "A vector of int32" }
   - { name: "map2", type: "float64{string}", comment: "A map of string to float64" }
   - { name: "string2", type: "string", comment: "Another string field" }
   - { name: "bytes2", type: "bytes", comment: "Another bytes field" }
