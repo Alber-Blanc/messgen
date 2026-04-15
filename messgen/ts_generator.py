@@ -163,11 +163,6 @@ class TypeScriptGenerator:
     def __init__(self, options=None):
         self.options = options
 
-    def generate(self, output_dir: Path, types: Dict[str, MessgenType], protocols: Dict[str, Protocol]) -> None:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        self.generate_types(output_dir, types)
-        self.generate_protocols(output_dir, protocols)
-
     def generate_types(self, out_dir: Path, types: Dict[str, MessgenType]) -> None:
         by_folder = self._collect_types_by_folder(types)
 

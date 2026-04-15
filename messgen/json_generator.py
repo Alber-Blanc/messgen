@@ -19,10 +19,6 @@ class JsonGenerator:
     def __init__(self, options):
         self._options = options
 
-    def generate(self, out_dir: Path, types: dict[str, MessgenType], protocols: dict[str, Protocol]) -> None:
-        self.generate_types(out_dir, types)
-        self.generate_protocols(out_dir, protocols)
-
     def generate_types(self, out_dir: Path, types: dict[str, MessgenType]) -> None:
         combined: list = []
 

@@ -1,5 +1,9 @@
 import os
-from messgen.version_protocol import VersionProtocol
+from pathlib import Path
+from .model import (
+    MessgenType,
+    Protocol,
+)
 
 
 def to_camelcase(str):
@@ -35,11 +39,10 @@ def format_type(f):
         f_type = "[%s](#%s)" % (din_type, to_kebabcase(din_type))
 
     if f["is_array"]:
-        if f['num']>1:
-            f_type +=  f"[{f['num']}]"
+        if f['num'] > 1:
+            f_type += f"[{f['num']}]"
         else:
             f_type += "[]"
-
 
     return f_type
 
@@ -52,51 +55,13 @@ class MdGenerator:
         self._modules_map = modules_map
         self._data_types_map = data_types_map
 
-    def generate(self, out_dir):
-        for module_name, module in self._modules_map.items():
+    def generate_types(self, out_dir: Path, types: dict[str, MessgenType]) -> None:
+        # TODO
+        pass
 
-            dts = []
-
-            id_max_len = self.get_max_length_by_key("id", module["messages"], len("id")) + 1
-            name_max_len = self.get_max_length_by_key("name", module["messages"], len("name")) * 2 + 5
-            dict_max_len = self.get_max_length_by_key("descr", module["messages"], len("comment"))
-
-            dts.append("# %s" % (module_name))
-            dts.append("\nVersion %s\n" % VersionProtocol(module).generate())
-            dts.append(
-                "| %s | %s | %s |"
-                % (
-                    self.add_spase("id", id_max_len),
-                    self.add_spase("yaml", name_max_len),
-                    self.add_spase("Comment", dict_max_len),
-                )
-            )
-            dts.append(
-                "|-%s-|-%s-|-%s-|"
-                % ("-" * id_max_len, "-" * name_max_len, "-" * dict_max_len)
-            )
-
-            for msg in module["messages"]:
-                dts.append(
-                    "| %s | %s | %s |"
-                    % (
-                        self.add_spase(self.id_to_str(msg["id"]), id_max_len),
-                        self.add_spase(
-                            "[%s](#%s)" % (msg["name"], to_kebabcase(msg["name"])),
-                            name_max_len,
-                            ),
-                        self.add_spase(
-                            msg.get("descr") if msg.get("descr") is not None else "",
-                            dict_max_len,
-                        ),
-                    )
-                )
-            dts.append("")
-
-            for msg in module["messages"]:
-                dts.extend(self.generate_interface(msg))
-                dts.append("")
-            self.__write_file(out_dir + os.path.sep + module_name + ".md", dts)
+    def generate_protocols(self, out_dir: Path, types: dict[str, MessgenType], protocols: dict[str, Protocol]) -> None:
+        # TODO
+        pass
 
     def get_max_length_by_key(self, key, data, min_len=0):
         max_len = min_len

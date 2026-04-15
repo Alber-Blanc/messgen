@@ -1155,8 +1155,3 @@ class DartGenerator:
                 subprocess.call(["dart", "format", barrel_path], text=True)
             except:
                 pass
-    
-    def generate(self, out_dir: Path, types: dict[str, MessgenType], protocols: dict[str, Protocol]) -> None:
-        """Generate all Dart code including types, protocols, and barrel files"""
-        self.generate_types(out_dir, types)
-        self.generate_protocols(out_dir, protocols)
