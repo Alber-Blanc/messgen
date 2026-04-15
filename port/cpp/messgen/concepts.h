@@ -35,11 +35,9 @@ concept serializable = requires(std::remove_cvref_t<Type> msg, uint8_t *buf, mes
     requires(
         requires {
             { msg.deserialize(buf_bytes) } -> std::same_as<ssize_t>;
-            { msg.deserialize_unsafe(buf_bytes.data()) } -> std::same_as<ssize_t>;
         } ||
         requires {
             { msg.deserialize(buf_bytes, alloc) } -> std::same_as<ssize_t>;
-            { msg.deserialize_unsafe(buf_bytes.data(), alloc) } -> std::same_as<ssize_t>;
         });
 };
 
@@ -63,7 +61,6 @@ concept message =                                             //
         { msg_send.serialized_size() } -> std::same_as<size_t>;
         { msg_send.serialize(buf) } -> std::same_as<size_t>;
         { msg_recv.deserialize(data) } -> std::same_as<ssize_t>;
-        { msg_recv.deserialize_unsafe(data) } -> std::same_as<ssize_t>;
     };
 
 template <class MessageRecv>
@@ -71,7 +68,6 @@ concept message_recv =                                                  //
     message<typename std::remove_cvref_t<MessageRecv>::message_type> && //
     requires(std::remove_cvref_t<MessageRecv> msg_recv, typename std::remove_cvref_t<MessageRecv>::message_type::data_type_strg &data) {
         { msg_recv.deserialize(data) } -> std::same_as<ssize_t>;
-        { msg_recv.deserialize_unsafe(data) } -> std::same_as<ssize_t>;
     };
 
 template <class MessageSend>
