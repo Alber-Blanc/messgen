@@ -125,7 +125,7 @@ if __name__ == "__main__":
     # complex_types_with_flat_groups_msg
     t = codec.type_converter("mynamespace/types/complex_types_with_flat_groups")
     msg1 = {
-        "array1": [1, 2, 3, 4, 5, 6],
+        "vec1": [1, 2, 3, 4, 5, 6],
         "map1": {
             0x252525: "0x252525",
             0x262626: "0x262626",
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         "f6": 0x1234,
         "f7": 0x12,
         "f8": -0x12,
-        "array2": [2, 3, 4, 5],
+        "vec2": [2, 3, 4, 5],
         "map2": {
             "0.202020": 0.202020,
             "0.212121": 0.212121,
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     # complex_types_with_flat_groups_without_map
     t = codec.type_converter("mynamespace/types/complex_types_with_flat_groups")
     msg1 = {
-        "array1": [1, 2, 3, 4, 5, 6],
+        "vec1": [1, 2, 3, 4, 5, 6],
         "map1": {
             1: "1",
         },
@@ -177,7 +177,7 @@ if __name__ == "__main__":
         "f6": 0x1234,
         "f7": 0x12,
         "f8": -0x12,
-        "array2": [2, 3, 4, 5],
+        "vec2": [2, 3, 4, 5],
         "map2": {
             "0": 0,
         },

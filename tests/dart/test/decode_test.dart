@@ -100,11 +100,11 @@ void main() {
       final (struct, bytesRead) = ComplexTypesWithFlatGroups.deserialize(data);
 
       expect(bytesRead, equals(data.length));
-      expect(struct.array1.length, equals(6));
+      expect(struct.vec1.length, equals(6));
       expect(struct.map1.length, equals(2));
       expect(struct.string1, equals("string1"));
       expect(struct.f0, equals(0x1234567890abcdef));
-      expect(struct.array2.length, equals(4));
+      expect(struct.vec2.length, equals(4));
       expect(struct.map2.length, equals(2));
       expect(struct.string2, equals("some string2"));
     });
@@ -116,11 +116,11 @@ void main() {
       final (struct, bytesRead) = ComplexTypesWithFlatGroups.deserialize(data);
 
       expect(bytesRead, equals(data.length));
-      expect(struct.array1.length, equals(6));
+      expect(struct.vec1.length, equals(6));
       expect(struct.map1.length, equals(1));
       expect(struct.string1, equals("string1"));
       expect(struct.f0, equals(0x1234567890abcdef));
-      expect(struct.array2.length, equals(4));
+      expect(struct.vec2.length, equals(4));
       expect(struct.map2.length, equals(1));
       expect(struct.string2, equals("some string2"));
     });

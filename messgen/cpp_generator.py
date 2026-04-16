@@ -831,7 +831,7 @@ class CppGenerator:
             elif len(group.fields) == 1:
                 field = group.fields[0]
                 field_name = field.name
-                field_type_def = self._types.get(field.type)
+                field_type_def = self._types[field.type]
                 code_ser.extend(self._serialize_field(field_name, field_type_def))
             code_ser.append("")
         code_ser.append("return _size;")
@@ -876,7 +876,7 @@ class CppGenerator:
                 ))
             elif len(group.fields) == 1:
                 field = group.fields[0]
-                field_type_def = self._types.get(field.type)
+                field_type_def = self._types[field.type]
                 code_deser.extend(_indent(
                     [""] +
                     self._deserialize_field(field.name, field_type_def, mode)
@@ -1261,7 +1261,7 @@ class CppGenerator:
             """))
 
         elif type_class == TypeClass.array:
-            el_type_def = self._types.get(field_type_def.element_type)
+            el_type_def = self._types[field_type_def.element_type]
             el_size = el_type_def.size
             el_align = self._get_alignment(el_type_def)
             el_c_type = self._cpp_type(field_type_def.element_type, mode)
@@ -1289,7 +1289,7 @@ class CppGenerator:
             if mode == Mode.STORAGE:
                 c.append(f"{field_name}.resize(_field_size);")
 
-            el_type_def = self._types.get(field_type_def.element_type)
+            el_type_def = self._types[field_type_def.element_type]
             el_size = el_type_def.size
             el_align = self._get_alignment(el_type_def)
             el_c_type = self._cpp_type(field_type_def.element_type, mode)
@@ -1326,9 +1326,9 @@ class CppGenerator:
 
         elif type_class == TypeClass.map:
             key_c_type = self._cpp_type(field_type_def.key_type, mode)
-            key_type_def = self._types.get(field_type_def.key_type)
+            key_type_def = self._types[field_type_def.key_type]
             value_c_type = self._cpp_type(field_type_def.value_type, mode)
-            value_type_def = self._types.get(field_type_def.value_type)
+            value_type_def = self._types[field_type_def.value_type]
             if mode == Mode.STORAGE:
                 c.append("{")
                 c.extend(self._check_buf_size("sizeof(messgen::size_type)"))

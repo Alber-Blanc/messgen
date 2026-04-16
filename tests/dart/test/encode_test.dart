@@ -119,7 +119,7 @@ void main() {
 
     test('ComplexTypesWithFlatGroups with single item map encode and round-trip', () {
       final struct = ComplexTypesWithFlatGroups(
-        array1: [1, 2, 3, 4, 5, 6],
+        vec1: [1, 2, 3, 4, 5, 6],
         map1: {1: "1"},
         string1: "string1",
         bytes1: Uint8List.fromList("some bytes".codeUnits),
@@ -132,7 +132,7 @@ void main() {
         f6: 0x1234,
         f7: 0x12,
         f8: -0x12,
-        array2: [2, 3, 4, 5],
+        vec2: [2, 3, 4, 5],
         map2: {"0": 0.0},
         string2: "some string2",
         bytes2: Uint8List.fromList("some bytes2".codeUnits),
@@ -151,11 +151,11 @@ void main() {
       // Round-trip: deserialize and verify
       final (decoded, _) = ComplexTypesWithFlatGroups.deserialize(buffer);
 
-      expect(decoded.array1.length, equals(struct.array1.length));
+      expect(decoded.vec1.length, equals(struct.vec1.length));
       expect(decoded.map1.length, equals(struct.map1.length));
       expect(decoded.string1, equals(struct.string1));
       expect(decoded.f0, equals(struct.f0));
-      expect(decoded.array2.length, equals(struct.array2.length));
+      expect(decoded.vec2.length, equals(struct.vec2.length));
       expect(decoded.map2.length, equals(struct.map2.length));
       expect(decoded.string2, equals(struct.string2));
     });

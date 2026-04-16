@@ -30,6 +30,8 @@ describe('integration', () => {
       f7: 0x12,
       f8: -0x12,
       f9: true,
+      e0: 0,
+      b0: 0,
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/simple_struct.bin');
 
@@ -57,18 +59,6 @@ describe('integration', () => {
     expect((new Uint8Array(buffer.dataView.buffer))).toEqual((new Uint8Array(rawDataBit)));
   });
 
-  it('should parse enum struct_with_enum', () => {
-    const raw = { f0: bigint, f1: bigint, e0: 1 };
-    const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/struct_with_enum.bin');
-
-    const buffer = codec.serialize(1, 3, raw);
-    const result = codec.deserialize(1, 3, new Uint8Array(rawDataBit).buffer);
-
-    expect(result).toEqual(raw);
-    expect(buffer.size).toEqual(rawDataBit.length);
-    expect((new Uint8Array(buffer.dataView.buffer))).toEqual((new Uint8Array(rawDataBit)));
-  });
-
   it('should parse empty structure', () => {
     const raw = {};
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/empty_struct.bin');
@@ -81,98 +71,6 @@ describe('integration', () => {
     expect((new Uint8Array(buffer.dataView.buffer))).toEqual((new Uint8Array(rawDataBit)));
   });
 
-  it('should parse complex struct with nested empty struct', () => {
-    const raw = {
-      e: {},
-      dynamic_array: [{}, {}, {}],
-      static_array: [{}, {}, {}, {}, {}],
-      multi_array: [
-        [[{}], [{}], [{}], [{}], [{}]],
-        [[{}], [{}], [{}], [{}], [{}]],
-        [[{}], [{}], [{}], [{}], [{}]],
-      ],
-      map_empty_by_int: new Map([
-        [0, {}],
-        [1, {}],
-        [2, {}],
-      ]),
-      map_vec_by_str: new Map([
-        ['key0', [{}]],
-        ['key1', [{}]],
-        ['key2', [{}]],
-      ]),
-      array_of_size_zero: new Int32Array(0),
-    };
-    const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct_with_empty.bin');
-
-    const buffer = codec.serialize(1, 5, raw);
-    const result = codec.deserialize(1, 5, new Uint8Array(rawDataBit).buffer);
-
-    expect(result).toEqual(raw);
-    expect(buffer.size).toEqual(rawDataBit.length);
-    expect((new Uint8Array(buffer.dataView.buffer))).toEqual((new Uint8Array(
-      rawDataBit,
-    )));
-  });
-
-  it('should be parse complex_struct_nostl', () => {
-    const simpleStruct = {
-      f0: bigint,
-      f1: bigint,
-      f1_pad: 0x12,
-      f2: 1.2345678901234567890,
-      f3: 0x12345678,
-      f4: 0x12345678,
-      f5: 1.2345678901234567890,
-      f6: 0x1234,
-      f7: 0x12,
-      f8: -0x12,
-      f9: true,
-    };
-
-    const raw = {
-      f0: BigInt('0x1234567890abcdef'),
-      f1: 0x12345678,
-      f2: BigInt('0x1234567890abcdef'),
-      arr_simple_struct: Array(2).fill(simpleStruct),
-      arr_int: new BigInt64Array(4).fill(BigInt('0x1234567890abcdef')),
-      arr_var_size_struct: Array(2).fill({
-        f0: BigInt('0x1234567890abcdef'),
-        f1_vec: new BigInt64Array([BigInt('0x1234567890abcdef'), BigInt(5), BigInt(1)]),
-        str: 'Hello messgen!',
-      }),
-      vec_float: new Float64Array(3).fill(1.2345678901234567890),
-      vec_enum: [
-        0,
-        1],
-      vec_simple_struct: Array(3).fill(simpleStruct),
-      v_vec0: Array(3).fill(Array(2).fill({
-        f0: BigInt('0x1234567890abcdef'),
-        f1_vec: new BigInt64Array([BigInt('0x1234567890abcdef'), BigInt(5), BigInt(1)]),
-        str: 'Hello messgen!',
-      })), // replace 3 with desired outer list length
-      v_vec1: Array(4).fill(Array(3).fill({
-        f0: BigInt('0x1234567890abcdef'),
-        f1_vec: new BigInt64Array([BigInt('0x1234567890abcdef'), BigInt(5), BigInt(1)]),
-        str: 'Hello messgen!',
-      })), // replace 3 with desired outer list length
-      v_vec2: Array(2).fill(Array(4).fill(new Int16Array(3).fill(0x1234))), // replace 2 with desired outer list length
-      str: 'Example String',
-      str_vec: ['string1', 'string2', 'string3'],
-      bitset0: 1 | 4,
-    };
-    const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct_nostl.bin');
-
-    const buffer = codec.serialize(1, 6, raw);
-    const result = codec.deserialize(1, 6, new Uint8Array(rawDataBit).buffer);
-
-    simpleStruct.f5 = expect.closeTo(simpleStruct.f5, 4);
-    expect(result).toEqual(raw);
-    expect(buffer.size).toEqual(rawDataBit.length);
-    expect((new Uint8Array(buffer.dataView.buffer))).toEqual((new Uint8Array(
-      rawDataBit,
-    )));
-  });
   it('should parse complex_struct', () => {
     const simpleStruct = {
       f0: BigInt('0x1234567890abcdef'),
@@ -186,12 +84,11 @@ describe('integration', () => {
       f7: 0x12,
       f8: -0x12,
       f9: true,
+      e0: 0,
+      b0: 0,
     };
 
     const raw = {
-      f0: BigInt('0x1234567890abcdef'),
-      f1: 0x12345678,
-      f2: BigInt('0x1234567890abcdef'),
       arr_simple_struct: Array(2).fill(simpleStruct),
       arr_int: new BigInt64Array(4).fill(BigInt('0x1234567890abcdef')),
       arr_var_size_struct: Array(2).fill({
@@ -202,23 +99,15 @@ describe('integration', () => {
       vec_float: new Float64Array(3).fill(1.2345678901234567890),
       vec_enum: [0, 1],
       vec_simple_struct: Array(3).fill(simpleStruct),
-      v_vec0: Array(3).fill(Array(2).fill({
-        f0: BigInt('0x1234567890abcdef'),
-        f1_vec: new BigInt64Array([BigInt('0x1234567890abcdef'), BigInt(5), BigInt(1)]),
-        str: 'Hello messgen!',
-      })),
-      v_vec1: Array(4).fill(Array(3).fill({
-        f0: BigInt('0x1234567890abcdef'),
-        f1_vec: new BigInt64Array([BigInt('0x1234567890abcdef'), BigInt(5), BigInt(1)]),
-        str: 'Hello messgen!',
-      })),
-      v_vec2: Array(2).fill(Array(4).fill(new Int16Array(3).fill(0x1234))),
+      vec_vec_var_size_struct: [],
+      vec_arr_vec_int: [],
       str: 'Example String',
       bs: new Uint8Array([0x62, 0x79, 0x74, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67]), // "byte string"
       str_vec: ['string1', 'string2', 'string3'],
       map_str_by_int: new Map(Array.from({ length: 3 }, (_, i) => [i, `string${i}`])),
       map_vec_by_str: new Map(Array.from({ length: 3 }, (_, i) => [`key${i}`, new Int32Array(3).fill(0x1234)])),
       bitset0: 1 | 4,
+      array_of_size_zero: new Int32Array(0),
     };
     const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct.bin');
 

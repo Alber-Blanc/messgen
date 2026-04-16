@@ -27,6 +27,7 @@ check: test
 generate-golang:
 	rm -rf build-golang-test/msgs
 	python3 messgen-generate.py --types tests/msg/types --protocol tests/msg/protocols:mynamespace/proto/test_proto --protocol tests/msg/protocols:mynamespace/proto/subspace/another_proto --options mod_name=github.com/Alber-Blanc/messgen/build-golang-test --outdir build-golang-test/msgs --lang golang
+	cp tests/golang/build-golang-test_go.mod build-golang-test/go.mod
 
 test-golang: generate-golang
 	go test -v $(GOLANG_DIRECTORIES)

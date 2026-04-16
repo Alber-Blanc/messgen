@@ -586,7 +586,7 @@ class ResolvedStruct(ResolvedType):
         elif isinstance(cur, ResolvedSlice):
             yield f"    final {name} = <{cur._element.reference()}>[];"
 
-            if cur._model.type_class == TypeClass.array:
+            if isinstance(cur._model, ArrayType):
                 count_expr = str(cur._model.array_size)
             else:
                 yield f"    final count{step} = reader.readUint32();"
@@ -845,7 +845,13 @@ class ResolvedStruct(ResolvedType):
 
         # 3. Check for Collections (Slices/Vectors/Arrays)
         if isinstance(field, ResolvedSlice):
-            return "[]" # Standard Lists are empty
+            if isinstance(field._model, ArrayType):
+                n = field._model.array_size
+                if n == 0:
+                    return "[]"
+                default_elem = self._getDefaultValue(field._element)
+                return f"List.generate({n}, (_) => {default_elem})"
+            return "[]" # Vector
 
         if isinstance(field, ResolvedMap):
             return "{}"
@@ -882,7 +888,7 @@ def render_protocol(proto_name: str, proto_class_name: str, proto_full_path: str
 
     # Import message types with proper relative paths
     # Group imports by their type folder
-    type_imports = {}  # Maps type folder to set of filenames
+    type_imports: dict[str, set[str]] = {}  # Maps type folder to set of filenames
     msg_type_names = {}  # Map message IDs to type class names
 
     for msg_id, msg in proto.messages.items():

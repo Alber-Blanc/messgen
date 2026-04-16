@@ -261,13 +261,13 @@ void main() {
         ],
         arrInt: [10, 20],
         arrVarSizeStruct: [
-          const VarSizeStruct(f0: 100, f1Vec: [1, 2], str: "inner")
+          VarSizeStruct(f0: 100, f1Vec: [1, 2], str: "inner")
         ],
         vecFloat: [1.1, 2.2],
         vecEnum: [SimpleEnum.anotherValue],
         vecSimpleStruct: [],
         vecVecVarSizeStruct: [
-          [const VarSizeStruct(f0: 5, f1Vec: [5], str: "nested")]
+          [VarSizeStruct(f0: 5, f1Vec: [5], str: "nested")]
         ],
         vecArrVecInt: [
           [
