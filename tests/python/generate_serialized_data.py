@@ -47,19 +47,6 @@ if __name__ == "__main__":
 
     print("Successfully generated serialized data to tests/data/serialized/bin/var_size_struct.bin")
 
-    # struct_with_enum
-    t = codec.type_converter("mynamespace/types/struct_with_enum")
-    msg1 = {
-        "f0": 0x1234567890abcdef,
-        "f1": 0x1234567890abcdef,
-        "e0": "another_value"
-    }
-    b = t.serialize(msg1)
-    with open('tests/data/serialized/bin/struct_with_enum.bin', 'wb') as f:
-        f.write(b)
-
-    print("Successfully generated serialized data to tests/data/serialized/bin/struct_with_enum.bin")
-
     # empty_struct
     t = codec.type_converter("mynamespace/types/empty_struct")
     msg1 = {}
@@ -67,67 +54,6 @@ if __name__ == "__main__":
     with open('tests/data/serialized/bin/empty_struct.bin', 'wb') as f:
         f.write(b)
     print("Successfully generated serialized data to tests/data/serialized/bin/empty_struct.bin")
-
-    # complex_struct_with_empty
-    t = codec.type_converter("mynamespace/types/subspace/complex_struct_with_empty")
-    msg1 = {
-        "e": {},  # empty_struct
-        "dynamic_array": [{} for _ in range(3)],  # list of empty_struct, replace 3 with desired length
-        "static_array": [{} for _ in range(5)],  # list of 5 empty_struct
-        "multi_array": [[[{}] for _ in range(5)] for _ in range(3)],
-        # 2D list of empty_struct, replace 3 with desired outer list length
-        "map_empty_by_int": {i: {} for i in range(3)},  # map of int32 to empty_struct, replace 3 with desired map size
-        "map_vec_by_str": {"key" + str(i): [{}] for i in range(3)},
-        # map of string to list of empty_struct, replace 3 with desired map size
-        "array_of_size_zero": [],  # empty list of int32
-    }
-    b = t.serialize(msg1)
-    with open('tests/data/serialized/bin/complex_struct_with_empty.bin', 'wb') as f:
-        f.write(b)
-    print("Successfully generated serialized data to tests/data/serialized/bin/complex_struct_with_empty.bin")
-
-
-    # complex_struct_nostl
-
-    t = codec.type_converter("mynamespace/types/subspace/complex_struct_nostl")
-    simple_struct = {
-        "f0": 0x1234567890abcdef,
-        "f1": 0x1234567890abcdef,
-        "f1_pad": 0x12,
-        "f2": 1.2345678901234567890,
-        "f3": 0x12345678,
-        "f4": 0x12345678,
-        "f5": 1.2345678901234567890,
-        "f6": 0x1234,
-        "f7": 0x12,
-        "f8": -0x12,
-        "f9": True,
-    }
-    msg1 = {
-        "f0": 0x1234567890abcdef,
-        "f1": 0x12345678,
-        "f2": 0x1234567890abcdef,
-        "s_arr": [ simple_struct for _ in range(2)],
-        "f1_arr": [0x1234567890abcdef for _ in range(4)],
-        "v_arr": [{"f0": 0x1234567890abcdef, "f1_vec": [0x1234567890abcdef, 5, 1], "str": "Hello messgen!"} for _ in
-                  range(2)],
-        "f2_vec": [1.2345678901234567890 for _ in range(3)],
-        "e_vec": ["one_value", "another_value"],
-        "s_vec": [ simple_struct for _ in range(3)],
-        "v_vec0": [[{"f0": 0x1234567890abcdef, "f1_vec": [0x1234567890abcdef, 5, 1], "str": "Hello messgen!"} for _ in
-                    range(2)] for _ in range(3)],  # replace 3 with desired outer list length
-        "v_vec1": [[{"f0": 0x1234567890abcdef, "f1_vec": [0x1234567890abcdef, 5, 1], "str": "Hello messgen!"} for _ in
-                    range(3)] for _ in range(4)],  # replace 3 with desired outer list length
-        "v_vec2": [[[0x1234 for _ in range(3)] for _ in range(4)] for _ in range(2)],
-        "str": "Example String",
-        "str_vec": ["string1", "string2", "string3"],
-        "bits0": 0b101
-    }
-    b = t.serialize(msg1)
-    with open('tests/data/serialized/bin/complex_struct_nostl.bin', 'wb') as f:
-        f.write(b)
-    print("Successfully generated serialized data to tests/data/serialized/bin/complex_struct_nostl.bin")
-
 
     # complex_struct
     t = codec.type_converter("mynamespace/types/subspace/complex_struct")
@@ -149,13 +75,13 @@ if __name__ == "__main__":
         "f0": 0x1234567890abcdef,
         "f1": 0x12345678,
         "f2": 0x1234567890abcdef,
-        "s_arr": [simple_struct for _ in range(2)],
-        "f1_arr": [0x1234567890abcdef for _ in range(4)],
-        "v_arr": [{"f0": 0x1234567890abcdef, "f1_vec": [0x1234567890abcdef, 5, 1], "str": "Hello messgen!"} for _ in
+        "arr_simple_struct": [simple_struct for _ in range(2)],
+        "arr_int": [0x1234567890abcdef for _ in range(4)],
+        "arr_var_size_struct": [{"f0": 0x1234567890abcdef, "f1_vec": [0x1234567890abcdef, 5, 1], "str": "Hello messgen!"} for _ in
                   range(2)],
-        "f2_vec": [1.2345678901234567890 for _ in range(3)],
-        "e_vec": ["one_value", "another_value"],
-        "s_vec": [simple_struct for _ in range(3)],
+        "vec_float": [1.2345678901234567890 for _ in range(3)],
+        "vec_enum": ["one_value", "another_value"],
+        "vec_simple_struct": [simple_struct for _ in range(3)],
         "v_vec0": [[{"f0": 0x1234567890abcdef, "f1_vec": [0x1234567890abcdef, 5, 1], "str": "Hello messgen!"} for _ in
                     range(2)] for _ in range(3)],  # replace 3 with desired outer list length
         "v_vec1": [[{"f0": 0x1234567890abcdef, "f1_vec": [0x1234567890abcdef, 5, 1], "str": "Hello messgen!"} for _ in
@@ -166,7 +92,7 @@ if __name__ == "__main__":
         "str_vec": ["string1", "string2", "string3"],
         "map_str_by_int": {i: "string" + str(i) for i in range(3)},
         "map_vec_by_str": {"key" + str(i): [0x1234 for _ in range(3)] for i in range(3)},
-        "bits0": 0b101,
+        "bitset0": 0b101,
     }
     b = t.serialize(msg1)
     with open('tests/data/serialized/bin/complex_struct.bin', 'wb') as f:
@@ -199,7 +125,7 @@ if __name__ == "__main__":
     # complex_types_with_flat_groups_msg
     t = codec.type_converter("mynamespace/types/complex_types_with_flat_groups")
     msg1 = {
-        "array1": [1, 2, 3, 4, 5, 6],
+        "vec1": [1, 2, 3, 4, 5, 6],
         "map1": {
             0x252525: "0x252525",
             0x262626: "0x262626",
@@ -215,7 +141,7 @@ if __name__ == "__main__":
         "f6": 0x1234,
         "f7": 0x12,
         "f8": -0x12,
-        "array2": [2, 3, 4, 5],
+        "vec2": [2, 3, 4, 5],
         "map2": {
             "0.202020": 0.202020,
             "0.212121": 0.212121,
@@ -236,7 +162,7 @@ if __name__ == "__main__":
     # complex_types_with_flat_groups_without_map
     t = codec.type_converter("mynamespace/types/complex_types_with_flat_groups")
     msg1 = {
-        "array1": [1, 2, 3, 4, 5, 6],
+        "vec1": [1, 2, 3, 4, 5, 6],
         "map1": {
             1: "1",
         },
@@ -251,7 +177,7 @@ if __name__ == "__main__":
         "f6": 0x1234,
         "f7": 0x12,
         "f8": -0x12,
-        "array2": [2, 3, 4, 5],
+        "vec2": [2, 3, 4, 5],
         "map2": {
             "0": 0,
         },
@@ -268,4 +194,4 @@ if __name__ == "__main__":
         f.write(b)
     print("Successfully generated serialized data to tests/data/serialized/bin/complex_types_with_flat_groups_with_single_item_map.bin")
 
-    print("Successfully")
+    print("Success")

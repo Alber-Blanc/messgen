@@ -37,11 +37,10 @@ def generate(args: argparse.Namespace):
                 opts[p[0]] = p[1]
 
         if (gen := generator.get_generator(args.lang, opts)) is not None:
-            if types is not None:
-                gen.generate_types(Path(args.outdir), types)
-
             if protocols is not None:
-                gen.generate_protocols(Path(args.outdir), protocols)
+                gen.generate_protocols(Path(args.outdir), types, protocols)
+            elif types is not None:
+                gen.generate_types(Path(args.outdir), types)
         else:
             raise RuntimeError('Unsupported language "%s"' % args.lang)
 

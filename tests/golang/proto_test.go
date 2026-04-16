@@ -13,7 +13,7 @@ import (
 // TestProtocol is very a basic test that only checks that the generated code compiles and could be used.
 func TestProtocol(t *testing.T) {
 	called := false
-	testFunc := func(ctx context.Context, msg *test_proto.SimpleStructMsg) error {
+	testFunc := func(ctx context.Context, msg *test_proto.SimpleStruct) error {
 		called = true
 		if !reflect.DeepEqual(*msg.Data().(*_type.SimpleStruct), simple) {
 			return fmt.Errorf("Dispatched message has unexpected content")
@@ -24,7 +24,7 @@ func TestProtocol(t *testing.T) {
 
 	dispatcher := test_proto.NewDispatcher()
 
-	err := dispatcher.SetHandlerSimpleStructMsg(testFunc)
+	err := dispatcher.SetHandlerSimpleStruct(testFunc)
 	if err != nil {
 		t.Fatalf("Failed to setup dispatcher: %s", err)
 	}
@@ -32,7 +32,7 @@ func TestProtocol(t *testing.T) {
 	data := make([]byte, simple.SerializedSize())
 	simple.Serialize(data)
 
-	err = dispatcher.Dispatch(context.Background(), test_proto.SimpleStructMsg_Id, data)
+	err = dispatcher.Dispatch(context.Background(), test_proto.SimpleStruct_Id, data)
 	if err != nil {
 		t.Fatalf("Failed to dispatch message: %s", err)
 	} else if !called {
@@ -49,7 +49,7 @@ func TestProtocol(t *testing.T) {
 		t.Fatal("Dispatching unknown message id should fail")
 	}
 
-	err = dispatcher.Dispatch(context.Background(), test_proto.ComplexStructWithEmptyMsg_Id, data)
+	err = dispatcher.Dispatch(context.Background(), test_proto.ComplexStruct_Id, data)
 	if err == nil {
 		t.Fatal("Dispatching message with wrong id should fail")
 	}
@@ -64,21 +64,18 @@ func TestProtocolHash(t *testing.T) {
 		t.Fatalf("Protocol Name has unexpected value: %s", test_proto.Name)
 	}
 
-	exceptedProtoHash := uint64(615801888777759705)
+	exceptedProtoHash := uint64(1585401056561118099)
 
 	if test_proto.Hash != exceptedProtoHash {
 		t.Fatalf("Protocol Hash has unexpected value: %d != %d", exceptedProtoHash, test_proto.Hash)
 	}
 
-	calculatedProtocolHash := test_proto.SimpleStructMsg_Hash ^
-		test_proto.ComplexStructMsg_Hash ^
-		test_proto.VarSizeStructMsg_Hash ^
-		test_proto.StructWithEnumMsg_Hash ^
-		test_proto.EmptyStructMsg_Hash ^
-		test_proto.ComplexStructWithEmptyMsg_Hash ^
-		test_proto.ComplexStructNostlMsg_Hash ^
-		test_proto.FlatStructMsg_Hash ^
-		test_proto.ComplexTypesWithFlatGroupsMsg_Hash
+	calculatedProtocolHash := test_proto.SimpleStruct_Hash ^
+		test_proto.ComplexStruct_Hash ^
+		test_proto.VarSizeStruct_Hash ^
+		test_proto.EmptyStruct_Hash ^
+		test_proto.FlatStruct_Hash ^
+		test_proto.ComplexTypesWithFlatGroups_Hash
 
 	if calculatedProtocolHash != exceptedProtoHash {
 		t.Fatalf("Calculated Protocol Hash has unexpected value: %d != %d", exceptedProtoHash, calculatedProtocolHash)

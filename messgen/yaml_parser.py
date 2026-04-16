@@ -1,5 +1,5 @@
 import os
-import yaml
+import yaml  # type: ignore[import-untyped]
 from pathlib import Path
 from typing import Any
 

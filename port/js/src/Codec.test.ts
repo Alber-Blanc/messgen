@@ -38,7 +38,7 @@ describe('Codec', () => {
       const { buffer } = new Int8Array([
         -17, -51, -85, -112, 120, 86, 52, 18, -17, -51, -85, -112, 120, 86, 52, 18,
         18, -5, 89, -116, 66, -54, -64, -13, 63, 120, 86, 52, 18, 120, 86, 52, 18,
-        82, 6, -98, 63, 52, 18, 18, -18, 1,
+        82, 6, -98, 63, 52, 18, 18, -18, 1, 1, 5,
       ]);
       const bigint = BigInt('0x1234567890abcdef');
       const rawData = {
@@ -53,6 +53,8 @@ describe('Codec', () => {
         f7: 0x12,
         f8: -0x12,
         f9: true,
+        e0: 1,
+        b0: 0b101,
       };
 
       const message = codec.serialize(1, 0, rawData);
@@ -88,6 +90,8 @@ describe('Codec', () => {
         f7: 0x12,
         f8: -0x12,
         f9: true,
+        e0: 0,
+        b0: 0,
       };
 
       const message = codec.serialize(1, 0, rawData);
@@ -129,7 +133,7 @@ describe('Codec', () => {
     it('should get message info by id', () => {
       const messageInfo = codec.messageInfo(1, 1);
 
-      expect(messageInfo.messageHash()).toBe(12088864483134247070n);
+      expect(messageInfo.messageHash()).toBe(2291972869429025032n);
     });
   });
 

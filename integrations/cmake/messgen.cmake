@@ -1,8 +1,8 @@
 #
 # Function creates a target for specified types.
 #
-function(messgen_add_types_library LIBRARY_NAME BASE_DIRS MODE)
-    string(JOIN "," OPTIONS "mode=${MODE}" ${ARGN})
+function(messgen_add_types_library LIBRARY_NAME BASE_DIRS)
+    string(JOIN "," OPTIONS ${ARGN})
 
     set(MESSAGES_OUT_DIR "${CMAKE_BINARY_DIR}/${LIBRARY_NAME}/generated_src")
 
@@ -35,21 +35,26 @@ function(messgen_add_types_library LIBRARY_NAME BASE_DIRS MODE)
     target_include_directories(${LIBRARY_NAME} INTERFACE
         ${MESSAGES_OUT_DIR}
         ${MESSGEN_DIR}/port/cpp
-        ${MESSGEN_DIR}/port/cpp_${MODE}
     )
+    set_target_properties(${LIBRARY_NAME} PROPERTIES "MESSGEN_BASE_DIRS" "${BASE_DIRS}")
 endfunction()
 
 #
 # Function creates a target for specified protocol.
 #
-function(messgen_add_proto_library LIBRARY_NAME BASE_DIR PROTOCOL TYPES_TARGET MODE)
-    string(JOIN "," OPTIONS "mode=${MODE}" ${ARGN})
+function(messgen_add_proto_library LIBRARY_NAME BASE_DIR PROTOCOL TYPES_TARGET)
+    string(JOIN "," OPTIONS ${ARGN})
 
     set(MESSAGES_OUT_DIR "${CMAKE_BINARY_DIR}/${LIBRARY_NAME}/generated_src")
 
-
     get_filename_component(MESSGEN_DIR ${CMAKE_CURRENT_FUNCTION_LIST_DIR} DIRECTORY)
     get_filename_component(MESSGEN_DIR ${MESSGEN_DIR} DIRECTORY)
+
+    set(MESSGEN_ARGS "")
+    get_target_property(BASE_DIRS ${TYPES_TARGET} "MESSGEN_BASE_DIRS")
+    foreach (BASE_DIR ${BASE_DIRS})
+        list(APPEND MESSGEN_ARGS "--types" ${BASE_DIR})
+    endforeach ()
 
     if (OPTIONS)
         list(APPEND MESSGEN_ARGS "--options")

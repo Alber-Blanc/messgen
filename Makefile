@@ -27,6 +27,7 @@ check: test
 generate-golang:
 	rm -rf build-golang-test/msgs
 	python3 messgen-generate.py --types tests/msg/types --protocol tests/msg/protocols:mynamespace/proto/test_proto --protocol tests/msg/protocols:mynamespace/proto/subspace/another_proto --options mod_name=github.com/Alber-Blanc/messgen/build-golang-test --outdir build-golang-test/msgs --lang golang
+	cp tests/golang/build-golang-test_go.mod build-golang-test/go.mod
 
 test-golang: generate-golang
 	go test -v $(GOLANG_DIRECTORIES)
@@ -37,6 +38,15 @@ check-golang: $(GOLANGCI_LINT)
 $(GOLANGCI_LINT):
 	mkdir -p bin
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(BIN_DIR) $(GOLANGCI_LINT_VERSION)
+
+generate-dart:
+	-rm -rf build-dart-test/msgs
+	python3 messgen-generate.py --types tests/msg/types --protocol tests/msg/protocols:mynamespace/proto/test_proto --protocol tests/msg/protocols:mynamespace/proto/subspace/another_proto --outdir build-dart-test/msgs --lang dart
+
+test-dart: generate-dart
+	cd port/dart && dart pub get
+	cd tests/dart && dart pub get
+	cd tests/dart && dart test
 
 clean:
 	rm -rf ${BUILD_DIR} $(BIN_DIR) build-golang-test/msgs

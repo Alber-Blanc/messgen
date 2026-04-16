@@ -163,11 +163,6 @@ class TypeScriptGenerator:
     def __init__(self, options=None):
         self.options = options
 
-    def generate(self, output_dir: Path, types: Dict[str, MessgenType], protocols: Dict[str, Protocol]) -> None:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        self.generate_types(output_dir, types)
-        self.generate_protocols(output_dir, protocols)
-
     def generate_types(self, out_dir: Path, types: Dict[str, MessgenType]) -> None:
         by_folder = self._collect_types_by_folder(types)
 
@@ -180,10 +175,14 @@ class TypeScriptGenerator:
         root_content = self._emit_types_root(types)
         self._write(out_dir / self.TYPES_FILE, root_content)
 
-    def generate_protocols(self, out_dir: Path, protocols: Dict[str, Protocol]) -> None:
+    def generate_protocols(self, out_dir: Path, types: dict[str, MessgenType], protocols: Dict[str, Protocol]) -> None:
+        self.generate_types(out_dir, types)
+
         if not protocols:
             self._write(out_dir / self.PROTOCOLS_FILE, "export type ProtocolMap = {};\n")
             return
+
+        self._types = types
 
         items: List[Tuple[str, Protocol]] = sorted(protocols.items(), key=lambda v: v[1].name)
 
@@ -324,6 +323,11 @@ class TypeScriptGenerator:
     def _emit_protocols(self, proto_key_path: str, proto: Protocol) -> str:
         proto_dir = proto_key_path
         messages = sorted(proto.messages.values(), key=lambda m: m.message_id)
+
+        for message in messages:
+            type_def = self._types.get(message.type)
+            if type_def is None:
+                raise RuntimeError(f"Type '{message.type}' not found for message '{message.name}' in protocol '{proto.name}'")
 
         unique_folders = sorted({_type_folder_of(m.type) for m in messages})
         folder_alias: Dict[str, str] = {tf: _alias_from_key(tf) for tf in unique_folders}

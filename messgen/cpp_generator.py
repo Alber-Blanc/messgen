@@ -1,8 +1,7 @@
-import json
 import textwrap
 
 from contextlib import contextmanager
-from dataclasses import asdict
+from enum import Enum
 from pathlib import (
     PosixPath,
     Path,
@@ -16,22 +15,28 @@ from .common import (
 from .model import (
     ArrayType,
     BasicType,
+    BitsetBit,
+    BitsetType,
     DecimalType,
     EnumType,
     EnumValue,
+    ExternalType,
     FieldType,
+    get_schema,
+    hash_message,
+    hash_type,
     MapType,
     MessgenType,
     Protocol,
     StructType,
-    ExternalType,
     TypeClass,
     VectorType,
-    hash_message,
-    hash_type,
-    BitsetBit,
-    BitsetType,
 )
+
+
+class Mode(Enum):
+    STORAGE = 1
+    VIEW = 2
 
 
 def _unqual_name(type_name: str) -> str:
@@ -40,6 +45,11 @@ def _unqual_name(type_name: str) -> str:
 
 def _qual_name(type_name: str) -> str:
     return type_name.replace(SEPARATOR, "::")
+
+
+def _qual_strg_name(type_name: str) -> str:
+    p = type_name.split(SEPARATOR)
+    return "::".join(p[:-1] + ["strg", p[-1]])
 
 
 def _split_last_name(type_name) -> tuple[str, str]:
@@ -67,6 +77,7 @@ def _namespace(name: str, code: list[str]):
 @contextmanager
 def _struct(name: str, code: list[str]):
     try:
+        code.append("")
         code.append(f"struct {name} {{")
         yield
     finally:
@@ -76,21 +87,31 @@ def _struct(name: str, code: list[str]):
 
 def _inline_comment(type_def: FieldType | EnumValue | BitsetBit):
     if type_def.comment:
-        return " ///< %s" % type_def.comment
+        return f" ///< {type_def.comment}"
     return ""
 
 
-def _indent(c):
-    spaces = "    "
-    if type(c) is str:
+def _simple_comment(comment):
+    if isinstance(comment, list):
+        comment = ', '.join(comment)
+    return ["// %s" % comment]
+
+
+def _indent(c, levels=1):
+    spaces = "    " * levels
+    if isinstance(c, str):
         return spaces + c
-    elif type(c) is list:
+    elif isinstance(c, list):
         r = []
         for i in c:
             r.append(spaces + i if i else "")
         return r
     else:
-        raise RuntimeError("Unsupported type for indent: %s" % type(c))
+        raise RuntimeError(f"Unsupported type for indent: {type(c)}")
+
+
+def _format_code(level: int, s: str):
+    return textwrap.indent(textwrap.dedent(s), "    " * level).splitlines()
 
 
 class FieldsGroup:
@@ -98,12 +119,13 @@ class FieldsGroup:
         self.fields: list = []
         self.field_names: list = []
         self.size: int = 0
+        self.is_flat = True
 
     def __repr__(self) -> str:
         return str(self)
 
     def __str__(self) -> str:
-        return "<FieldsGroup size=%s fields=%s>" % (self.size, self.field_names)
+        return f"<FieldsGroup size={self.size} fields={self.field_names}>"
 
 
 class CppGenerator:
@@ -132,21 +154,20 @@ class CppGenerator:
 
     def generate_types(self, out_dir: Path, types: dict[str, MessgenType]) -> None:
         self._types = types
-        for type_name, type_def in types.items():
+        for type_name, type_def in self._types.items():
             if type_def.type_class not in [TypeClass.struct, TypeClass.enum, TypeClass.bitset]:
                 continue
+
             file_name = out_dir / (type_name + self._EXT_HEADER)
             file_name.parent.mkdir(parents=True, exist_ok=True)
-            write_file_if_diff(file_name, self._generate_type_file(type_name, type_def, types))
+            write_file_if_diff(file_name, self._generate_type_file(type_name, type_def))
 
-    def generate_protocols(self, out_dir: Path, protocols: dict[str, Protocol]) -> None:
+    def generate_protocols(self, out_dir: Path, types: dict[str, MessgenType], protocols: dict[str, Protocol]) -> None:
+        self._types = types
         for proto_name, proto_def in protocols.items():
             file_name = out_dir / (proto_name + self._EXT_HEADER)
             file_name.parent.mkdir(parents=True, exist_ok=True)
             write_file_if_diff(file_name, self._generate_proto_file(proto_name, proto_def))
-
-    def _get_mode(self):
-        return self._options.get("mode", "stl")
 
     def _get_cpp_standard(self):
         return int(self._options.get("cpp_standard", "20"))
@@ -154,18 +175,25 @@ class CppGenerator:
     def _reset_file(self):
         self._includes.clear()
 
-    def _generate_type_file(self, type_name: str, type_def: MessgenType, types: dict[str, MessgenType]) -> list:
+    def _generate_type_file(self, type_name: str, type_def: MessgenType) -> list:
         print(f"Generate type: {type_name}")
         self._reset_file()
         code: list[str] = []
 
         with _namespace(_split_last_name(type_name)[0], code):
-            if isinstance(type_def, EnumType):
-                code.extend(self._generate_type_enum(type_name, type_def))
+            if isinstance(type_def, StructType):
+                # View type
+                code.extend(self._generate_type_struct(type_name, type_def, Mode.VIEW))
 
-            elif isinstance(type_def, StructType):
-                code.extend(self._generate_type_struct(type_name, type_def, types))
-                code.extend(self._generate_type_members_of(type_name, type_def))
+                # Storage type
+                code.extend(["", "namespace strg {", ""])
+                if type_def.size is None:
+                    code.extend(self._generate_type_struct(type_name, type_def, Mode.STORAGE))
+                else:
+                    code.append(f"using {type_name.split('/')[-1]} = {self._cpp_type(type_name, Mode.VIEW)};")
+                code.extend(["", "}"])
+            elif isinstance(type_def, EnumType):
+                code.extend(self._generate_type_enum(type_name, type_def))
             elif isinstance(type_def, BitsetType):
                 code.extend(self._generate_type_bitset(type_name, type_def))
 
@@ -174,7 +202,7 @@ class CppGenerator:
         return code
 
     def _generate_proto_file(self, proto_name: str, proto_def: Protocol) -> list[str]:
-        print("Generate protocol: %s" % proto_name)
+        print(f"Generate protocol: {proto_name}")
 
         self._reset_file()
         code: list[str] = []
@@ -190,7 +218,14 @@ class CppGenerator:
 
                 proto_id = proto_def.proto_id
                 if proto_id is not None:
-                    code.append(f"    static constexpr int16_t PROTO_ID = {proto_id};")
+                    code.extend(
+                        _format_code(
+                            1,
+                            f"""\
+                        static constexpr int16_t PROTO_ID = {proto_id};
+                        """,
+                        )
+                    )
 
                 code.extend(self._generate_messages(proto_name, class_name, proto_def))
                 code.extend(self._generate_reflect_message_decl())
@@ -208,41 +243,189 @@ class CppGenerator:
         self._add_include("tuple")
         code: list[str] = []
         for message in proto_def.messages.values():
+            type_def = self._types.get(message.type)
+            if type_def is None:
+                raise RuntimeError(
+                    f"Type '{message.type}' not found for message '{message.name}' in protocol '{proto_name}'")
+
             code.extend(
-                textwrap.indent(
-                    textwrap.dedent(f"""
-                        struct {message.name} {{
-                            using data_type = {_qual_name(message.type)};
-                            using protocol_type = {class_name};
+                _format_code(
+                    1,
+                    f"""\
 
-                            static constexpr int16_t PROTO_ID = protocol_type::PROTO_ID;
-                            static constexpr int16_t MESSAGE_ID = {message.message_id};
-                            static constexpr uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
-                            static constexpr std::string_view NAME = "{_qual_name(proto_name)}::{message.name}";
+                struct {message.name} {{
+                    using data_type = ::{_qual_name(message.type)};
+                    using data_type_strg = ::{_qual_strg_name(message.type)};
+                    using protocol_type = {class_name};
 
-                            data_type data;
-                        """),
-                    "    ",
-                ).splitlines()
-            )
-            if self._get_cpp_standard() >= 20:
-                code.append(f"    auto operator<=>(const struct {message.name} &) const = default;")
-            else:
-                code.extend(
-                    textwrap.indent(
-                        textwrap.dedent(f"""
-                            friend bool operator==(const struct {message.name}& l, const struct {message.name}& r) {{
-                                return l.data == r.data;
-                            }}
+                    static constexpr int16_t PROTO_ID = protocol_type::PROTO_ID;
+                    static constexpr int16_t MESSAGE_ID = {message.message_id};
+                    static constexpr uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
+                    static constexpr std::string_view NAME = "{proto_name}/{message.name}";
 
-                            friend bool operator!=(const struct {message.name}& l, const struct {message.name}& r) {{
-                                return !(l == r);
-                            }}
-                        """),
-                        "        ",
-                    ).splitlines()
+                    class recv {{
+                    public:
+                        using message_type = {message.name};
+                        using data_type = ::{_qual_name(message.type)};
+                        using data_type_strg = ::{_qual_strg_name(message.type)};
+                        using protocol_type = {class_name};
+
+                        explicit recv(messgen::bytes buf) :
+                            _buf(buf) {{
+                        }}
+
+                        [[nodiscard]] const uint8_t *data() const noexcept {{
+                            return _buf.data();
+                        }}
+
+                        """,
                 )
-            code.append("    };")
+            )
+
+            if type_def.size is None:
+                # Dynamic size
+                self._add_include("messgen/Allocator.h", "global")
+                code.extend(
+                    _format_code(
+                        3,
+                        """\
+                        template <class... Policies>
+                        ssize_t deserialize(data_type &v, ::messgen::Allocator &alloc, Policies... policies) const {
+                            return v.deserialize(_buf, alloc, std::forward<Policies>(policies)...);
+                        }
+
+                        """,
+                    )
+                )
+                code.extend(
+                    _format_code(
+                        3,
+                        """\
+                        ssize_t deserialize(data_type_strg &v) const {
+                            return v.deserialize(_buf);
+                        }
+
+                        """,
+                    )
+                )
+
+            else:
+                # Static size, data_type == data_type_view
+                code.extend(
+                    _format_code(
+                        3,
+                        """\
+                        ssize_t deserialize(data_type &v) const {
+                            return v.deserialize(_buf);
+                        }
+
+                        """,
+                    )
+                )
+
+            code.extend(
+                _format_code(
+                    2,
+                    f"""\
+                    private:
+                        messgen::bytes _buf{{}};
+                    }};
+
+                    class send {{
+                    public:
+                        using message_type = {message.name};
+                        using data_type = ::{_qual_name(message.type)};
+                        using data_type_strg = ::{_qual_strg_name(message.type)};
+                        using protocol_type = {class_name};
+
+                    """,
+                )
+            )
+
+            if type_def.size is None:
+                # Dynamic size
+                code.extend(
+                    _format_code(
+                        3,
+                        """\
+                        explicit send(const data_type* t) :
+                            _data(t),
+                            _serialize_func(&messgen::free_serialize<data_type>),
+                            _serialized_size_func(&messgen::free_serialized_size<data_type>) {
+                            assert(t != nullptr);
+                        }
+
+                        explicit send(const data_type_strg* t) :
+                            _data(t),
+                            _serialize_func(&messgen::free_serialize<data_type_strg>),
+                            _serialized_size_func(&messgen::free_serialized_size<data_type_strg>) {
+                            assert(t != nullptr);
+                        }
+
+                        [[nodiscard]] size_t serialized_size() const {
+                            return (*_serialized_size_func)(_data);
+                        }
+
+                        size_t serialize(uint8_t* buf) const {
+                            return (*_serialize_func)(_data, buf);
+                        }
+
+                """,
+                    )
+                )
+
+            else:
+                # Static size, data_type == data_type_view
+                code.extend(
+                    _format_code(
+                        3,
+                        """\
+                        explicit send(const data_type* t) :
+                            _data(t) {
+                            assert(t != nullptr);
+                        }
+
+                        [[nodiscard]] constexpr static size_t serialized_size() {
+                            return data_type::FIXED_SIZE;
+                        }
+
+                        size_t serialize(uint8_t* buf) const {
+                            return reinterpret_cast<const data_type *>(_data)->serialize(buf);
+                        }
+
+                """,
+                    )
+                )
+
+            code.extend(
+                _format_code(
+                    2,
+                    """\
+                private:
+                    const void *_data{};
+                """,
+                )
+            )
+            if type_def.size is None:
+                code.extend(
+                    _format_code(
+                        3,
+                        """\
+                    ::messgen::serialize_func _serialize_func{};
+                    ::messgen::serialized_size_func _serialized_size_func{};
+                """,
+                    )
+                )
+
+            code.extend(
+                _format_code(
+                    1,
+                    """\
+                    };
+                };
+                """,
+                )
+            )
         return code
 
     def _generate_protocol_members_of(self, class_name: str, proto_def: Protocol):
@@ -283,56 +466,30 @@ class CppGenerator:
         return code
 
     def _generate_dispatcher_decl(self) -> list[str]:
-        if self._get_mode() == "nostl":
-            out = """
-            template <class Fn>
-            static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, uint8_t *dynamic_buf = nullptr, size_t dynamic_buf_size = 0);
-            """
-        else:
-            out = """
-            template <class Fn>
-            static constexpr bool dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn);
-            """
+        out = """
+        template <class Fn>
+        static constexpr bool dispatch_message(int16_t msg_id, messgen::bytes payload, Fn &&fn);
+        """
         return textwrap.indent(textwrap.dedent(out), "    ").splitlines()
 
     def _generate_dispatcher(self, class_name: str) -> list[str]:
-        if self._get_mode() == "nostl":
-            out = f"""
+        return _format_code(
+            0,
+            f"""
             template <class Fn>
-            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn, uint8_t *dynamic_buf, size_t dynamic_buf_size) {{
+            constexpr bool {class_name}::dispatch_message(int16_t msg_id, messgen::bytes payload, Fn &&fn) {{
                 auto result = false;
                 reflect_message(msg_id, [&]<class R>(R) {{
-                    using message_type = messgen::splice_t<R>;
+                    using message_type = typename messgen::splice_t<R>::recv;
                     if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
-                        auto msg = message_type{{}};
-                        messgen::Allocator alloc(dynamic_buf, dynamic_buf_size);
-                        msg.data.deserialize(payload, alloc);
-                        std::forward<Fn>(fn).operator()(std::move(msg));
+                        std::forward<Fn>(fn).operator()(message_type{{payload}});
                         result = true;
                     }}
                 }});
                 return result;
             }}
-            """
-        else:
-            out = f"""
-            template <class Fn>
-            constexpr bool {class_name}::dispatch_message(int16_t msg_id, const uint8_t *payload, Fn &&fn) {{
-                auto result = false;
-                reflect_message(msg_id, [&]<class R>(R) {{
-                    using message_type = messgen::splice_t<R>;
-                    if constexpr (std::is_invocable_v<::messgen::remove_cvref_t<Fn>, message_type>) {{
-                        auto msg = message_type{{}};
-                        msg.data.deserialize(payload);
-                        std::forward<Fn>(fn).operator()(std::move(msg));
-                        result = true;
-                    }}
-                }});
-                return result;
-            }}
-            """
-
-        return textwrap.dedent(out).splitlines()
+            """,
+        )
 
     @staticmethod
     def _generate_comment_type(type_def):
@@ -341,39 +498,102 @@ class CppGenerator:
 
         code = []
         code.append("/**")
-        code.append(" * %s" % type_def.comment)
+        code.append(f" * {type_def.comment}")
         code.append(" */")
         return code
 
     def _generate_type_enum(self, type_name, type_def):
         self._add_include("messgen/messgen.h")
         self._add_include("string_view")
+        self._add_include("string")
 
         unqual_name = _unqual_name(type_name)
         qual_name = _qual_name(type_name)
+        underlying_cpp_type = self._cpp_type(type_def.base_type, Mode.VIEW)
 
         code = []
         code.extend(self._generate_comment_type(type_def))
-        code.append(f"enum class {unqual_name}: {self._cpp_type(type_def.base_type)} {{")
+        code.append(f"enum class {unqual_name}: {underlying_cpp_type} {{")
         for enum_value in type_def.values:
-            code.append("    %s = %s,%s" % (enum_value.name, enum_value.value, _inline_comment(enum_value)))
+            code.append(f"    {enum_value.name} = {enum_value.value},{_inline_comment(enum_value)}")
         code.append("};")
 
         code.extend(
-            textwrap.dedent(f"""
-                [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
-                    return "{qual_name}";
-                }}""").splitlines()
+            _format_code(
+                0,
+                f"""
+            namespace detail {{
+            static constexpr ::messgen::metadata {unqual_name}_METADATA{{
+                .hash = {hash_type(type_def, self._types)}ULL,
+                .name = "{type_name}",
+                .schema = R"_({get_schema(type_def)})_"
+            }};
+            }}
+
+            constexpr const ::messgen::metadata &metadata_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return detail::{unqual_name}_METADATA;
+            }}
+
+            [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return "{type_name}";
+            }}
+
+            [[nodiscard]] constexpr auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return std::tuple{{
+            """,
+            )
         )
 
-        code.append("")
-        code.append(f"[[nodiscard]] constexpr auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
-        code.append("    return std::tuple{")
         for enum_value in type_def.values:
             code.append(
                 f'        ::messgen::enumerator_value{{{{"{enum_value.name}"}}, {unqual_name}::{enum_value.name}}},')
-        code.append("    };")
-        code.append("}")
+        code.extend(
+            _format_code(
+                0,
+                """
+             };
+         }""",
+            )
+        )
+
+        code.extend(
+            _format_code(
+                0,
+                f"""
+            [[nodiscard]] constexpr std::string_view to_string_view({unqual_name} e) noexcept {{
+                switch (e) {{
+            """,
+            )
+        )
+        for enum_value in type_def.values:
+            code.extend(
+                _format_code(
+                    1,
+                    f"""\
+                case {unqual_name}::{enum_value.name}:
+                    return "{enum_value.name}";
+                """,
+                )
+            )
+        code.extend(
+            _format_code(
+                0,
+                f"""\
+                default:
+                    return messgen::UNKNOWN_ENUM_STR;
+                }}
+            }}
+
+            [[nodiscard]] inline std::string to_string({unqual_name} e) noexcept {{
+                auto s = to_string_view(e);
+                if (s != messgen::UNKNOWN_ENUM_STR) {{
+                    return std::string(s);
+                }}
+                return "<unknown (" + std::to_string({underlying_cpp_type}(e)) + ")>";
+            }}
+            """,
+            )
+        )
 
         return code
 
@@ -384,35 +604,61 @@ class CppGenerator:
 
         unqual_name = _unqual_name(type_name)
         qual_name = _qual_name(type_name)
-        underlying_type = self._cpp_type(type_def.base_type)
+        underlying_type = self._cpp_type(type_def.base_type, Mode.VIEW)
 
         code = []
         code.extend(self._generate_comment_type(type_def))
-        code.append(
-            f"class {unqual_name} : public messgen::detail::bitset_base<{unqual_name}, {underlying_type}> {{")
-        code.append(f"    enum class Values : {underlying_type} {{")
+
+        code.extend(
+            _format_code(
+                0,
+                f"""
+            class {unqual_name} : public messgen::detail::bitset_base<{unqual_name}, {underlying_type}> {{
+                enum class Values : {underlying_type} {{
+        """,
+            )
+        )
+
         for bit in type_def.bits:
-            code.append("        %s = %s,%s" % (bit.name, 1 << bit.offset, _inline_comment(bit)))
-        code.append("    };")
+            code.append(f"        {bit.name} = {1 << bit.offset},{_inline_comment(bit)}")
+        code.extend(
+            _format_code(
+                0,
+                f"""\
+            }};
 
-        code.append("")
-        code.append("public:")
-        code.append("    using underlying_type = std::underlying_type_t<Values>;")
-        code.append("    using bitset_base::bitset_base;")
-        code.append(f"    constexpr {unqual_name}(Values other) : {unqual_name}{{underlying_type(other)}} {{}}")
+            public:
+                using underlying_type = std::underlying_type_t<Values>;
+                using bitset_base::bitset_base;
+                constexpr {unqual_name}(Values other) : {unqual_name}{{underlying_type(other)}} {{}}
 
-        code.append("")
-        code.append(f'    static constexpr std::string_view NAME = "{qual_name}";')
+                static constexpr uint64_t HASH = {hash_type(type_def, self._types)}ULL;
+                static constexpr std::string_view NAME = "{type_name}";
+                static constexpr std::string_view SCHEMA = R"_({get_schema(type_def)})_";
+                static constexpr ::messgen::metadata METADATA{{
+                    .hash = HASH,
+                    .name = NAME,
+                    .schema = SCHEMA
+                }};
+
+        """,
+            )
+        )
         if self._get_cpp_standard() >= 20:
             code.append("    using enum Values;")
         else:
             for bit in type_def.bits:
-                code.append("    static constexpr Values %s = Values::%s;" % (bit.name, bit.name))
-        code.append("")
-        code.append(f"    friend {unqual_name} operator|(const Values &lhs, const Values &rhs) {{")
-        code.append(f"        return {unqual_name}(lhs) | {unqual_name}(rhs);")
-        code.append("    }")
-        code.append("};")
+                code.append(f"    static constexpr Values {bit.name} = Values::{bit.name};")
+        code.extend(_format_code(0, f"""
+            friend {unqual_name} operator|(const Values &lhs, const Values &rhs) {{
+                return {unqual_name}(lhs) | {unqual_name}(rhs);
+            }}
+            
+            friend {unqual_name} operator~(const Values &other) {{
+                return {unqual_name}(~underlying_type(other));
+            }}
+        }};
+        """))
 
         return code
 
@@ -459,19 +705,35 @@ class CppGenerator:
             return max(a_sz, a_key, a_value)
 
         else:
-            raise RuntimeError(
-                "Unsupported type_class in _get_alignment: type_class=%s type_def=%s" % (type_class, type_def))
+            raise RuntimeError(f"Unsupported type_class in _get_alignment: type_class={type_class} type_def={type_def}")
 
     def _check_alignment(self, type_def, offs):
         align = self._get_alignment(type_def)
         return offs % align == 0
 
-    def _generate_type_struct(self, type_name: str, type_def: StructType, types: dict[str, MessgenType]):
+    def _is_flat_type(self, type_def):
+        if type_def.size is None:
+            return False
+
+        if type_def.type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.bitset, TypeClass.decimal]:
+            return True
+        elif type_def.type_class == TypeClass.struct:
+            groups = self._field_groups(type_def.fields)
+            return len(groups) == 0 or (len(groups) == 1 and groups[0].size is not None)
+        elif type_def.type_class == TypeClass.array:
+            el_type_def = self._types.get(type_def.element_type)
+            return el_type_def.size is not None and el_type_def.size % self._get_alignment(el_type_def) == 0
+        else:
+            return False
+
+    def _generate_type_struct(self, type_name: str, type_def: StructType, mode):
         fields = type_def.fields
 
+        self._add_include("messgen/messgen.h")
         self._add_include("cstddef")
         self._add_include("cstring")
-        self._add_include("messgen/messgen.h")
+        self._add_include("string_view")
+        self._add_include("cassert")
 
         unqual_name = _unqual_name(type_name)
 
@@ -481,37 +743,74 @@ class CppGenerator:
 
         groups = self._field_groups(fields)
         if len(groups) > 1 and self._all_fields_scalar(fields):
-            print("Warn: padding in '%s' after '%s' causes extra memcpy call during serialization." % (type_name,
-                                                                                                       groups[0].fields[
-                                                                                                           0].name))
+            print(
+                f"Warn: padding in '{type_name}' after '{groups[0].fields[0].name}' causes extra memcpy call during serialization.")
 
-        # IS_FLAT flag
-        is_flat_str = "false"
-        is_empty = len(groups) == 0
-        is_flat = is_empty or (len(groups) == 1 and groups[0].size is not None)
-        if is_flat:
-            code.append(_indent("static constexpr size_t FLAT_SIZE = %d;" % (0 if is_empty else groups[0].size)))
-            is_flat_str = "true"
-        code.append(_indent(f"static constexpr bool IS_FLAT = {is_flat_str};"))
-        if self._get_mode() == "nostl":
-            need_alloc_str = "false"
-            if self._need_alloc(type_name):
-                need_alloc_str = "true"
-            code.append(_indent(f"static constexpr bool NEED_ALLOC = {need_alloc_str};"))
-        if type_hash := hash_type(type_def, types):
-            code.append(_indent(f"static constexpr uint64_t HASH = {type_hash}ULL;"))
-        code.append(_indent(f'static constexpr std::string_view NAME = "{_qual_name(type_name)}";'))
-        code.append(_indent(f'static constexpr std::string_view SCHEMA = R"_({self._generate_schema(type_def)})_";'))
-        code.append("")
+        # Flat type
+        is_flat = self._is_flat_type(type_def)
+        code.append(_indent(f"static constexpr bool IS_FLAT = {str(is_flat).lower()};"))
+
+        # Fixed size type
+        is_fixed_size = type_def.size is not None
+        fixed_size = 0
+        for field in fields:
+            field_type_def = self._types[field.type]
+            field_size = field_type_def.size
+            if field_size is None:
+                fixed_size += 4  # sizeof(messgen::size_type)
+            else:
+                fixed_size += field_size
+
+        code.append(_indent(f"static constexpr bool IS_FIXED_SIZE = {str(is_fixed_size).lower()};"))
+        code.append(_indent(f"static constexpr size_t FIXED_SIZE = {fixed_size};"))
+
+        # Need alloc
+        need_alloc_str = "false"
+        if self._need_alloc(type_name, mode):
+            need_alloc_str = "true"
+        code.append(_indent(f"static constexpr bool NEED_ALLOC = {need_alloc_str};"))
+
+        # Metadata
+        type_hash = hash_type(type_def, self._types)
+        deps_str_list = []
+        for dep in sorted(list(self._get_schema_dependencies(type_def))):
+            dep_type_def = self._types[dep]
+            if isinstance(dep_type_def, (StructType, BitsetType)):
+                deps_str_list.append(f"&{_qual_name(dep)}::METADATA")
+            elif isinstance(dep_type_def, EnumType):
+                p = _split_last_name(dep)
+                deps_str_list.append(f"&{_qual_name(p[0])}::detail::{p[1]}_METADATA")
+
+        deps_str = ", ".join(deps_str_list)
+        deps_strg = ""
+        deps_assign = ""
+        if len(deps_str_list) > 0:
+            deps_strg = f"""
+            static constexpr std::array<const ::messgen::metadata *, {len(deps_str_list)}> DEPENDENCIES{{{deps_str}}};"""
+            deps_assign = """,
+                .dependencies = ::messgen::span<const ::messgen::metadata *>(&DEPENDENCIES)"""
+        code.extend(
+            _format_code(
+                1,
+                f"""\
+            static constexpr uint64_t HASH = {type_hash}ULL;
+            static constexpr std::string_view NAME = "{type_name}";
+            static constexpr std::string_view SCHEMA = R"_({get_schema(type_def)})_";{deps_strg}
+            static constexpr messgen::metadata METADATA{{
+                .hash = HASH,
+                .name = NAME,
+                .schema = SCHEMA{deps_assign}
+            }};
+
+        """))
 
         for field in type_def.fields:
-            field_c_type = self._cpp_type(field.type)
+            field_c_type = self._cpp_type(field.type, mode)
             code.append(_indent(f"{field_c_type} {field.name}; {_inline_comment(field)}"))
 
         need_alloc = False
-        if self._get_mode() == "nostl":
-            for field in type_def.fields:
-                need_alloc = need_alloc or self._need_alloc(field.type)
+        for field in type_def.fields:
+            need_alloc = need_alloc or self._need_alloc(field.type, mode)
 
         # Serialize function
         code_ser = []
@@ -519,25 +818,25 @@ class CppGenerator:
         code_ser.extend(
             [
                 "size_t _size = 0;",
-                "[[maybe_unused]] size_t _field_size;",
+                "[[maybe_unused]] ssize_t _field_size;",
+                "[[maybe_unused]] messgen::size_type *_size_ptr;",
                 "",
             ]
         )
 
         for group in groups:
             if len(group.fields) > 1:
-                # There is padding before current field
-                # Write together previous aligned fields, if any
-                code_ser.append("// %s" % ", ".join(group.field_names))
+                code_ser.extend(_simple_comment(group.field_names))
                 code_ser.extend(self._memcpy_to_buf("&" + group.fields[0].name, group.size))
             elif len(group.fields) == 1:
                 field = group.fields[0]
                 field_name = field.name
-                field_type_def = self._types.get(field.type)
+                field_type_def = self._types[field.type]
                 code_ser.extend(self._serialize_field(field_name, field_type_def))
             code_ser.append("")
         code_ser.append("return _size;")
 
+        is_empty = len(groups) == 0
         code_ser = (
                 [
                     "",
@@ -549,41 +848,45 @@ class CppGenerator:
         code.extend(_indent(code_ser))
 
         # Deserialize function
-        code_deser = []
+        alloc = ""
+        if mode == Mode.VIEW and not is_fixed_size:
+            alloc = ", ::messgen::Allocator &_alloc"
 
-        code_deser.extend(
-            [
-                "size_t _size = 0;",
-                "[[maybe_unused]] size_t _field_size;",
-                "",
-            ]
-        )
+        self._add_include("messgen/bytes.h", "global")
+        code_deser = _format_code(
+            0,
+            f"""
+            template<class... Policies>
+            ssize_t deserialize(messgen::bytes _buf_bytes{alloc}, Policies... policies) {{
+                ::messgen::check_supported_policy<Policies...>();
+                [[maybe_unused]]  auto _buf = _buf_bytes.data();
+                [[maybe_unused]]  auto _buf_size = _buf_bytes.size();
+                size_t _size = 0;
+                [[maybe_unused]] ssize_t _field_size;
+                [[maybe_unused]] ssize_t _field_size_bytes;
+        """)
 
         groups = self._field_groups(fields)
         for group in groups:
             if len(group.fields) > 1:
-                # There is padding before current field
-                # Write together previous aligned fields, if any
-                code_deser.append("// %s" % ", ".join(group.field_names))
-                code_deser.extend(self._memcpy_from_buf("&" + group.fields[0].name, group.size))
+                code_deser.extend(_indent(
+                    [""] +
+                    _simple_comment(group.field_names) +
+                    self._memcpy_from_buf("&" + group.fields[0].name, group.size)
+                ))
             elif len(group.fields) == 1:
                 field = group.fields[0]
-                field_type_def = self._types.get(field.type)
-                code_deser.extend(self._deserialize_field(field.name, field_type_def))
-            code_deser.append("")
-        code_deser.append("return _size;")
+                field_type_def = self._types[field.type]
+                code_deser.extend(_indent(
+                    [""] +
+                    self._deserialize_field(field.name, field_type_def, mode)
+                ))
+        code_deser.extend(_format_code(0,
+                                       """
+           return _size;
+       }
+       """))
 
-        alloc = ""
-        if need_alloc:
-            alloc = ", messgen::Allocator &_alloc"
-        code_deser = (
-                [
-                    "",
-                    "size_t deserialize(const uint8_t *" + ("_buf" if not is_empty else "") + alloc + ") {",
-                ]
-                + _indent(code_deser)
-                + ["}"]
-        )
         code.extend(_indent(code_deser))
 
         # Size function
@@ -617,32 +920,32 @@ class CppGenerator:
         )
         code.extend(_indent(code_ss))
 
-        if self._get_cpp_standard() >= 20:
+        if self._get_cpp_standard() >= 20 and (mode != Mode.VIEW or is_fixed_size):
             # Operator <=>
             code.append("")
-            code.append(_indent("auto operator<=>(const struct %s &) const = default;" % unqual_name))
+            code.append(_indent(f"auto operator<=>(const struct {unqual_name} &) const = default;"))
 
-        if self._get_cpp_standard() < 20:
+        else:
             # Operator ==
-            code_eq = []
+            code.append("")
+
             if len(fields) > 0:
+                code.append(
+                    _indent(f"friend bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"))
                 field_name = fields[0].name
-                code_eq.append("return l.%s == r.%s" % (field_name, field_name))
+                code.append(_indent(f"return l.{field_name} == r.{field_name}", 2))
                 for field in fields[1:]:
                     field_name = field.name
-                    code_eq.append("   and l.%s == r.%s" % (field_name, field_name))
+                    code.append(_indent(f"   and l.{field_name} == r.{field_name}", 3))
+                code[-1] += ";"
             else:
-                code_eq.append("return true")
-            code_eq[-1] += ";"
+                code.append(
+                    _indent(f"friend bool operator==(const struct {unqual_name}&, const struct {unqual_name}&) {{"))
+                code.append(_indent("return true;", 2))
+            code.append(_indent("}"))
 
             code.extend(
                 [
-                    "",
-                    _indent(f"friend bool operator==(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"),
-                ]
-                + _indent(_indent(code_eq))
-                + [
-                    _indent("}"),
                     "",
                     _indent(f"friend bool operator!=(const struct {unqual_name}& l, const struct {unqual_name}& r) {{"),
                     _indent("   return !(l == r);"),
@@ -652,11 +955,38 @@ class CppGenerator:
 
         code.append("};")
 
-        return code
+        self._add_include("tuple")
 
-    @staticmethod
-    def _generate_schema(type_def: MessgenType):
-        return json.dumps(asdict(type_def), separators=(",", ":"))
+        unqual_name = _unqual_name(type_name)
+
+        code.extend(
+            _format_code(
+                0,
+                f"""
+            [[nodiscard]] constexpr auto members_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return std::tuple{{
+        """,
+            )
+        )
+
+        for field in type_def.fields:
+            code.append(f'        ::messgen::member_variable{{{{"{field.name}"}}, &{unqual_name}::{field.name}}},')
+
+        code.extend(
+            _format_code(
+                0,
+                f"""
+                }};
+            }}
+
+            constexpr const messgen::metadata &metadata_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return {unqual_name}::METADATA;
+            }}
+        """,
+            )
+        )
+
+        return code
 
     def _add_include(self, inc, scope="global"):
         self._includes.add((inc, scope))
@@ -672,25 +1002,8 @@ class CppGenerator:
             code.append("")
         return code
 
-    def _generate_type_members_of(self, type_name: str, type_def: StructType):
-        self._add_include("tuple")
-
-        unqual_name = _unqual_name(type_name)
-
-        code: list[str] = []
-        code.append("")
-        code.append(f"[[nodiscard]] constexpr auto members_of(::messgen::reflect_t<{unqual_name}>) noexcept {{")
-        code.append("    return std::tuple{")
-        for field in type_def.fields:
-            code.append(f'        ::messgen::member_variable{{{{"{field.name}"}}, &{unqual_name}::{field.name}}},')
-        code.append("    };")
-        code.append("}")
-
-        return code
-
-    def _cpp_type(self, type_name: str) -> str:
+    def _cpp_type(self, type_name: str, mode: Mode) -> str:
         type_def = self._types[type_name]
-        mode = self._get_mode()
 
         if isinstance(type_def, BasicType):
             if type_def.type_class == TypeClass.scalar:
@@ -698,23 +1011,20 @@ class CppGenerator:
                 return self._CPP_TYPES_MAP[type_name]
 
             elif type_def.type_class == TypeClass.string:
-                if mode == "stl":
-                    self._add_include("string")
-                    return "std::string"
-                elif mode == "nostl":
+                if mode == Mode.VIEW:
                     self._add_include("string_view")
                     return "std::string_view"
                 else:
-                    raise RuntimeError("Unsupported mode for string: %s" % mode)
+                    self._add_include("string")
+                    return "std::string"
 
             elif type_def.type_class == TypeClass.bytes:
-                if mode == "stl":
+                if mode == Mode.VIEW:
+                    self._add_include("messgen/bytes.h")
+                    return "messgen::bytes"
+                else:
                     self._add_include("vector")
                     return "std::vector<uint8_t>"
-                elif mode == "nostl":
-                    return "messgen::vector<uint8_t>"
-                else:
-                    raise RuntimeError("Unsupported mode for bytes: %s" % mode)
 
         elif isinstance(type_def, DecimalType):
             self._add_include("messgen/decimal.h")
@@ -722,35 +1032,40 @@ class CppGenerator:
 
         elif isinstance(type_def, ArrayType):
             self._add_include("array")
-            el_c_type = self._cpp_type(type_def.element_type)
+            el_c_type = self._cpp_type(type_def.element_type, mode)
             return "std::array<%s, %d>" % (el_c_type, type_def.array_size)
 
         elif isinstance(type_def, VectorType):
-            el_c_type = self._cpp_type(type_def.element_type)
-            if mode == "stl":
+            el_c_type = self._cpp_type(type_def.element_type, mode)
+            if mode == Mode.VIEW:
+                self._add_include("messgen/span.h")
+                return "messgen::span<%s>" % el_c_type
+            else:
                 self._add_include("vector")
                 return "std::vector<%s>" % el_c_type
-            elif mode == "nostl":
-                return "messgen::vector<%s>" % el_c_type
-            else:
-                raise RuntimeError("Unsupported mode for vector: %s" % mode)
 
         elif isinstance(type_def, MapType):
-            key_c_type = self._cpp_type(type_def.key_type)
-            value_c_type = self._cpp_type(type_def.value_type)
-            if mode == "stl":
+            key_c_type = self._cpp_type(type_def.key_type, mode)
+            value_c_type = self._cpp_type(type_def.value_type, mode)
+            if mode == Mode.VIEW:
+                self._add_include("messgen/map.h")
+                return "messgen::map<%s, %s>" % (key_c_type, value_c_type)
+            else:
                 self._add_include("map")
                 return "std::map<%s, %s>" % (key_c_type, value_c_type)
-            elif mode == "nostl":
-                self._add_include("span")
-                return "std::span<std::pair<%s, %s>>" % (key_c_type, value_c_type)
-            else:
-                raise RuntimeError("Unsupported mode for map: %s" % mode)
+
+        elif isinstance(type_def, (EnumType, BitsetType)):
+            scope = "global" if SEPARATOR in type_name else "local"
+            self._add_include("%s.h" % type_name, scope)
+            return _qual_name(type_name)
 
         elif isinstance(type_def, (EnumType, BitsetType, StructType)):
             scope = "global" if SEPARATOR in type_name else "local"
             self._add_include("%s.h" % type_name, scope)
-            return _qual_name(type_name)
+            if mode == Mode.VIEW:
+                return _qual_name(type_name)
+            else:
+                return _qual_strg_name(type_name)
 
         elif isinstance(type_def, (ExternalType)):
             scope = "global" if SEPARATOR in type_name else "local"
@@ -760,26 +1075,60 @@ class CppGenerator:
 
         raise RuntimeError("Can't get c++ type for %s" % type_name)
 
-    def _need_alloc(self, type_name: str) -> bool:
+    def _is_schema_type(self, type_def) -> bool:
+        return isinstance(type_def, (StructType, EnumType, BitsetType))
+
+    def _get_schema_dependencies(self, type_def) -> set[str]:
+        deps = set()
+        if isinstance(type_def, StructType):
+            for field in type_def.fields:
+                field_type_def = self._types[field.type]
+                if self._is_schema_type(field_type_def):
+                    deps.add(field.type)
+                deps.update(self._get_schema_dependencies(field_type_def))
+        elif isinstance(type_def, (ArrayType, VectorType)):
+            el_type_def = self._types[type_def.element_type]
+            if self._is_schema_type(el_type_def):
+                deps.add(type_def.element_type)
+            deps.update(self._get_schema_dependencies(el_type_def))
+        elif isinstance(type_def, MapType):
+            key_type_def = self._types[type_def.key_type]
+            if self._is_schema_type(key_type_def):
+                deps.add(type_def.key_type)
+            deps.update(self._get_schema_dependencies(key_type_def))
+
+            value_type_def = self._types[type_def.value_type]
+            if self._is_schema_type(value_type_def):
+                deps.add(type_def.value_type)
+            deps.update(self._get_schema_dependencies(value_type_def))
+        return deps
+
+    def _need_alloc(self, type_name: str, mode: Mode) -> bool:
+        if mode != Mode.VIEW:
+            return False
+        type_def = self._types[type_name]
+        return type_def.size is None
+
+    def _need_alloc_nocopy(self, type_name: str) -> bool:
         type_def = self._types[type_name]
 
         if isinstance(type_def, (BasicType, DecimalType, EnumType, BitsetType)):
             return False
 
         elif isinstance(type_def, ArrayType):
-            return self._need_alloc(type_def.element_type)
+            return self._need_alloc_nocopy(type_def.element_type)
 
         elif isinstance(type_def, VectorType):
             el_type_def = self._types[type_def.element_type]
-            return self._need_alloc(type_def.element_type) or self._get_alignment(el_type_def) > 1
+            return self._need_alloc_nocopy(type_def.element_type) or self._get_alignment(el_type_def) > 1
 
         elif isinstance(type_def, MapType):
             value_type_def = self._types[type_def.value_type]
-            return self._need_alloc(type_def.value_type) or self._get_alignment(value_type_def) > 1
+            return self._need_alloc_nocopy(type_def.value_type) or self._get_alignment(value_type_def) > 1
 
         elif isinstance(type_def, StructType):
             for field in type_def.fields:
-                if self._need_alloc(field.type):
+                if self._need_alloc_nocopy(field.type):
                     return True
             return False
 
@@ -796,12 +1145,18 @@ class CppGenerator:
         for field in fields:
             field_def = self._types.get(field.type)
             align = self._get_alignment(field_def)
+            is_flat = self._is_flat_type(field_def)
             size = field_def.size
 
             # Check if there is padding before this field
             if len(groups[-1].fields) > 0 and (
-                    (size is None) or (groups[-1].size is None) or (groups[-1].size % align != 0) or (
-                    size % align != 0)):
+                    (not groups[-1].is_flat)
+                    or (not is_flat)
+                    or (size is None)
+                    or (groups[-1].size is None)
+                    or (groups[-1].size % align != 0)
+                    or (size % align != 0)
+            ):
                 # Start next group
                 groups.append(FieldsGroup())
 
@@ -812,6 +1167,8 @@ class CppGenerator:
                     groups[-1].size += size
                 else:
                     groups[-1].size = None
+            if not is_flat:
+                groups[-1].is_flat = False
 
         return groups
 
@@ -820,12 +1177,14 @@ class CppGenerator:
 
         type_class = field_type_def.type_class
 
-        c.append("// %s" % field_name)
+        c.extend(_simple_comment(field_name))
         if type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.decimal, TypeClass.bitset]:
-            c_type = self._cpp_type(field_type_def.type)
             size = field_type_def.size
-            c.append("*reinterpret_cast<%s *>(&_buf[_size]) = %s;" % (c_type, field_name))
-            c.append("_size += %s;" % size)
+            if size == 1:
+                c.append(f"_buf[_size] = *reinterpret_cast<const uint8_t *>(&{field_name});")
+                c.append(f"_size += {size};")
+            else:
+                c.extend(self._memcpy_to_buf(f"&{field_name}", size))
 
         elif type_class in [TypeClass.struct, TypeClass.external]:
             c.append("_size += %s.serialize(&_buf[_size]);" % field_name)
@@ -838,16 +1197,16 @@ class CppGenerator:
             el_size = el_type_def.size
             el_align = self._get_alignment(el_type_def)
 
-            if el_size == 0:
+            if el_size == 0 or (type_class == TypeClass.array and field_type_def.size == 0):
                 pass
-            elif el_size is not None and el_size % el_align == 0:
-                # Vector of fixed size elements, optimize with single memcpy
-                c.append("_field_size = %d * %s.size();" % (el_size, field_name))
-                c.extend(self._memcpy_to_buf("%s.data()" % field_name, "_field_size"))
+            elif self._is_flat_type(el_type_def) and el_size % el_align == 0:
+                # Vector or array of flat aligned elements, optimize with single memcpy
+                c.append(f"_field_size = {el_size} * {field_name}.size();")
+                c.extend(self._memcpy_to_buf(f"{field_name}.data()", "_field_size"))
             else:
-                # Vector of variable size elements
-                c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
-                c.extend(_indent(self._serialize_field("_i%d" % level_n, el_type_def, level_n + 1)))
+                # Serialize one by one
+                c.append(f"for (auto &_i{level_n}: {field_name}) {{")
+                c.extend(_indent(self._serialize_field(f"_i{level_n}", el_type_def, level_n=level_n + 1)))
                 c.append("}")
 
         elif type_class == TypeClass.map:
@@ -856,143 +1215,195 @@ class CppGenerator:
             key_type_def = self._types.get(field_type_def.key_type)
             value_type_def = self._types.get(field_type_def.value_type)
             c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
-            c.extend(_indent(self._serialize_field("_i%d.first" % level_n, key_type_def, level_n + 1)))
-            c.extend(_indent(self._serialize_field("_i%d.second" % level_n, value_type_def, level_n + 1)))
+            c.extend(_indent(self._serialize_field("_i%d.first" % level_n, key_type_def, level_n=level_n + 1)))
+            c.extend(_indent(self._serialize_field("_i%d.second" % level_n, value_type_def, level_n=level_n + 1)))
             c.append("}")
 
-        elif type_class == TypeClass.string:
-            c.append("*reinterpret_cast<messgen::size_type *>(&_buf[_size]) = %s.size();" % field_name)
+        elif type_class in [TypeClass.string, TypeClass.bytes]:
+            c.append(f"*reinterpret_cast<messgen::size_type *>(&_buf[_size]) = {field_name}.size();")
             c.append("_size += sizeof(messgen::size_type);")
-            c.append("%s.copy(reinterpret_cast<char *>(&_buf[_size]), %s.size());" % (field_name, field_name))
-            c.append("_size += %s.size();" % field_name)
-
-        elif type_class == TypeClass.bytes:
-            c.append("*reinterpret_cast<messgen::size_type *>(&_buf[_size]) = %s.size();" % field_name)
-            c.append("_size += sizeof(messgen::size_type);")
-            c.append("std::copy(%s.begin(), %s.end(), &_buf[_size]);" % (field_name, field_name))
-            c.append("_size += %s.size();" % field_name)
+            if type_class == TypeClass.string:
+                c.append(f"{field_name}.copy(reinterpret_cast<char *>(&_buf[_size]), {field_name}.size());")
+                c.append(f"_size += {field_name}.size();")
+            else:
+                c.extend(self._memcpy_to_buf(f"{field_name}.data()", f"{field_name}.size()"))
 
         else:
             raise RuntimeError("Unsupported type_class in _serialize_field: %s" % type_class)
 
         return c
 
-    def _deserialize_field(self, field_name, field_type_def, level_n=0):
+    def _deserialize_field(self, field_name, field_type_def, mode: Mode, level_n=0):
         c = []
 
         type_class = field_type_def.type_class
-        mode = self._get_mode()
 
         c.append("// %s" % field_name)
         if type_class in [TypeClass.scalar, TypeClass.enum, TypeClass.decimal, TypeClass.bitset]:
-            c_type = self._cpp_type(field_type_def.type)
             size = field_type_def.size
-            c.append("%s = *reinterpret_cast<const %s *>(&_buf[_size]);" % (field_name, c_type))
-            c.append("_size += %s;" % size)
+            c.extend(self._memcpy_from_buf(f"&{field_name}", size))
 
         elif type_class in [TypeClass.struct, TypeClass.external]:
+            is_fixed_size = field_type_def.size is not None
             alloc = ""
-            if mode == "nostl" and self._need_alloc(field_type_def.type):
+            if mode == Mode.VIEW and not is_fixed_size:
                 alloc = ", _alloc"
-            c.append("_size += %s.deserialize(&_buf[_size]%s);" % (field_name, alloc))
+
+            c.extend(_format_code(0,
+                                  f"""\
+                _field_size = {field_name}.deserialize({{&_buf[_size], _buf_size - _size}}{alloc}, policies...);
+                if constexpr (not ::messgen::is_unsafe<Policies...>) {{
+                    if (_field_size < 0) [[unlikely]] {{
+                        return -1;
+                    }}
+                }}
+                _size += _field_size;
+            """))
 
         elif type_class == TypeClass.array:
-            el_type_def = self._types.get(field_type_def.element_type)
+            el_type_def = self._types[field_type_def.element_type]
             el_size = el_type_def.size
             el_align = self._get_alignment(el_type_def)
-            if el_size == 0:
+            el_c_type = self._cpp_type(field_type_def.element_type, mode)
+
+            # Copy data
+            if el_size == 0 or (type_class == TypeClass.array and field_type_def.size == 0):
                 pass
-            elif el_size is not None and el_size % el_align == 0:
-                # Vector or array of fixed size elements, optimize with single memcpy
-                c.append("_field_size = %d * %s.size();" % (el_size, field_name))
-                c.extend(self._memcpy_from_buf("%s.data()" % field_name, "_field_size"))
+            elif self._is_flat_type(el_type_def) and el_size % el_align == 0:
+                # Array of flat aligned elements, optimize with single memcpy or zero-copy
+                c.extend(_format_code(0,
+                                      f"""\
+                    _field_size_bytes = {field_name}.size() * {el_size};
+                """))
+                c.extend(self._memcpy_from_buf(f"{field_name}.data()", "_field_size_bytes"))
             else:
-                # Vector or array of variable size elements
-                c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
-                c.extend(_indent(self._deserialize_field("_i%d" % level_n, el_type_def, level_n + 1)))
+                # Deserialize one by one
+                c.append(f"for (auto &_i{level_n}: {field_name}) {{")
+                c.extend(_indent(
+                    self._deserialize_field(f"_i{level_n}", el_type_def, mode, level_n=level_n + 1)))
                 c.append("}")
 
         elif type_class == TypeClass.vector:
-            if mode == "stl":
-                el_type_def = self._types.get(field_type_def.element_type)
-                el_size = el_type_def.size
-                el_align = self._get_alignment(el_type_def)
-                c.append("%s.resize(*reinterpret_cast<const messgen::size_type *>(&_buf[_size]));" % field_name)
-                c.append("_size += sizeof(messgen::size_type);")
-                if el_size == 0:
-                    pass
-                elif el_size is not None and el_size % el_align == 0:
-                    # Vector or array of fixed size elements, optimize with single memcpy
-                    c.append("_field_size = %d * %s.size();" % (el_size, field_name))
-                    c.extend(self._memcpy_from_buf("%s.data()" % field_name, "_field_size"))
-                else:
-                    # Vector or array of variable size elements
-                    c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
-                    c.extend(_indent(self._deserialize_field("_i%d" % level_n, el_type_def, level_n + 1)))
-                    c.append("}")
-            elif mode == "nostl":
-                el_type_def = self._types.get(field_type_def.element_type)
-                el_c_type = self._cpp_type(field_type_def.element_type)
-                el_size = el_type_def.size
-                el_align = self._get_alignment(el_type_def)
-                c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
-                c.append("_size += sizeof(messgen::size_type);")
-                if el_align > 1:
-                    # Allocate memory and copy data to recover alignment
-                    c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), _field_size}};")
-                    if el_size == 0:
-                        pass
-                    elif el_size is not None and el_size % el_align == 0:
-                        # Vector or array of fixed size elements, optimize with single memcpy
-                        if el_size != 1:
-                            c.append("_field_size *= %d;" % el_size)
-                        c.extend(self._memcpy_from_buf("%s.data()" % field_name, "_field_size"))
+            # For vector read the size and allocate memory if needed
+            c.extend(self._read_field_size())
+            if mode == Mode.STORAGE:
+                c.append(f"{field_name}.resize(_field_size);")
+
+            el_type_def = self._types[field_type_def.element_type]
+            el_size = el_type_def.size
+            el_align = self._get_alignment(el_type_def)
+            el_c_type = self._cpp_type(field_type_def.element_type, mode)
+
+            # Copy data
+            if el_size == 0 or (type_class == TypeClass.array and field_type_def.size == 0):
+                pass
+            elif self._is_flat_type(el_type_def) and el_size % el_align == 0:
+                # Vector or array of flat aligned elements, optimize with single memcpy or zero-copy
+                c.extend(_format_code(0,
+                                      f"""\
+                    _field_size_bytes = _field_size * {el_size};
+                """))
+
+                if mode == Mode.VIEW:
+                    # View mode
+                    if el_align == 1 and type_class == TypeClass.vector:
+                        # For the vector (messgen::span) with alignment == 1 point to data in source buffer, zero-copy if NoCopy policy is set
+                        c.extend(self._alloc_memcpy_from_buf_nocopy(field_name, el_c_type, "_field_size_bytes"))
                     else:
-                        # Vector or array of variable size elements
-                        c.append("for (auto &_i%d: %s) {" % (level_n, field_name))
-                        c.extend(_indent(self._deserialize_field("_i%d" % level_n, el_type_def, level_n + 1)))
-                        c.append("}")
+                        # Allocate memory and copy data
+                        c.extend(self._alloc_memcpy_from_buf(field_name, el_c_type))
                 else:
-                    # For alignment == 1 simply point to data in source buffer
-                    c.append(f"{field_name} = {{reinterpret_cast<const {el_c_type} *>(&_buf[_size]), _field_size}};")
-                    c.append("_size += _field_size * %d;" % el_size)
+                    # Storage mode
+                    c.extend(self._memcpy_from_buf(f"{field_name}.data()", "_field_size_bytes"))
+            else:
+                # Deserialize one by one
+                if mode == Mode.VIEW and type_class == TypeClass.vector:
+                    c.append(f"{field_name} = {{_alloc.alloc<{el_c_type}>(_field_size), size_t(_field_size)}};")
+                c.append(f"for (auto &_i{level_n}: {field_name}) {{")
+                c.extend(_indent(
+                    self._deserialize_field(f"_i{level_n}", el_type_def, mode, level_n=level_n + 1)))
+                c.append("}")
 
         elif type_class == TypeClass.map:
-            c.append("{")
-            c.append(
-                _indent("size_t _map_size%d = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);" % level_n))
-            c.append(_indent("_size += sizeof(messgen::size_type);"))
-            key_c_type = self._cpp_type(field_type_def.key_type)
-            key_type_def = self._types.get(field_type_def.key_type)
-            value_c_type = self._cpp_type(field_type_def.value_type)
-            value_type_def = self._types.get(field_type_def.value_type)
-            c.append(
-                _indent("for (size_t _i%d = 0; _i%d < _map_size%d; ++_i%d) {" % (level_n, level_n, level_n, level_n)))
-            c.append(_indent(_indent("%s _key%d;" % (key_c_type, level_n))))
-            c.append(_indent(_indent("%s _value%d;" % (value_c_type, level_n))))
-            c.append("")
-            c.extend(_indent(_indent(self._deserialize_field("_key%d" % level_n, key_type_def, level_n + 1))))
-            c.extend(_indent(_indent(self._deserialize_field("_value%d" % level_n, value_type_def, level_n + 1))))
-            c.append(_indent(_indent("%s[_key%d] = _value%d;" % (field_name, level_n, level_n))))
-            c.append(_indent("}"))
-            c.append("}")
+            key_c_type = self._cpp_type(field_type_def.key_type, mode)
+            key_type_def = self._types[field_type_def.key_type]
+            value_c_type = self._cpp_type(field_type_def.value_type, mode)
+            value_type_def = self._types[field_type_def.value_type]
+            if mode == Mode.STORAGE:
+                c.append("{")
+                c.extend(self._check_buf_size("sizeof(messgen::size_type)"))
+                c.extend(
+                    _format_code(
+                        0,
+                        f"""\
+                    size_t _map_size{level_n} = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);
+                    _size += sizeof(messgen::size_type);
+                    for (size_t _i{level_n} = 0; _i{level_n} < _map_size{level_n}; ++_i{level_n}) {{
+                        {key_c_type} _key{level_n};
+                        {value_c_type} _value{level_n};
+                """,
+                    )
+                )
+                c.extend(_indent(
+                    self._deserialize_field(f"_key{level_n}", key_type_def, mode, level_n=level_n + 1),
+                    2))
+                c.extend(
+                    _indent(self._deserialize_field(f"_value{level_n}", value_type_def, mode, level_n=level_n + 1)))
+                c.extend(
+                    _format_code(
+                        1,
+                        f"""
+                        {field_name}.insert({{_key{level_n}, _value{level_n}}});
+                    }}
+                }}
+                """,
+                    )
+                )
+            elif mode == Mode.VIEW:
+                c.extend(self._check_buf_size("sizeof(messgen::size_type)"))
+                c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
+                c.append("_size += sizeof(messgen::size_type);")
+
+                # Allocate memory and copy data to recover alignment
+                c.append(
+                    f"{field_name} = {{_alloc.alloc<decltype({field_name})::value_type>(_field_size), size_t(_field_size)}};")
+
+                if key_type_def.size == 0 and value_type_def.size == 0:
+                    pass
+
+                # Vector or array of variable size elements
+                c.append(f"for (auto &_i{level_n}: {field_name}) {{")
+                c.extend(
+                    _indent(self._deserialize_field(f"_i{level_n}.first", key_type_def, mode, level_n=level_n + 1)))
+                c.extend(_indent(
+                    self._deserialize_field(f"_i{level_n}.second", value_type_def, mode, level_n=level_n + 1)))
+                c.append("}")
 
         elif type_class == TypeClass.string:
-            c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
-            c.append("_size += sizeof(messgen::size_type);")
-            c.append("%s = {reinterpret_cast<const char *>(&_buf[_size]), _field_size};" % field_name)
-            c.append("_size += _field_size;")
+            c.extend(self._read_field_size())
+            c.extend(self._check_buf_size("_field_size"))
+            if mode == Mode.VIEW:
+                c.extend(self._alloc_memcpy_from_buf_nocopy(field_name, "char", "_field_size"))
+            else:
+                c.extend(_format_code(0,
+                                      f"""\
+                    {field_name} = {{reinterpret_cast<const char *>(&_buf[_size]), size_t(_field_size)}};
+                    _size += _field_size;
+                """))
 
         elif type_class == TypeClass.bytes:
-            c.append("_field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);")
-            c.append("_size += sizeof(messgen::size_type);")
-            c.append("%s.assign(&_buf[_size], &_buf[_size + _field_size]);" % field_name)
-            c.append("_size += _field_size;")
-
+            c.extend(self._read_field_size())
+            c.extend(self._check_buf_size("_field_size"))
+            if mode == Mode.VIEW:
+                c.extend(self._alloc_memcpy_from_buf_nocopy(field_name, "uint8_t", "_field_size"))
+            else:
+                c.extend(_format_code(0,
+                                      f"""\
+                    {field_name}.assign(&_buf[_size], &_buf[_size + _field_size]);
+                    _size += _field_size;
+                """))
         else:
             raise RuntimeError("Unsupported type_class in _deserialize_field: %s" % type_class)
-
-        c.append("")
 
         return c
 
@@ -1049,8 +1460,82 @@ class CppGenerator:
         return c
 
     def _memcpy_to_buf(self, src: str, size) -> list:
-        return ["::memcpy(&_buf[_size], reinterpret_cast<const uint8_t *>(%s), %s);" % (src, size),
-                "_size += %s;" % size]
+        return ["::memcpy(&_buf[_size], %s, %s);" % (src, size), "_size += %s;" % size]
 
     def _memcpy_from_buf(self, dst: str, size) -> list:
-        return ["::memcpy(reinterpret_cast<uint8_t *>(%s), &_buf[_size], %s);" % (dst, size), "_size += %s;" % size]
+        c = self._check_buf_size(size)
+        if size == 1:
+            c.extend(_format_code(0,
+                                  f"""\
+                *reinterpret_cast<uint8_t *>({dst}) = _buf[_size];
+                _size += {size};
+            """))
+        else:
+            c.extend(_format_code(0,
+                                  f"""\
+                ::memcpy(reinterpret_cast<uint8_t*>({dst}), &_buf[_size], {size});
+                _size += {size};
+            """))
+        return c
+
+    def _alloc(self, el_c_type: str) -> list:
+        return _format_code(0,
+                            f"""\
+            {el_c_type} *_buf_ptr = _alloc.alloc<{el_c_type}>(_field_size);
+            if (_buf_ptr == nullptr) [[unlikely]] {{
+                return -1;
+            }}
+        """)
+
+    def _alloc_memcpy_from_buf(self, field_name: str, el_c_type: str) -> list:
+        c = []
+        c.extend(_format_code(0,
+                              """\
+            {
+        """))
+        c.extend(_indent(self._alloc(el_c_type), 1))
+        c.extend(_format_code(0,
+                              f"""\
+                ::memcpy(_buf_ptr, &_buf[_size], _field_size_bytes);
+                {field_name} = {{_buf_ptr, size_t(_field_size)}};
+                _size += _field_size_bytes;
+            }}
+        """))
+        return c
+
+    def _alloc_memcpy_from_buf_nocopy(self, field_name: str, el_c_type: str, size_bytes: str) -> list:
+        c = []
+        c.extend(_format_code(0,
+                              f"""\
+            if constexpr (::messgen::is_nocopy<Policies...>) {{
+                {field_name} = {{reinterpret_cast<{el_c_type} *>(&_buf[_size]), size_t(_field_size)}};
+            }} else {{
+        """) + _indent(self._alloc(el_c_type)))
+        c.extend(_format_code(0,
+                              f"""\
+                ::memcpy(_buf_ptr, &_buf[_size], {size_bytes});
+                {field_name} = {{_buf_ptr, size_t(_field_size)}};
+            }}
+            _size += {size_bytes};
+        """))
+        return c
+
+    def _read_field_size(self):
+        c = []
+        c.extend(self._check_buf_size("sizeof(messgen::size_type)"))
+        c.extend(_format_code(0,
+                              """\
+            _field_size = *reinterpret_cast<const messgen::size_type *>(&_buf[_size]);
+            _size += sizeof(messgen::size_type);
+        """))
+        return c
+
+    def _check_buf_size(self, size) -> list:
+        return _format_code(0,
+                            f"""\
+                if constexpr (not ::messgen::is_unsafe<Policies...>) {{
+                    if (_buf_size < _size + {size}) [[unlikely]] {{
+                        return -1;
+                    }}
+                }}
+            """)

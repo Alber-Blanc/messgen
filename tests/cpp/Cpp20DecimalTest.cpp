@@ -1,5 +1,5 @@
-#include <messgen/decimal.h>
-#include <messgen/test/flat_struct_with_decimal.h>
+#include <../../port/cpp/messgen/decimal.h>
+#include <mynamespace/types/flat_struct_with_decimal.h>
 
 #include <cmath>
 #include <cstring>
@@ -28,6 +28,16 @@ TEST_F(CppDecimalTest, Construction) {
     auto d4 = 0.001_dd;
     auto d4_str = d4.to_string();
     EXPECT_EQ("0.1e-2", d4_str);
+}
+
+TEST_F(CppDecimalTest, Negative) {
+    auto d1 = decimal64::from_double(10.5, 0.001_dd, round_mode::mid);
+    EXPECT_EQ(-d1, -10.5_dd);
+
+    auto d2 = 42.5_dd;
+    auto d3 = -d2;
+    EXPECT_EQ(d2, 42.5_dd);
+    EXPECT_EQ(d3, -42.5_dd);
 }
 
 TEST_F(CppDecimalTest, Addition) {
@@ -75,6 +85,9 @@ TEST_F(CppDecimalTest, Multiplication) {
     expected = -11_dd;
     EXPECT_EQ(result, expected);
 
+    result = -2 * d1;
+    EXPECT_EQ(result, expected);
+
     d1 *= 3;
     EXPECT_EQ(d1, 16.5_dd);
 }
@@ -115,7 +128,7 @@ TEST_F(CppDecimalTest, Comparison) {
     // NaNs are not equal
     EXPECT_NE(decimal64::from_string("nan"), decimal64::from_string("nan"));
 
-    // Inifities
+    // Infinities
     EXPECT_EQ(decimal64::infinity(), decimal64::infinity());
     EXPECT_EQ(-decimal64::infinity(), -decimal64::infinity());
     EXPECT_LE(-decimal64::infinity(), decimal64::infinity());
@@ -123,6 +136,15 @@ TEST_F(CppDecimalTest, Comparison) {
     EXPECT_NE(decimal64::infinity(), decimal64::from_integer(0));
     EXPECT_GT(decimal64::infinity(), decimal64::from_integer(0));
     EXPECT_LE(-decimal64::infinity(), decimal64::from_integer(0));
+
+    // Negative infinity must be less than any negative finite value
+    EXPECT_LT(-decimal64::infinity(), -1_dd);
+    EXPECT_LT(-decimal64::infinity(), -999999.999_dd);
+    EXPECT_GT(-1_dd, -decimal64::infinity());
+
+    // Positive infinity must be greater than any positive finite value
+    EXPECT_GT(decimal64::infinity(), 999999.999_dd);
+    EXPECT_LT(999999.999_dd, decimal64::infinity());
 }
 
 TEST_F(CppDecimalTest, Conversions) {
@@ -459,7 +481,7 @@ TEST_F(CppDecimalTest, MakeDecimal) {
 }
 
 TEST_F(CppDecimalTest, GeneratedFlatType) {
-    using namespace messgen::test;
+    using namespace mynamespace::types;
 
     static_assert(flat_struct_with_decimal::IS_FLAT);
 
@@ -473,7 +495,7 @@ TEST_F(CppDecimalTest, GeneratedFlatType) {
     expected.serialize(buff.data());
 
     auto actual = flat_struct_with_decimal{};
-    actual.deserialize(buff.data());
+    actual.deserialize(bytes{buff.data(), buff.size()});
 
     EXPECT_EQ(expected, actual);
 }

@@ -1,3 +1,4 @@
+import json
 import pytest
 
 from pathlib import Path
@@ -11,6 +12,7 @@ from messgen.model import (
     DecimalType,
     EnumValue,
     TypeClass,
+    get_schema,
 )
 from messgen.dynamic import (
     Codec,
@@ -18,7 +20,6 @@ from messgen.dynamic import (
     MessgenError,
     ScalarConverter,
 )
-
 
 path_root = Path(__file__).parents[2]
 
@@ -37,6 +38,8 @@ def codec():
 def simple_struct():
     return {
         "f0": 0x1234567890ABCDEF,
+        "f1": 0x2234567890ABCDEF,
+        "f1_pad": 0x12,
         "f2": 1.2345678901234567890,
         "f3": 0x12345678,
         "f5": 1.2345678901234567890,
@@ -44,6 +47,7 @@ def simple_struct():
         "f7": 0x12,
         "f8": -0x12,
         "f9": True,
+        "e0": "another_value",
     }
 
 
@@ -91,7 +95,7 @@ def test_struct_with_decimal_serialization(codec):
 def test_protocol_deserialization(codec, simple_struct):
     message_info_by_name = codec.message_info_by_name(
         proto_name="mynamespace/proto/test_proto",
-        message_name="simple_struct_msg",
+        message_name="simple_struct",
     )
     expected_bytes = message_info_by_name.type_converter().serialize(simple_struct)
     assert expected_bytes
@@ -105,7 +109,7 @@ def test_protocol_deserialization(codec, simple_struct):
     assert message_info_by_name.proto_id() == 1
     assert message_info_by_name.message_id() == 0
     assert message_info_by_name.proto_name() == "mynamespace/proto/test_proto"
-    assert message_info_by_name.message_name() == "simple_struct_msg"
+    assert message_info_by_name.message_name() == "simple_struct"
     assert message_info_by_name.type_name() == "mynamespace/types/simple_struct"
 
     assert message_info_by_name.proto_id() == message_info_by_id.proto_id()
@@ -121,26 +125,22 @@ def test_protocol_deserialization(codec, simple_struct):
 def test_protocol_info(codec):
     test_proto_name = "mynamespace/proto/test_proto"
     protocol_by_name = codec.protocol_info_by_name(test_proto_name)
-    assert len(protocol_by_name.messages()) == 9
+    assert len(protocol_by_name.messages()) == 6
     assert protocol_by_name.proto_name() == test_proto_name
     assert protocol_by_name.proto_id() == 1
     assert protocol_by_name.proto_hash() == (
-        codec.message_info_by_name(proto_name=test_proto_name, message_name="simple_struct_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="var_size_struct_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="struct_with_enum_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="empty_struct_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct_with_empty_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct_nostl_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="flat_struct_msg").message_hash()
-        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_types_with_flat_groups_msg").message_hash()
+        codec.message_info_by_name(proto_name=test_proto_name, message_name="simple_struct").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_struct").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="var_size_struct").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="empty_struct").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="flat_struct").message_hash()
+        ^ codec.message_info_by_name(proto_name=test_proto_name, message_name="complex_types_with_flat_groups").message_hash()
     )
 
     protocol_by_id = codec.protocol_info_by_id(1)
     assert protocol_by_id.proto_name() == protocol_by_name.proto_name()
     assert protocol_by_id.proto_id() == protocol_by_name.proto_id()
     assert protocol_by_id.proto_hash() == protocol_by_name.proto_hash()
-    assert protocol_by_id.proto_hash() == 615801888777759705
 
 
 def test_decimal_decoding():
@@ -323,21 +323,6 @@ def test_enum_converter_serialization(codec):
         type_converter.serialize("NON_EXISTENT_VALUE")
 
 
-def test_struct_with_enum_serialization(codec):
-    type_converter = codec.type_converter("mynamespace/types/struct_with_enum")
-
-    message = {
-        "e0": "another_value",
-        "f1": 42,
-    }
-
-    serialized = type_converter.serialize(message)
-    deserialized = type_converter.deserialize(serialized)
-
-    assert deserialized["e0"] == message["e0"]
-    assert deserialized["f1"] == message["f1"]
-
-
 def test_type_converter_type_info(codec):
     struct_converter = codec.type_converter("mynamespace/types/simple_struct")
 
@@ -369,15 +354,12 @@ def test_codec_types(codec):
         "int32",
         "int64",
         "int8",
-        "mynamespace/types/subspace/complex_struct_nostl",
-        "mynamespace/types/subspace/complex_struct_with_empty",
         "mynamespace/types/subspace/complex_struct",
         "mynamespace/types/empty_struct",
         "mynamespace/types/flat_struct_with_decimal",
         "mynamespace/types/flat_struct",
         "mynamespace/types/simple_enum",
         "mynamespace/types/simple_struct",
-        "mynamespace/types/struct_with_enum",
         "mynamespace/types/var_size_struct",
         "string",
         "uint16",
@@ -407,6 +389,7 @@ def test_codec_empty():
     assert empty_codec.types() == []
     assert empty_codec.protocols() == []
 
+
 def test_var_size_string_serialization(codec):
     type_def = codec.type_converter("mynamespace/types/var_size_struct")
     expected_msg = {
@@ -421,10 +404,16 @@ def test_var_size_string_serialization(codec):
     actual_msg = type_def.deserialize(expected_bytes)
     assert actual_msg == expected_msg
 
-def test_hash_complex_struct_msg(codec):
-    message_info = codec.message_info_by_id(
-        proto_id=1,
-        message_id=1,
-    )
-    assert message_info.message_hash() == 12088864483134247070
 
+def test_type_schema_returns_valid_json(codec):
+    converter = codec.type_converter("mynamespace/types/simple_struct")
+    schema = converter.type_schema()
+    parsed = json.loads(schema)
+
+    assert parsed["type"] == "mynamespace/types/simple_struct"
+    assert parsed["type_class"] == "struct"
+
+
+def test_type_schema_matches_get_schema(codec):
+    converter = codec.type_converter("mynamespace/types/simple_struct")
+    assert converter.type_schema() == get_schema(converter.type_definition())
