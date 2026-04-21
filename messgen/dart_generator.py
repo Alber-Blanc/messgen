@@ -953,29 +953,6 @@ def render_protocol(proto_name: str, proto_class_name: str, proto_full_path: str
     yield f"  }};"
     yield ""
     
-    # Handlers map
-    yield f"  final Map<int, MessageHandler> _handlers = {{}};"
-    yield ""
-    
-    # Set handler methods
-    for msg_id, msg in proto.messages.items():
-        msg_name = toDartName(msg.name, True)
-        camel_msg_name = toDartName(msg.name, False)
-        yield f"  void setHandler{msg_name}(MessageHandler handler) {{"
-        yield f"    _handlers[{camel_msg_name}Id] = handler;"
-        yield f"  }}"
-        yield ""
-    
-    # Dispatch method
-    yield f"  Future<void> dispatch(dynamic context, int messageId, Uint8List body) async {{"
-    yield f"    final handler = _handlers[messageId];"
-    yield f"    if (handler == null) {{"
-    yield f"      throw MessgenException('No handler found for message id $messageId');"
-    yield f"    }}"
-    yield f"    await handler(context, body);"
-    yield f"  }}"
-    yield ""
-    
     # Get message name
     yield f"  static String messageName(int messageId) {{"
     yield f"    switch (messageId) {{"
@@ -984,7 +961,105 @@ def render_protocol(proto_name: str, proto_class_name: str, proto_full_path: str
     yield f"      default: return 'unknown';"
     yield f"    }}"
     yield f"  }}"
+    yield f""
+
+    yield f"  static const Map<int, String> ulg2FieldDefs = {{"
+    for msg_id, msg in proto.messages.items():
+        type_def = types.get(msg.type)
+        if type_def is None or type_def.type_class != TypeClass.struct:
+            yield f"    {msg_id}: '', // {msg.name}: unknown or non-struct type"
+            continue
+        struct_type = cast(StructType, type_def)
+        field_defs = _struct_ulg2_field_defs(struct_type, types)
+        escaped = field_defs.replace("'", "\\'")
+        yield f"    {msg_id}: '{escaped}', // {msg.name}"
+    yield f"  }};"
     yield f"}}"
+
+
+
+# ---------------------------------------------------------------------------
+# ULG2 field-definition helpers
+# ---------------------------------------------------------------------------
+
+# Maps messgen scalar type names to their C/ULG2 counterparts.
+_ULG2_SCALAR_MAP: dict[str, str] = {
+    "bool":    "uint8_t",
+    "uint8":   "uint8_t",
+    "int8":    "int8_t",
+    "uint16":  "uint16_t",
+    "int16":   "int16_t",
+    "uint32":  "uint32_t",
+    "int32":   "int32_t",
+    "uint64":  "uint64_t",
+    "int64":   "int64_t",
+    "float32": "float",
+    "float64": "double",
+}
+
+
+def _ulg2_field_list(field_name: str, type_name: str, types: dict[str, MessgenType]) -> list[str] | None:
+    """Return a list of ``"ctype name"`` tokens for *field_name* of *type_name*.
+
+    Returns ``None`` when the field is variable-length (vectors, maps, strings,
+    bytes, decimals, or external types) so the caller can mark the whole
+    message as variable-length.
+    """
+    # Basic scalars
+    if type_name in _ULG2_SCALAR_MAP:
+        return [f"{_ULG2_SCALAR_MAP[type_name]} {field_name}"]
+
+    type_def = types.get(type_name)
+    if type_def is None:
+        return None
+
+    if type_def.type_class == TypeClass.enum:
+        return _ulg2_field_list(field_name, cast(EnumType, type_def).base_type, types)
+
+    if type_def.type_class == TypeClass.bitset:
+        return _ulg2_field_list(field_name, cast(BitsetType, type_def).base_type, types)
+
+    if type_def.type_class == TypeClass.array:
+        arr = cast(ArrayType, type_def)
+        # Probe element type using a dummy name so we can extract the C type.
+        elem_tokens = _ulg2_field_list("__elem__", arr.element_type, types)
+        if elem_tokens is None or len(elem_tokens) != 1:
+            # Array of struct / array of array / array of variable-length type.
+            return None
+        c_type = elem_tokens[0].split(" ")[0]
+        return [f"{c_type} {field_name}[{arr.array_size}]"]
+
+    if type_def.type_class == TypeClass.struct:
+        result: list[str] = []
+        for f in cast(StructType, type_def).fields:
+            sub = _ulg2_field_list(f"{field_name}_{f.name}", f.type, types)
+            if sub is None:
+                return None
+            result.extend(sub)
+        return result
+
+    # vector, map, string, bytes, decimal, external → variable-length
+    return None
+
+
+def _struct_ulg2_field_defs(struct_type: StructType, types: dict[str, MessgenType]) -> str:
+    """Return the ULG2 field-definition string for *struct_type*.
+
+    The returned string is semicolon-separated, e.g.
+    ``"uint64_t f0;int32_t f1;float f2[3];"``.
+    Variable-length fields (vectors, maps, strings, bytes) are silently skipped
+    so that every message always gets an entry.
+    Returns ``""`` for an empty struct or one whose fields are all variable-length.
+    """
+    tokens: list[str] = []
+    for field in struct_type.fields:
+        field_tokens = _ulg2_field_list(field.name, field.type, types)
+        if field_tokens is None:
+            continue  # skip variable-length / non-representable fields
+        tokens.extend(field_tokens)
+    return ";".join(tokens) + (";" if tokens else "")
+
+
 
 
 class DartGenerator:
@@ -1103,7 +1178,7 @@ class DartGenerator:
                 subprocess.call(["dart", "format", file_name], text=True)
             except:
                 pass  # dart format might not be available
-        
+
         # Generate barrel files for protocols after all protocols are generated
         self._generate_protocol_barrel_files(out_dir, protocols)
     
