@@ -3,7 +3,6 @@ library;
 
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:messgen/src/exceptions.dart';
 
 /// Buffer reader for little-endian data
 class BufferReader {
@@ -14,124 +13,158 @@ class BufferReader {
 
   int get offset => _offset;
   int get remaining => _buffer.length - _offset;
-  
-  /// Advance the offset by the specified number of bytes
+
   void advance(int bytes) {
     _offset += bytes;
   }
 
-  void _checkRemaining(int bytes) {
-    if (remaining < bytes) {
-      throw BufferTooShortException(
-          'Need $bytes bytes but only $remaining available',
-      );
+  /// Internal helper to validate buffer bounds
+  Error? _checkRemaining(int required) {
+    if (remaining < required) {
+      return StateError('Need $required bytes but only $remaining available');
     }
+    return null;
   }
 
-  int readInt8() {
-    _checkRemaining(1);
+  (int?, Error?) readInt8() {
+    final err = _checkRemaining(1);
+    if (err != null) return (null, err);
+
     final value = _buffer[_offset].toSigned(8);
     _offset += 1;
-    return value;
+    return (value, null);
   }
 
-  int readUint8() {
-    _checkRemaining(1);
+  (int?, Error?) readUint8() {
+    final err = _checkRemaining(1);
+    if (err != null) return (null, err);
+
     final value = _buffer[_offset];
     _offset += 1;
-    return value;
+    return (value, null);
   }
 
-  int readInt16() {
-    _checkRemaining(2);
+  (int?, Error?) readInt16() {
+    final err = _checkRemaining(2);
+    if (err != null) return (null, err);
+
     final value = ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .getInt16(0, Endian.little);
     _offset += 2;
-    return value;
+    return (value, null);
   }
 
-  int readUint16() {
-    _checkRemaining(2);
+  (int?, Error?) readUint16() {
+    final err = _checkRemaining(2);
+    if (err != null) return (null, err);
+
     final value = ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .getUint16(0, Endian.little);
     _offset += 2;
-    return value;
+    return (value, null);
   }
 
-  int readInt32() {
-    _checkRemaining(4);
+  (int?, Error?) readInt32() {
+    final err = _checkRemaining(4);
+    if (err != null) return (null, err);
+
     final value = ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .getInt32(0, Endian.little);
     _offset += 4;
-    return value;
+    return (value, null);
   }
 
-  int readUint32() {
-    _checkRemaining(4);
+  (int?, Error?) readUint32() {
+    final err = _checkRemaining(4);
+    if (err != null) return (null, err);
+
     final value = ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .getUint32(0, Endian.little);
     _offset += 4;
-    return value;
+    return (value, null);
   }
 
-  int readInt64() {
-    _checkRemaining(8);
+  (int?, Error?) readInt64() {
+    final err = _checkRemaining(8);
+    if (err != null) return (null, err);
+
     final value = ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .getInt64(0, Endian.little);
     _offset += 8;
-    return value;
+    return (value, null);
   }
 
-  int readUint64() {
-    _checkRemaining(8);
+  (int?, Error?) readUint64() {
+    final err = _checkRemaining(8);
+    if (err != null) return (null, err);
+
     final value = ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .getUint64(0, Endian.little);
     _offset += 8;
-    return value;
+    return (value, null);
   }
 
-  double readFloat32() {
-    _checkRemaining(4);
+  (double?, Error?) readFloat32() {
+    final err = _checkRemaining(4);
+    if (err != null) return (null, err);
+
     final value = ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .getFloat32(0, Endian.little);
     _offset += 4;
-    return value;
+    return (value, null);
   }
 
-  double readFloat64() {
-    _checkRemaining(8);
+  (double?, Error?) readFloat64() {
+    final err = _checkRemaining(8);
+    if (err != null) return (null, err);
+
     final value = ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .getFloat64(0, Endian.little);
     _offset += 8;
-    return value;
+    return (value, null);
   }
 
-  bool readBool() {
-    return readUint8() != 0;
+  (bool?, Error?) readBool() {
+    final (value, err) = readUint8();
+    if (err != null) return (null, err);
+    return (value != 0, null);
   }
 
-  String readString() {
-    final length = readUint32();
-    _checkRemaining(length);
+  (String?, Error?) readString() {
+    final (length, err) = readUint32();
+    if (err != null) return (null, err);
+
+    final dataErr = _checkRemaining(length!);
+    if (dataErr != null) return (null, dataErr);
+
     final bytes = Uint8List.sublistView(_buffer, _offset, _offset + length);
     _offset += length;
-    // Messgen uses UTF-8 encoding for strings
-    return utf8.decode(bytes);
+    try {
+      return (utf8.decode(bytes), null);
+    } catch (e) {
+      return (null, StateError('Failed to decode UTF-8 string: $e'));
+    }
   }
 
-  Uint8List readBytes() {
-    final length = readUint32();
-    _checkRemaining(length);
+  (Uint8List?, Error?) readBytes() {
+    final (length, err) = readUint32();
+    if (err != null) return (null, err);
+
+    final dataErr = _checkRemaining(length!);
+    if (dataErr != null) return (null, dataErr);
+
     final bytes = Uint8List.fromList(_buffer.sublist(_offset, _offset + length));
     _offset += length;
-    return bytes;
+    return (bytes, null);
   }
 
-  Uint8List readFixedBytes(int length) {
-    _checkRemaining(length);
+  (Uint8List?, Error?) readFixedBytes(int length) {
+    final err = _checkRemaining(length);
+    if (err != null) return (null, err);
+
     final bytes = Uint8List.fromList(_buffer.sublist(_offset, _offset + length));
     _offset += length;
-    return bytes;
+    return (bytes, null);
   }
 }
 
@@ -144,112 +177,157 @@ class BufferWriter {
 
   int get offset => _offset;
   int get remaining => _buffer.length - _offset;
-  
-  /// Advance the offset by the specified number of bytes
+
   void advance(int bytes) {
     _offset += bytes;
   }
 
-  void _checkRemaining(int bytes) {
-    if (remaining < bytes) {
-      throw BufferTooShortException(
-          'Need $bytes bytes but only $remaining available in output buffer',
-      );
+  /// Internal helper to validate output buffer space
+  Error? _checkRemaining(int required) {
+    if (remaining < required) {
+      return StateError('Need $required bytes but only $remaining available in output buffer');
     }
+    return null;
   }
 
-  void writeInt8(int value) {
-    _checkRemaining(1);
+  Error? writeInt8(int value) {
+    final err = _checkRemaining(1);
+    if (err != null) return err;
+
     _buffer[_offset] = value.toUnsigned(8);
     _offset += 1;
+    return null;
   }
 
-  void writeUint8(int value) {
-    _checkRemaining(1);
+  Error? writeUint8(int value) {
+    final err = _checkRemaining(1);
+    if (err != null) return err;
+
     _buffer[_offset] = value;
     _offset += 1;
+    return null;
   }
 
-  void writeInt16(int value) {
-    _checkRemaining(2);
+  Error? writeInt16(int value) {
+    final err = _checkRemaining(2);
+    if (err != null) return err;
+
     ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .setInt16(0, value, Endian.little);
     _offset += 2;
+    return null;
   }
 
-  void writeUint16(int value) {
-    _checkRemaining(2);
+  Error? writeUint16(int value) {
+    final err = _checkRemaining(2);
+    if (err != null) return err;
+
     ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .setUint16(0, value, Endian.little);
     _offset += 2;
+    return null;
   }
 
-  void writeInt32(int value) {
-    _checkRemaining(4);
+  Error? writeInt32(int value) {
+    final err = _checkRemaining(4);
+    if (err != null) return err;
+
     ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .setInt32(0, value, Endian.little);
     _offset += 4;
+    return null;
   }
 
-  void writeUint32(int value) {
-    _checkRemaining(4);
+  Error? writeUint32(int value) {
+    final err = _checkRemaining(4);
+    if (err != null) return err;
+
     ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .setUint32(0, value, Endian.little);
     _offset += 4;
+    return null;
   }
 
-  void writeInt64(int value) {
-    _checkRemaining(8);
+  Error? writeInt64(int value) {
+    final err = _checkRemaining(8);
+    if (err != null) return err;
+
     ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .setInt64(0, value, Endian.little);
     _offset += 8;
+    return null;
   }
 
-  void writeUint64(int value) {
-    _checkRemaining(8);
+  Error? writeUint64(int value) {
+    final err = _checkRemaining(8);
+    if (err != null) return err;
+
     ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .setUint64(0, value, Endian.little);
     _offset += 8;
+    return null;
   }
 
-  void writeFloat32(double value) {
-    _checkRemaining(4);
+  Error? writeFloat32(double value) {
+    final err = _checkRemaining(4);
+    if (err != null) return err;
+
     ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .setFloat32(0, value, Endian.little);
     _offset += 4;
+    return null;
   }
 
-  void writeFloat64(double value) {
-    _checkRemaining(8);
+  Error? writeFloat64(double value) {
+    final err = _checkRemaining(8);
+    if (err != null) return err;
+
     ByteData.view(_buffer.buffer, _buffer.offsetInBytes + _offset)
         .setFloat64(0, value, Endian.little);
     _offset += 8;
+    return null;
   }
 
-  void writeBool(bool value) {
-    writeUint8(value ? 1 : 0);
+  Error? writeBool(bool value) {
+    return writeUint8(value ? 1 : 0);
   }
 
-  void writeString(String value) {
-    // Messgen uses UTF-8 encoding, but codeUnits work for ASCII subset
-    // For full UTF-8 support, use: final bytes = utf8.encode(value);
+  Error? writeString(String value) {
     final bytes = utf8.encode(value);
-    writeUint32(bytes.length);
-    _checkRemaining(bytes.length);
+
+    // Check space for length (uint32)
+    var err = writeUint32(bytes.length);
+    if (err != null) return err;
+
+    // Check space for payload
+    err = _checkRemaining(bytes.length);
+    if (err != null) return err;
+
     _buffer.setRange(_offset, _offset + bytes.length, bytes);
     _offset += bytes.length;
+    return null;
   }
 
-  void writeBytes(Uint8List value) {
-    writeUint32(value.length);
-    _checkRemaining(value.length);
+  Error? writeBytes(Uint8List value) {
+    // Check space for length (uint32)
+    var err = writeUint32(value.length);
+    if (err != null) return err;
+
+    // Check space for payload
+    err = _checkRemaining(value.length);
+    if (err != null) return err;
+
     _buffer.setRange(_offset, _offset + value.length, value);
     _offset += value.length;
+    return null;
   }
 
-  void writeFixedBytes(Uint8List value) {
-    _checkRemaining(value.length);
+  Error? writeFixedBytes(Uint8List value) {
+    final err = _checkRemaining(value.length);
+    if (err != null) return err;
+
     _buffer.setRange(_offset, _offset + value.length, value);
     _offset += value.length;
+    return null;
   }
 }

@@ -495,92 +495,92 @@ class ResolvedStruct(ResolvedType):
             yield from self.renderSize("value", cur._value, step+1)
             yield f"    }});"
 
-    def renderSerialize(self, name: str, cur: ResolvedType, step = 0):
+    def renderSerialize(self, name: str, cur: ResolvedType, step=0):
+        # --- Strings & Bytes ---
         if cur._model.type_class == TypeClass.string:
-            yield f"    writer.writeString({name});"
+            yield f"    err = writer.writeString({name});"
+            yield f"    if (err != null) return err;"
         elif cur._model.type_class == TypeClass.bytes:
-            yield f"    writer.writeBytes({name});"
+            yield f"    err = writer.writeBytes({name});"
+            yield f"    if (err != null) return err;"
+
+        # --- Nested Structs ---
         elif cur._model.type_class == TypeClass.struct:
-            yield f"    final bytesWritten = {name}.serialize(Uint8List.sublistView(output, writer.offset));"
-            yield f"    writer.advance(bytesWritten);"
-        elif isinstance(cur, ResolvedEnum):
-            # Enums are serialized by accessing their .value field
+            # Assuming the generated struct.serialize(buffer) now returns Error?
+            yield f"    err = {name}.serialize(Uint8List.sublistView(output, writer.offset));"
+            yield f"    if (err != null) return err;"
+            yield f"    writer.advance({name}.serializedSize());"
+
+        # --- Enums & Bitsets (Recurse using the underlying .value) ---
+        elif isinstance(cur, (ResolvedEnum, ResolvedBitset)):
             yield from self.renderSerialize(f"{name}.value", cur._base, step)
-        elif isinstance(cur, ResolvedBitset):
-            # Bitsets are serialized by accessing their .value field
-            yield from self.renderSerialize(f"{name}.value", cur._base, step)
+
+        # --- Builtin Scalars ---
         elif isinstance(cur, ResolvedBuiltin):
             type_name = cur._model.type
-            if type_name == "int8":
-                yield f"    writer.writeInt8({name});"
-            elif type_name == "uint8":
-                yield f"    writer.writeUint8({name});"
-            elif type_name == "int16":
-                yield f"    writer.writeInt16({name});"
-            elif type_name == "uint16":
-                yield f"    writer.writeUint16({name});"
-            elif type_name == "int32":
-                yield f"    writer.writeInt32({name});"
-            elif type_name == "uint32":
-                yield f"    writer.writeUint32({name});"
-            elif type_name == "int64":
-                yield f"    writer.writeInt64({name});"
-            elif type_name == "uint64":
-                yield f"    writer.writeUint64({name});"
-            elif type_name == "float32":
-                yield f"    writer.writeFloat32({name});"
-            elif type_name == "float64":
-                yield f"    writer.writeFloat64({name});"
-            elif type_name == "bool":
-                yield f"    writer.writeBool({name});"
+            # Capitalize the type name to match writer methods: writeInt32, writeFloat64, etc.
+            method_name = f"write{type_name.capitalize()}"
+            yield f"    err = writer.{method_name}({name});"
+            yield f"    if (err != null) return err;"
+
+        # --- Slices (Arrays & Vectors) ---
         elif isinstance(cur, ResolvedSlice):
-            elem_name = f"elem{step}"
             if cur._model.type_class != TypeClass.array:
-                yield f"    writer.writeUint32({name}.length);"
+                yield f"    err = writer.writeUint32({name}.length);"
+                yield f"    if (err != null) return err;"
 
-            if cur._element.data_size() != None and cur._element.is_flat():
-                # For flat types, we can serialize efficiently
-                yield f"    for (final {elem_name} in {name}) {{"
-                yield from self.renderSerialize(elem_name, cur._element, step+1)
-                yield f"    }}"
-            else:
-                yield f"    for (final {elem_name} in {name}) {{"
-                yield from self.renderSerialize(elem_name, cur._element, step+1)
-                yield f"    }}"
+            elem_name = f"elem{step}"
+            yield f"    for (final {elem_name} in {name}) {{"
+            yield from self.renderSerialize(elem_name, cur._element, step + 1)
+            yield f"    }}"
+
+        # --- Maps ---
         elif isinstance(cur, ResolvedMap):
-            yield f"    writer.writeUint32({name}.length);"
-            yield f"    {name}.forEach((key, value) {{"
-            yield f"      // Write key"
-            yield from self.renderSerialize("key", cur._key, step+1)
-            yield f"      // Write value"
-            yield from self.renderSerialize("value", cur._value, step+1)
-            yield f"    }});"
+            yield f"    err = writer.writeUint32({name}.length);"
+            yield f"    if (err != null) return err;"
 
-    def renderDeserialize(self, name: str, cur: ResolvedType, step = 0):
-        # --- Nested Structs (Return Record) ---
+            # for-in on entries is usually cleaner for code generation than forEach
+            yield f"    for (final entry{step} in {name}.entries) {{"
+            yield from self.renderSerialize(f"entry{step}.key", cur._key, step + 1)
+            yield from self.renderSerialize(f"entry{step}.value", cur._value, step + 1)
+            yield f"    }}"
+
+    def renderDeserialize(self, name: str, cur: ResolvedType, step=0):
+        # --- Nested Structs ---
         if cur._model.type_class == TypeClass.struct:
+            # Structs return (Type?, Error?)
+            val_var = f"{name}Val"
             res_var = f"res{step}"
-            yield f"    final ({cur.reference()} {name}, int {res_var}) ="
-            yield f"        {cur.reference()}.deserialize(Uint8List.sublistView(input, reader.offset));"
-            yield f"    reader.advance({res_var});"
+            err_var = f"{name}Err"
+            yield f"    final ({val_var}, int {res_var}, {err_var}) = {cur.reference()}.deserialize(Uint8List.sublistView(input, reader.offset));"
+            yield f"    if ({err_var} != null) return (null, 0, {err_var});"
+            yield f"    final {name} = {val_var}!;"
+            yield f"    reader.advance({name}.serializedSize());"
 
         # --- Strings & Bytes ---
-        elif cur._model.type_class == TypeClass.string:
-            yield f"    final {name} = reader.readString();"
-        elif cur._model.type_class == TypeClass.bytes:
-            yield f"    final {name} = reader.readBytes();"
+        elif cur._model.type_class in [TypeClass.string, TypeClass.bytes]:
+            suffix = "String" if cur._model.type_class == TypeClass.string else "Bytes"
+            res_var = f"{name}Res"
+            err_var = f"{name}Err"
+            yield f"    final ({res_var}, {err_var}) = reader.read{suffix}();"
+            yield f"    if ({err_var} != null) return (null, 0, {err_var});"
+            yield f"    final {name} = {res_var}!;"
 
         # --- Enums / Bitsets ---
         elif isinstance(cur, (ResolvedEnum, ResolvedBitset)):
             temp_var = f"temp{step}"
+            # Recursively call deserialize on the base type (e.g., uint32)
             yield from self.renderDeserialize(temp_var, cur._base, step)
             yield f"    final {name} = {cur.reference()}({temp_var});"
 
         # --- Builtin Scalars ---
         elif isinstance(cur, ResolvedBuiltin):
-            type_name = cur._model.type
-            # reader methods are usually readUint32, readFloat64, etc.
-            yield f"    final {name} = reader.read{type_name.capitalize()}();"
+            type_name = cur._model.type.capitalize()
+            res_var = f"{name}Res"
+            err_var = f"{name}Err"
+            yield f"    final ({res_var}, {err_var}) = reader.read{type_name}();"
+            yield f"    if ({err_var} != null) return (null, 0, {err_var});"
+            yield f"    final {name} = {res_var}!;"
 
         # --- Slices (Lists/Vectors) ---
         elif isinstance(cur, ResolvedSlice):
@@ -589,8 +589,10 @@ class ResolvedStruct(ResolvedType):
             if isinstance(cur._model, ArrayType):
                 count_expr = str(cur._model.array_size)
             else:
-                yield f"    final count{step} = reader.readUint32();"
-                count_expr = f"count{step}"
+                # For vectors, we have to read the length (uint32) first
+                yield f"    final (count{step}Res, count{step}Err) = reader.readUint32();"
+                yield f"    if (count{step}Err != null) return (null, 0, count{step}Err);"
+                count_expr = f"count{step}Res!"
 
             yield f"    for (var i{step} = 0; i{step} < {count_expr}; i{step}++) {{"
             elem_name = f"elem{step}"
@@ -601,8 +603,10 @@ class ResolvedStruct(ResolvedType):
         # --- Maps ---
         elif isinstance(cur, ResolvedMap):
             yield f"    final {name} = <{cur._key.reference()}, {cur._value.reference()}>{{}};"
-            yield f"    final mapCount{step} = reader.readUint32();"
-            yield f"    for (var i{step} = 0; i{step} < mapCount{step}; i{step}++) {{"
+            yield f"    final (mCount{step}Res, mCount{step}Err) = reader.readUint32();"
+            yield f"    if (mCount{step}Err != null) return (null, 0, mCount{step}Err);"
+
+            yield f"    for (var i{step} = 0; i{step} < mCount{step}Res!; i{step}++) {{"
             key_name = f"key{step}"
             val_name = f"val{step}"
             yield from self.renderDeserialize(key_name, cur._key, step + 1)
@@ -777,7 +781,7 @@ class ResolvedStruct(ResolvedType):
         yield ""
 
         # 5. Static deserialize factory
-        yield f"  static ({self._name}, int) deserialize(Uint8List input) {{"
+        yield f"  static ({self._name}?, int, Error?) deserialize(Uint8List input) {{"
         yield f"    final reader = BufferReader(input);"
 
         # Iterate and generate local variable assignments
@@ -791,7 +795,8 @@ class ResolvedStruct(ResolvedType):
             dart_name = toDartName(field_name, False)
             yield f"        {dart_name}: {dart_name},"
         yield "      ),"
-        yield "      reader.offset"
+        yield "      reader.offset,"
+        yield "      null"
         yield "    );"
         yield "  }"
         yield ""
@@ -807,12 +812,13 @@ class ResolvedStruct(ResolvedType):
         yield ""
 
         # 7. Serialize method
-        yield f"  int serialize(Uint8List output) {{"
+        yield f"  Error? serialize(Uint8List output) {{"
         yield f"    final writer = BufferWriter(output);"
+        yield f"    Error? err;"
         for field_name, field in self._fields:
             dart_field_name = toDartName(field_name, False)
             yield from self.renderSerialize(dart_field_name, field)
-        yield f"    return writer.offset;"
+        yield f"    return null;"
         yield f"  }}"
         yield ""
 
@@ -945,7 +951,7 @@ def render_protocol(proto_name: str, proto_class_name: str, proto_full_path: str
     yield ""
 
     # Message ID to constructor map
-    yield f"  static final Map<int, (Serializable, int) Function(Uint8List)> messageIdToConstructor = {{"
+    yield f"  static final Map<int, (Serializable?, int, Error?) Function(Uint8List)> messageIdToConstructor = {{"
     for msg_id, msg in proto.messages.items():
         if msg_id in msg_type_names:
             type_name = msg_type_names[msg_id]
