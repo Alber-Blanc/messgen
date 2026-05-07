@@ -813,8 +813,10 @@ class ResolvedStruct(ResolvedType):
 
         # 7. Serialize method
         yield f"  Error? serialize(Uint8List output) {{"
-        yield f"    final writer = BufferWriter(output);"
-        yield f"    Error? err;"
+        if len(self._fields) > 0:
+            yield f"    final writer = BufferWriter(output);"
+            yield f"    Error? err;"
+            
         for field_name, field in self._fields:
             dart_field_name = toDartName(field_name, False)
             yield from self.renderSerialize(dart_field_name, field)
