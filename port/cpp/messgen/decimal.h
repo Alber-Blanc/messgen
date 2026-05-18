@@ -495,14 +495,16 @@ constexpr inline decimal64 &decimal64::operator+=(decimal64 other) noexcept {
     auto [rhs_sign, rhs_coeff, rhs_exp] = other.decompose();
 
     auto exp_diff = lhs_exp - rhs_exp;
+    assert(exp_diff >= -DEC_MAX_EXPONENT && exp_diff <= DEC_MAX_EXPONENT);
+
     auto align_lhs = exp_diff > 0;
     auto align_rhs = exp_diff < 0;
 
-    lhs_coeff *= pow10_int(exp_diff * align_lhs);
-    rhs_coeff *= pow10_int(-exp_diff * align_rhs);
+    auto lhs_coeff_ext = uint64_t{lhs_coeff} * pow10_int(exp_diff * align_lhs);
+    auto rhs_coeff_ext = uint64_t{rhs_coeff} * pow10_int(-exp_diff * align_rhs);
 
     auto res_exp = lhs_exp * (!align_lhs) + rhs_exp * align_lhs;
-    auto res_coeff = lhs_sign * int64_t(lhs_coeff) + rhs_sign * int64_t(rhs_coeff);
+    auto res_coeff = lhs_sign * int64_t(lhs_coeff_ext) + rhs_sign * int64_t(rhs_coeff_ext);
     _value = decimal64{res_coeff, static_cast<int16_t>(res_exp)}._value;
 
     return *this;
@@ -640,6 +642,8 @@ constexpr inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coef
     }
 
     auto exp_diff = lhs_exp - rhs_exp;
+    assert(exp_diff >= -decimal64::DEC_MAX_EXPONENT && exp_diff <= decimal64::DEC_MAX_EXPONENT);
+
     auto rhs_val = __int128(rhs_sign * int64_t(rhs_coeff));
     auto lhs_val = __int128(lhs_sign * int64_t(lhs_coeff));
 

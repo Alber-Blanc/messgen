@@ -499,3 +499,14 @@ TEST_F(CppDecimalTest, GeneratedFlatType) {
 
     EXPECT_EQ(expected, actual);
 }
+
+TEST_F(CppDecimalTest, AddSmallValueWithinPrecision) {
+    auto a = decimal64::from_string("1.0");
+    auto b = decimal64::from_string("1e-9");
+    ASSERT_TRUE(a);
+    ASSERT_TRUE(b);
+
+    // Gap fits in 53-bit coefficient; the small operand must be preserved.
+    ASSERT_GT(*a + *b, *a);
+    ASSERT_LT(*a - *b, *a);
+}
