@@ -279,12 +279,13 @@ class EnumConverter(TypeConverter):
         self.mapping = {}
         self.rev_mapping = {}
         for item in self._type_def.values:
-            self.mapping[item.value] = item.name
-            self.rev_mapping[item.name] = item.value
+            value = int(item.value, 0) if isinstance(item.value, str) else item.value
+            self.mapping[value] = item.name
+            self.rev_mapping[item.name] = value
 
     def _serialize(self, data) -> bytes:
         if (v := self.rev_mapping.get(data)) is not None:
-            return struct.pack(self.struct_fmt, int(v, 0))
+            return struct.pack(self.struct_fmt, v)
         raise MessgenError(f"Unsupported value={data} for enum={self._type_name}")
 
     def _deserialize(self, data: memoryview):

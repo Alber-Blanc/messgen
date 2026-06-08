@@ -10,6 +10,7 @@ from decimal import (
 from messgen.model import (
     BasicType,
     DecimalType,
+    EnumType,
     EnumValue,
     TypeClass,
     get_schema,
@@ -17,6 +18,7 @@ from messgen.model import (
 from messgen.dynamic import (
     Codec,
     DecimalConverter,
+    EnumConverter,
     MessgenError,
     ScalarConverter,
 )
@@ -321,6 +323,74 @@ def test_enum_converter_serialization(codec):
 
     with pytest.raises(MessgenError):
         type_converter.serialize("NON_EXISTENT_VALUE")
+
+
+def _make_enum_converter(values, base_type="uint8", size=1):
+    enum_type = EnumType(
+        type="mynamespace/types/test_enum",
+        type_class=TypeClass.enum,
+        base_type=base_type,
+        comment=None,
+        values=values,
+        size=size,
+    )
+    return EnumConverter({enum_type.type: enum_type}, enum_type.type)
+
+
+def test_enum_converter_hex_string_values():
+    # Enum values defined as hex strings in YAML must be normalized to ints
+    # for both serialization and deserialization.
+    converter = _make_enum_converter(
+        [
+            EnumValue(name="low", value="0x0f", comment=""),
+            EnumValue(name="high", value="0xff", comment=""),
+        ]
+    )
+
+    assert converter.serialize("low") == (0x0F).to_bytes(length=1, byteorder="little")
+    assert converter.serialize("high") == (0xFF).to_bytes(length=1, byteorder="little")
+
+    assert converter.deserialize((0x0F).to_bytes(length=1, byteorder="little")) == "low"
+    assert converter.deserialize((0xFF).to_bytes(length=1, byteorder="little")) == "high"
+
+
+def test_enum_converter_mixed_int_and_hex_values():
+    # Plain int values and hex-string values should coexist and round-trip.
+    converter = _make_enum_converter(
+        [
+            EnumValue(name="zero", value=0, comment=""),
+            EnumValue(name="ten", value="0x0a", comment=""),
+            EnumValue(name="sixteen", value=16, comment=""),
+        ]
+    )
+
+    for name, expected in [("zero", 0), ("ten", 10), ("sixteen", 16)]:
+        encoded = converter.serialize(name)
+        assert encoded == expected.to_bytes(length=1, byteorder="little")
+        assert converter.deserialize(encoded) == name
+
+
+def test_enum_converter_decimal_string_values():
+    # Non-hex numeric strings are also accepted via int(v, 0).
+    converter = _make_enum_converter(
+        [
+            EnumValue(name="seven", value="7", comment=""),
+        ]
+    )
+
+    assert converter.serialize("seven") == (7).to_bytes(length=1, byteorder="little")
+    assert converter.deserialize((7).to_bytes(length=1, byteorder="little")) == "seven"
+
+
+def test_enum_converter_unknown_deserialize_value():
+    converter = _make_enum_converter(
+        [
+            EnumValue(name="only", value=1, comment=""),
+        ]
+    )
+
+    with pytest.raises(MessgenError):
+        converter.deserialize((9).to_bytes(length=1, byteorder="little"))
 
 
 def test_type_converter_type_info(codec):
