@@ -1,5 +1,7 @@
 #pragma once
 
+#include "reflect.h"
+
 #include <array>
 #include <cassert>
 #include <charconv>
@@ -782,6 +784,10 @@ template <char... C>
 [[nodiscard]] decimal64 constexpr operator""_dd() {
     auto [sign, coeff, exponent] = detail::parse<C...>();
     return decimal64{int8_t(sign), coeff, int16_t(exponent)};
+}
+
+[[nodiscard]] constexpr std::string_view name_of(reflect_t<decimal64>) noexcept {
+    return "string";
 }
 
 } // namespace messgen

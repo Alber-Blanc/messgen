@@ -1,6 +1,7 @@
 #pragma once
 
 #include "metadata.h"
+#include "reflect.h"
 #include "traits.h"
 
 #include <array>
@@ -14,21 +15,6 @@
 #include <vector>
 
 namespace messgen {
-
-template <class T>
-using reflect_t = T *; // we could use a hard type instead, but that would incur
-                       // a penalty on compile time
-
-template <class T>
-using splice_t = std::remove_pointer_t<T>;
-
-template <class T>
-constexpr reflect_t<remove_cvref_t<T>> reflect_type = {};
-
-template <class T>
-constexpr reflect_t<remove_cvref_t<T>> reflect_object(T &&t) {
-    return &t;
-}
 
 template <class C, class M>
 struct member {
@@ -308,10 +294,7 @@ template <class K, class V>
 namespace detail {
 
 template <class T>
-constexpr static auto composite_name_of<messgen::span<T>> = std::array{
-    name_of(reflect_type<T>),
-    std::string_view{"[]"}
-};
+constexpr static auto composite_name_of<messgen::span<T>> = std::array{name_of(reflect_type<T>), std::string_view{"[]"}};
 
 template <class K, class V>
 constexpr static auto composite_name_of<messgen::map<K, V>> = std::array{
