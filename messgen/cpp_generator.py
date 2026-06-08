@@ -314,8 +314,9 @@ class CppGenerator:
                     _format_code(
                         3,
                         """\
-                        ssize_t deserialize(data_type &v) const {
-                            return v.deserialize(_buf);
+                        template <class... Policies>
+                        ssize_t deserialize(data_type &v, [[maybe_unused]] Policies... policies) const {
+                            return v.deserialize(_buf, std::forward<Policies>(policies)...);
                         }
 
                         """,
