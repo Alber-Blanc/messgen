@@ -707,8 +707,8 @@ class CppGenerator:
             _format_code(
                 0,
                 f"""
-            [[nodiscard]] constexpr std::string_view to_string_view({unqual_name} e) noexcept {{
-                switch (e.to_underlying()) {{
+            [[nodiscard]] inline std::string to_string({unqual_name} e) noexcept {{
+                std::string str = "{{";
             """,
             )
         )
@@ -717,8 +717,10 @@ class CppGenerator:
                 _format_code(
                     1,
                     f"""\
-                case {unqual_name}::underlying_type({unqual_name}::{bit.name}):
-                    return "{bit.name}";
+                if (e & {unqual_name}::{bit.name}) {{
+                    str += "{bit.name},";
+                    e ^= {unqual_name}::{bit.name};
+                }}
                 """,
                 )
             )
@@ -726,17 +728,12 @@ class CppGenerator:
             _format_code(
                 0,
                 f"""\
-                default:
-                    return messgen::UNKNOWN_ENUM_STR;
+                if (e) {{
+                    str += "<unknown (" + std::to_string({underlying_type}(e)) + ")>,";
                 }}
-            }}
-
-            [[nodiscard]] inline std::string to_string({unqual_name} e) noexcept {{
-                auto s = to_string_view(e);
-                if (s != messgen::UNKNOWN_ENUM_STR) {{
-                    return std::string(s);
-                }}
-                return "<unknown (" + std::to_string({underlying_type}(e)) + ")>";
+                if (!str.empty())
+                    str.pop_back();
+                return str + "}}";
             }}
             """,
             )

@@ -465,6 +465,15 @@ TEST_F(Cpp17Test, EnumToString) {
     EXPECT_EQ(mynamespace::types::to_string(mynamespace::types::simple_enum(15)), "<unknown (15)>");
 }
 
+TEST_F(Cpp17Test, BitsetToString) {
+    using namespace messgen;
+
+    EXPECT_EQ(mynamespace::types::to_string(mynamespace::types::simple_bitset::one), "{one}");
+    EXPECT_EQ(mynamespace::types::to_string(mynamespace::types::simple_bitset{1} | mynamespace::types::simple_bitset{2}), "{one,two}");
+    EXPECT_EQ(mynamespace::types::to_string(mynamespace::types::simple_bitset{1} | mynamespace::types::simple_bitset{4}), "{one,error}");
+    EXPECT_EQ(mynamespace::types::to_string(mynamespace::types::simple_bitset{11}), "{one,two,<unknown (8)>}");
+}
+
 TEST_F(Cpp17Test, BytesPlain) {
     std::array<uint8_t, 2> buf{1, 2};
     messgen::bytes bs{messgen::span{buf.data(), buf.size()}};
