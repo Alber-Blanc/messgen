@@ -289,7 +289,7 @@ class CppGenerator:
                         3,
                         """\
                         template <class... Policies>
-                        ssize_t deserialize(data_type &v, ::messgen::Allocator &alloc, [[maybe_unused]] Policies... policies) const {
+                        ssize_t deserialize(data_type &v, ::messgen::Allocator &alloc, Policies... policies) const {
                             return v.deserialize(_buf, alloc, std::forward<Policies>(policies)...);
                         }
 
@@ -300,8 +300,9 @@ class CppGenerator:
                     _format_code(
                         3,
                         """\
-                        ssize_t deserialize(data_type_strg &v) const {
-                            return v.deserialize(_buf);
+                        template <class... Policies>
+                        ssize_t deserialize(data_type_strg &v, Policies... policies) const {
+                            return v.deserialize(_buf, std::forward<Policies>(policies)...);
                         }
 
                         """,
@@ -315,7 +316,7 @@ class CppGenerator:
                         3,
                         """\
                         template <class... Policies>
-                        ssize_t deserialize(data_type &v, [[maybe_unused]] Policies... policies) const {
+                        ssize_t deserialize(data_type &v, Policies... policies) const {
                             return v.deserialize(_buf, std::forward<Policies>(policies)...);
                         }
 
