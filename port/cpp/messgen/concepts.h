@@ -24,7 +24,7 @@ struct noop_fn {
 } // namespace detail
 
 template <class T>
-concept enumeration = std::is_enum_v<T> && requires(T t) {
+concept enumeration = requires(T t) {
     { enumerators_of(messgen::reflect_object(t)) };
 };
 
