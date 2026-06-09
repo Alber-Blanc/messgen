@@ -93,7 +93,7 @@ class MapType:
 @dataclass
 class EnumValue:
     name: str
-    value: int
+    value: int | str
     comment: str
 
     def dependencies(self) -> set[str]:
