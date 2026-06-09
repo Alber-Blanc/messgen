@@ -1,8 +1,8 @@
-
 #include <messgen/messgen.h>
-#include <mynamespace/proto/test_proto.h>
 #include <mynamespace/proto/subspace/another_proto.h>
+#include <mynamespace/proto/test_proto.h>
 #include <mynamespace/types/another_simple_bitset.h>
+#include <mynamespace/types/simple_bitset.h>
 
 #include <gtest/gtest.h>
 
@@ -288,6 +288,28 @@ TEST_F(Cpp17Test, EnumReflection) {
 
     EXPECT_EQ(name_of(std::get<1>(enums)), "another_value"sv);
     EXPECT_EQ(value_of(std::get<1>(enums)), mynamespace::types::simple_enum{1});
+}
+
+TEST_F(Cpp17Test, BitsetReflection) {
+    using namespace messgen;
+    using namespace std::literals;
+
+    auto bitset_name = messgen::name_of(messgen::reflect_type<mynamespace::types::simple_bitset>);
+    EXPECT_STREQ(bitset_name.data(), "mynamespace/types/simple_bitset");
+
+    constexpr auto enums = enumerators_of(reflect_type<mynamespace::types::simple_bitset>);
+
+    EXPECT_STREQ(std::get<0>(enums).name, "one");
+    EXPECT_EQ(std::get<0>(enums).value, mynamespace::types::simple_bitset{1});
+
+    EXPECT_EQ(name_of(std::get<0>(enums)), "one"sv);
+    EXPECT_EQ(value_of(std::get<0>(enums)), mynamespace::types::simple_bitset{1});
+
+    EXPECT_STREQ(std::get<1>(enums).name, "two");
+    EXPECT_EQ(std::get<1>(enums).value, mynamespace::types::simple_bitset{2});
+
+    EXPECT_EQ(name_of(std::get<1>(enums)), "two"sv);
+    EXPECT_EQ(value_of(std::get<1>(enums)), mynamespace::types::simple_bitset{2});
 }
 
 TEST_F(Cpp17Test, ConstexprNameReflection) {

@@ -665,6 +665,83 @@ class CppGenerator:
             )
         )
 
+        code.extend(
+            _format_code(
+                0,
+                f"""
+            namespace detail {{
+            static constexpr ::messgen::metadata {unqual_name}_METADATA{{
+                .hash = {hash_type(type_def, self._types)}ULL,
+                .name = "{type_name}",
+                .schema = R"_({get_schema(type_def)})_"
+            }};
+            }}
+
+            constexpr const ::messgen::metadata &metadata_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return detail::{unqual_name}_METADATA;
+            }}
+
+            [[nodiscard]] constexpr std::string_view name_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return "{type_name}";
+            }}
+
+            [[nodiscard]] constexpr auto enumerators_of(::messgen::reflect_t<{unqual_name}>) noexcept {{
+                return std::tuple{{
+            """,
+            )
+        )
+
+        for bit in type_def.bits:
+            code.append(f'        ::messgen::enumerator_value{{{{"{bit.name}"}}, {unqual_name}::{bit.name}}},')
+
+        code.extend(
+            _format_code(
+                0,
+                """
+            };
+        }""",
+            )
+        )
+
+        code.extend(
+            _format_code(
+                0,
+                f"""
+            [[nodiscard]] constexpr std::string_view to_string_view({unqual_name} e) noexcept {{
+                switch (e.to_underlying()) {{
+            """,
+            )
+        )
+        for bit in type_def.bits:
+            code.extend(
+                _format_code(
+                    1,
+                    f"""\
+                case {unqual_name}::underlying_type({unqual_name}::{bit.name}):
+                    return "{bit.name}";
+                """,
+                )
+            )
+        code.extend(
+            _format_code(
+                0,
+                f"""\
+                default:
+                    return messgen::UNKNOWN_ENUM_STR;
+                }}
+            }}
+
+            [[nodiscard]] inline std::string to_string({unqual_name} e) noexcept {{
+                auto s = to_string_view(e);
+                if (s != messgen::UNKNOWN_ENUM_STR) {{
+                    return std::string(s);
+                }}
+                return "<unknown (" + std::to_string({underlying_type}(e)) + ")>";
+            }}
+            """,
+            )
+        )
+
         return code
 
     def _get_alignment(self, type_def: MessgenType):
