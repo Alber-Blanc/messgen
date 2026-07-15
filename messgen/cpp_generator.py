@@ -43,25 +43,11 @@ def _unqual_name(type_name: str) -> str:
     return PosixPath(type_name).stem
 
 
-def _qual_name(type_name: str) -> str:
-    return type_name.replace(SEPARATOR, "::")
-
-
-def _qual_strg_name(type_name: str) -> str:
-    p = type_name.split(SEPARATOR)
-    return "::".join(p[:-1] + ["strg", p[-1]])
-
-
-def _split_last_name(type_name) -> tuple[str, str]:
-    split_name = type_name.split(SEPARATOR)
-    return SEPARATOR.join(split_name[:-1]), split_name[-1]
-
-
 @contextmanager
 def _namespace(name: str, code: list[str]):
     ns_name = None
     try:
-        ns_name = _qual_name(name)
+        ns_name = name.replace(SEPARATOR, "::")
         if ns_name:
             code.append(f"namespace {ns_name} {{")
             code.append("")
@@ -148,9 +134,29 @@ class CppGenerator:
 
     def __init__(self, options: dict):
         self._options: dict = options
+        self._namespace: str | None = options.get("namespace")
         self._includes: set = set()
-        self._ctx: dict = {}
         self._types: dict[str, MessgenType] = {}
+
+    def _ns(self, name: str) -> str:
+        return f"{self._namespace}{SEPARATOR}{name}" if self._namespace else name
+
+    def _header_path(self, type_name: str) -> str:
+        return self._ns(type_name) + self._EXT_HEADER
+
+    def _include_scope(self, type_name: str) -> str:
+        return "global" if SEPARATOR in self._ns(type_name) else "local"
+
+    def _qual_name(self, type_name: str) -> str:
+        return self._ns(type_name).replace(SEPARATOR, "::")
+
+    def _qual_strg_name(self, type_name: str) -> str:
+        p = self._ns(type_name).split(SEPARATOR)
+        return "::".join(p[:-1] + ["strg", p[-1]])
+
+    def _split_last_name(self, type_name: str) -> tuple[str, str]:
+        ns_name, _, last_name = self._ns(type_name).rpartition(SEPARATOR)
+        return ns_name, last_name
 
     def generate_types(self, out_dir: Path, types: dict[str, MessgenType]) -> None:
         self._types = types
@@ -158,14 +164,14 @@ class CppGenerator:
             if type_def.type_class not in [TypeClass.struct, TypeClass.enum, TypeClass.bitset]:
                 continue
 
-            file_name = out_dir / (type_name + self._EXT_HEADER)
+            file_name = out_dir / self._header_path(type_name)
             file_name.parent.mkdir(parents=True, exist_ok=True)
             write_file_if_diff(file_name, self._generate_type_file(type_name, type_def))
 
     def generate_protocols(self, out_dir: Path, types: dict[str, MessgenType], protocols: dict[str, Protocol]) -> None:
         self._types = types
         for proto_name, proto_def in protocols.items():
-            file_name = out_dir / (proto_name + self._EXT_HEADER)
+            file_name = out_dir / self._header_path(proto_name)
             file_name.parent.mkdir(parents=True, exist_ok=True)
             write_file_if_diff(file_name, self._generate_proto_file(proto_name, proto_def))
 
@@ -180,7 +186,7 @@ class CppGenerator:
         self._reset_file()
         code: list[str] = []
 
-        with _namespace(_split_last_name(type_name)[0], code):
+        with _namespace(self._split_last_name(type_name)[0], code):
             if isinstance(type_def, StructType):
                 # View type
                 code.extend(self._generate_type_struct(type_name, type_def, Mode.VIEW))
@@ -190,7 +196,7 @@ class CppGenerator:
                 if type_def.size is None:
                     code.extend(self._generate_type_struct(type_name, type_def, Mode.STORAGE))
                 else:
-                    code.append(f"using {type_name.split('/')[-1]} = {self._cpp_type(type_name, Mode.VIEW)};")
+                    code.append(f"using {_unqual_name(type_name)} = {self._cpp_type(type_name, Mode.VIEW)};")
                 code.extend(["", "}"])
             elif isinstance(type_def, EnumType):
                 code.extend(self._generate_type_enum(type_name, type_def))
@@ -210,11 +216,11 @@ class CppGenerator:
         self._add_include("cstdint")
         self._add_include("messgen/messgen.h")
 
-        namespace_name, class_name = _split_last_name(proto_name)
+        namespace_name, class_name = self._split_last_name(proto_name)
         with _namespace(namespace_name, code):
             with _struct(class_name, code):
                 for message in proto_def.messages.values():
-                    self._add_include(message.type + self._EXT_HEADER)
+                    self._add_include(self._header_path(message.type))
 
                 proto_id = proto_def.proto_id
                 if proto_id is not None:
@@ -247,14 +253,17 @@ class CppGenerator:
             if type_def is None:
                 raise RuntimeError(f"Type '{message.type}' not found for message '{message.name}' in protocol '{proto_name}'")
 
+            qual_type = self._qual_name(message.type)
+            qual_strg_type = self._qual_strg_name(message.type)
+
             code.extend(
                 _format_code(
                     1,
                     f"""\
 
                 struct {message.name} {{
-                    using data_type = ::{_qual_name(message.type)};
-                    using data_type_strg = ::{_qual_strg_name(message.type)};
+                    using data_type = ::{qual_type};
+                    using data_type_strg = ::{qual_strg_type};
                     using protocol_type = {class_name};
 
                     static constexpr int16_t PROTO_ID = protocol_type::PROTO_ID;
@@ -265,8 +274,8 @@ class CppGenerator:
                     class recv {{
                     public:
                         using message_type = {message.name};
-                        using data_type = ::{_qual_name(message.type)};
-                        using data_type_strg = ::{_qual_strg_name(message.type)};
+                        using data_type = ::{qual_type};
+                        using data_type_strg = ::{qual_strg_type};
                         using protocol_type = {class_name};
 
                         explicit recv(messgen::bytes buf) :
@@ -335,8 +344,8 @@ class CppGenerator:
                     class send {{
                     public:
                         using message_type = {message.name};
-                        using data_type = ::{_qual_name(message.type)};
-                        using data_type_strg = ::{_qual_strg_name(message.type)};
+                        using data_type = ::{qual_type};
+                        using data_type_strg = ::{qual_strg_type};
                         using protocol_type = {class_name};
 
                     """,
@@ -509,7 +518,6 @@ class CppGenerator:
         self._add_include("string")
 
         unqual_name = _unqual_name(type_name)
-        qual_name = _qual_name(type_name)
         underlying_cpp_type = self._cpp_type(type_def.base_type, Mode.VIEW)
 
         code = []
@@ -603,7 +611,6 @@ class CppGenerator:
         self._add_include("messgen/bitset.h")
 
         unqual_name = _unqual_name(type_name)
-        qual_name = _qual_name(type_name)
         underlying_type = self._cpp_type(type_def.base_type, Mode.VIEW)
 
         code = []
@@ -854,10 +861,10 @@ class CppGenerator:
         for dep in sorted(list(self._get_schema_dependencies(type_def))):
             dep_type_def = self._types[dep]
             if isinstance(dep_type_def, (StructType, BitsetType)):
-                deps_str_list.append(f"&{_qual_name(dep)}::METADATA")
+                deps_str_list.append(f"&{self._qual_name(dep)}::METADATA")
             elif isinstance(dep_type_def, EnumType):
-                p = _split_last_name(dep)
-                deps_str_list.append(f"&{_qual_name(p[0])}::detail::{p[1]}_METADATA")
+                qual_ns, _, last_name = self._qual_name(dep).rpartition("::")
+                deps_str_list.append(f"&{qual_ns}::detail::{last_name}_METADATA")
 
         deps_str = ", ".join(deps_str_list)
         deps_strg = ""
@@ -1131,23 +1138,21 @@ class CppGenerator:
                 return "std::map<%s, %s>" % (key_c_type, value_c_type)
 
         elif isinstance(type_def, (EnumType, BitsetType)):
-            scope = "global" if SEPARATOR in type_name else "local"
-            self._add_include("%s.h" % type_name, scope)
-            return _qual_name(type_name)
+            self._add_include(self._header_path(type_name), self._include_scope(type_name))
+            return self._qual_name(type_name)
 
         elif isinstance(type_def, (EnumType, BitsetType, StructType)):
-            scope = "global" if SEPARATOR in type_name else "local"
-            self._add_include("%s.h" % type_name, scope)
+            self._add_include(self._header_path(type_name), self._include_scope(type_name))
             if mode == Mode.VIEW:
-                return _qual_name(type_name)
+                return self._qual_name(type_name)
             else:
-                return _qual_strg_name(type_name)
+                return self._qual_strg_name(type_name)
 
         elif isinstance(type_def, (ExternalType)):
             scope = "global" if SEPARATOR in type_name else "local"
             assert scope == "global", "External type must be in global scope"
-            self._add_include("%s.h" % type_name, scope)
-            return _qual_name(type_name)
+            self._add_include(type_name + self._EXT_HEADER, scope)
+            return type_name.replace(SEPARATOR, "::")
 
         raise RuntimeError("Can't get c++ type for %s" % type_name)
 
