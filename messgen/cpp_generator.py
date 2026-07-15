@@ -25,6 +25,8 @@ from .model import (
     get_schema,
     hash_message,
     hash_type,
+    legacy_hash_message,
+    legacy_hash_type,
     MapType,
     MessgenType,
     Protocol,
@@ -137,6 +139,12 @@ class CppGenerator:
         self._namespace: str | None = options.get("namespace")
         self._includes: set = set()
         self._types: dict[str, MessgenType] = {}
+        if options.get("legacy_hash", "false") == "true":
+            self._hash_type = legacy_hash_type
+            self._hash_message = legacy_hash_message
+        else:
+            self._hash_type = hash_type
+            self._hash_message = hash_message
 
     def _ns(self, name: str) -> str:
         return f"{self._namespace}{SEPARATOR}{name}" if self._namespace else name
@@ -268,7 +276,7 @@ class CppGenerator:
 
                     static constexpr int16_t PROTO_ID = protocol_type::PROTO_ID;
                     static constexpr int16_t MESSAGE_ID = {message.message_id};
-                    static constexpr uint64_t HASH = {hash_message(message)}ULL ^ data_type::HASH;
+                    static constexpr uint64_t HASH = {self._hash_message(message)}ULL ^ data_type::HASH;
                     static constexpr std::string_view NAME = "{proto_name}/{message.name}";
 
                     class recv {{
@@ -533,7 +541,7 @@ class CppGenerator:
                 f"""
             namespace detail {{
             static constexpr ::messgen::metadata {unqual_name}_METADATA{{
-                .hash = {hash_type(type_def, self._types)}ULL,
+                .hash = {self._hash_type(type_def, self._types)}ULL,
                 .name = "{type_name}",
                 .schema = R"_({get_schema(type_def)})_"
             }};
@@ -639,7 +647,7 @@ class CppGenerator:
                 using bitset_base::bitset_base;
                 constexpr {unqual_name}(Values other) : {unqual_name}{{underlying_type(other)}} {{}}
 
-                static constexpr uint64_t HASH = {hash_type(type_def, self._types)}ULL;
+                static constexpr uint64_t HASH = {self._hash_type(type_def, self._types)}ULL;
                 static constexpr std::string_view NAME = "{type_name}";
                 static constexpr std::string_view SCHEMA = R"_({get_schema(type_def)})_";
                 static constexpr ::messgen::metadata METADATA{{
@@ -678,7 +686,7 @@ class CppGenerator:
                 f"""
             namespace detail {{
             static constexpr ::messgen::metadata {unqual_name}_METADATA{{
-                .hash = {hash_type(type_def, self._types)}ULL,
+                .hash = {self._hash_type(type_def, self._types)}ULL,
                 .name = "{type_name}",
                 .schema = R"_({get_schema(type_def)})_"
             }};
@@ -856,7 +864,7 @@ class CppGenerator:
         code.append(_indent(f"static constexpr bool NEED_ALLOC = {need_alloc_str};"))
 
         # Metadata
-        type_hash = hash_type(type_def, self._types)
+        type_hash = self._hash_type(type_def, self._types)
         deps_str_list = []
         for dep in sorted(list(self._get_schema_dependencies(type_def))):
             dep_type_def = self._types[dep]

@@ -106,6 +106,29 @@ def test_outer_struct_hash_is_affected_by_nested_changes(nested_struct_type):
     assert actual != expected
 
 
+def test_legacy_struct_hash_matches_pre_signature_algorithm(simple_struct_type):
+    simple_struct, types = simple_struct_type
+
+    # Value produced by messgen 95809d99, before the signature()-based hash rework
+    assert model.legacy_hash_type(simple_struct, types) == 18261672191093689286
+
+
+def test_legacy_struct_hash_differs_from_current_hash(simple_struct_type):
+    simple_struct, types = simple_struct_type
+
+    assert model.legacy_hash_type(simple_struct, types) != model.hash_type(simple_struct, types)
+
+
+def test_legacy_struct_hash_ignores_field_comment(simple_struct_type):
+    simple_struct, types = simple_struct_type
+
+    expected = model.legacy_hash_type(simple_struct, types)
+    simple_struct.fields[0].comment = "This is a modified comment"
+    actual = model.legacy_hash_type(simple_struct, types)
+
+    assert actual == expected
+
+
 def test_get_schema_returns_compact_json(simple_struct_type):
     struct_type, _ = simple_struct_type
     schema = model.get_schema(struct_type)
