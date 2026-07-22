@@ -132,7 +132,7 @@ struct decimal64 {
     /// @brief Returns the negation of this value
     ///
     /// @return decimal64 The negated value
-    constexpr decimal64 operator-() noexcept;
+    constexpr decimal64 operator-() const noexcept;
 
     /// @brief Adds two decimal64 values
     ///
@@ -522,7 +522,7 @@ constexpr inline decimal64 &decimal64::operator*=(int64_t other) noexcept {
     return *this;
 }
 
-[[nodiscard]] constexpr inline decimal64 decimal64::operator-() noexcept {
+[[nodiscard]] constexpr inline decimal64 decimal64::operator-() const noexcept {
     auto tmp = *this;
     tmp._value ^= DEC_SIGN_MASK;
     return tmp;
