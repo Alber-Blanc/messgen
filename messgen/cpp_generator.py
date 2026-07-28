@@ -952,7 +952,7 @@ class CppGenerator:
             0,
             f"""
             template<class... Policies>
-            ssize_t deserialize(messgen::bytes _buf_bytes{alloc}, [[maybe_unused]] Policies... policies) {{
+            ssize_t deserialize(messgen::bytes _buf_bytes{alloc}, [[maybe_unused]] Policies... _policies) {{
                 ::messgen::check_supported_policy<Policies...>();
                 [[maybe_unused]] auto _buf = _buf_bytes.data();
                 [[maybe_unused]] auto _buf_size = _buf_bytes.size();
@@ -1342,7 +1342,7 @@ class CppGenerator:
                 _format_code(
                     0,
                     f"""\
-                _field_size = {field_name}.deserialize({{&_buf[_size], _buf_size - _size}}{alloc}, policies...);
+                _field_size = {field_name}.deserialize({{&_buf[_size], _buf_size - _size}}{alloc}, _policies...);
                 if constexpr (not ::messgen::is_unsafe<Policies...>) {{
                     if (_field_size < 0) [[unlikely]] {{
                         return -1;
