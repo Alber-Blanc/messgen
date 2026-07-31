@@ -7,7 +7,7 @@ import 'dart:typed_data';
 abstract class Serializable {
   /// Serialize the object into the output buffer
   /// Returns the number of bytes written
-  int serialize(Uint8List output);
+  Error? serialize(Uint8List output);
 
   /// Get the serialized size in bytes
   int serializedSize();
