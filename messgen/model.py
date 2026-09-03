@@ -251,9 +251,35 @@ def hash_message(dt: Message) -> int:
     return _hash_dataclass(dt)
 
 
+def legacy_hash_type(dt: MessgenType, types: dict[str, MessgenType]) -> int | None:
+    combined_hash = _legacy_hash_dataclass(dt)
+
+    for dependency in sorted(dt.dependencies()):
+        if dependency not in types:
+            return None
+
+        dependency_hash = legacy_hash_type(types[dependency], types)
+        if dependency_hash is None:
+            return None
+
+        combined_hash ^= dependency_hash
+
+    return combined_hash
+
+
+def legacy_hash_message(dt: Message) -> int:
+    return _legacy_hash_dataclass(dt)
+
+
 def _hash_dataclass(dt) -> int:
     type_sig = dt.signature()
     return _hash_bytes(json.dumps(type_sig, separators=(",", ":")).encode())
+
+
+def _legacy_hash_dataclass(dt) -> int:
+    type_dict = asdict(dt)
+    _remove_keys(type_dict, "comment")
+    return _hash_bytes(json.dumps(sorted(type_dict.items()), separators=(",", ":")).encode())
 
 
 def _hash_bytes(payload: bytes) -> int:
