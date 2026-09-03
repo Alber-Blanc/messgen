@@ -3,7 +3,10 @@ import yaml  # type: ignore[import-untyped]
 from pathlib import Path
 from typing import Any
 
-from .common import SEPARATOR, SIZE_TYPE
+from .common import (
+    SEPARATOR,
+    SIZE_TYPE,
+)
 from .model import (
     ArrayType,
     BasicType,
@@ -15,12 +18,13 @@ from .model import (
     Message,
     MessgenType,
     Protocol,
+    SCALAR_SIZES,
     StructType,
     ExternalType,
     TypeClass,
     VectorType,
     BitsetBit,
-    BitsetType
+    BitsetType,
 )
 from .validation import (
     validate_types,
@@ -29,20 +33,6 @@ from .validation import (
 )
 
 _CONFIG_EXT = ".yaml"
-_SCALAR_TYPES_INFO = {
-    "bool": {"size": 1},
-    "int8": {"size": 1},
-    "uint8": {"size": 1},
-    "int16": {"size": 2},
-    "uint16": {"size": 2},
-    "int32": {"size": 4},
-    "uint32": {"size": 4},
-    "int64": {"size": 8},
-    "uint64": {"size": 8},
-    "float32": {"size": 4},
-    "float64": {"size": 8},
-    "int": {"size": 4},
-}
 
 
 def parse_protocols(protocols: list[str]) -> dict[str, Protocol]:
@@ -69,8 +59,7 @@ def _parse_protocol(proto_name: str, proto_file: Path) -> Protocol:
     return Protocol(
         name=proto_name,
         proto_id=proto_id,
-        messages={msg_id: _get_message_type(proto_id, msg_id, msg) for msg_id, msg in
-                  proto_desc.get("messages", {}).items()},
+        messages={msg_id: _get_message_type(proto_id, msg_id, msg) for msg_id, msg in proto_desc.get("messages", {}).items()},
     )
 
 
@@ -97,14 +86,12 @@ def parse_types(base_dirs: list[str | Path]) -> dict[str, MessgenType]:
                 type_descriptors[type_name] = item
 
     type_dependencies: set[str] = {SIZE_TYPE}
-    parsed_types = {type_name: _get_type(type_name, type_descriptors, type_dependencies) for type_name in
-                    type_descriptors}
+    parsed_types = {type_name: _get_type(type_name, type_descriptors, type_dependencies) for type_name in type_descriptors}
 
     ignore_dependencies: set[str] = set()
     type_dependencies -= set(parsed_types.keys())
 
-    parsed_types.update(
-        {type_name: _get_type(type_name, type_descriptors, ignore_dependencies) for type_name in type_dependencies})
+    parsed_types.update({type_name: _get_type(type_name, type_descriptors, ignore_dependencies) for type_name in type_dependencies})
 
     validate_types(parsed_types)
     return parsed_types
@@ -116,8 +103,8 @@ def _type_name(type_file: Path, base_dir: Path) -> str:
 
 def _get_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> MessgenType:
     # Scalar
-    if scalar_type := _SCALAR_TYPES_INFO.get(type_name):
-        return _get_scalar_type(type_name, scalar_type)
+    if scalar_size := SCALAR_SIZES.get(type_name):
+        return _get_scalar_type(type_name, scalar_size)
 
     if type_name in ["string", "bytes"]:
         return _get_basic_type(type_name)
@@ -161,11 +148,11 @@ def _get_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_
     raise RuntimeError("Invalid type class: %s" % type_class)
 
 
-def _get_scalar_type(type_name: str, scalar_type: dict[str, Any]) -> BasicType:
+def _get_scalar_type(type_name: str, scalar_size: int) -> BasicType:
     return BasicType(
         type=type_name,
         type_class=TypeClass.scalar,
-        size=scalar_type["size"],
+        size=scalar_size,
     )
 
 
@@ -186,8 +173,7 @@ def _get_decimal_type(type_name: str) -> DecimalType:
     )
 
 
-def _get_vector_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
-                     type_dependencies: set[str]) -> VectorType:
+def _get_vector_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> VectorType:
     assert _get_type(type_name[:-2], type_descriptors, type_dependencies)
 
     element_type = type_name[:-2]
@@ -201,8 +187,7 @@ def _get_vector_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
     )
 
 
-def _get_array_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
-                    type_dependencies: set[str]) -> ArrayType:
+def _get_array_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> ArrayType:
     p = type_name[:-1].split("[")
     element_type = "[".join(p[:-1])
     type_dependencies.add(_get_dependency_type(type_name, element_type, type_descriptors, type_dependencies)[0])
@@ -246,12 +231,11 @@ def _get_map_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], t
     )
 
 
-def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
-                   type_dependencies: set[str]) -> EnumType:
+def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> EnumType:
     type_desc = type_descriptors.get(type_name)
     assert type_desc
 
-    size = _SCALAR_TYPES_INFO["int"]["size"]
+    size = SCALAR_SIZES["int"]
     base_type = type_desc.get("base_type", "")
     if base_type:
         type_dependencies.add(_get_dependency_type(type_name, base_type, type_descriptors, type_dependencies)[0])
@@ -260,8 +244,7 @@ def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
         assert dependency and dependency.size
         size = dependency.size
 
-    values = [EnumValue(name=item.get("name"), value=item.get("value"), comment=item.get("comment")) for item in
-              type_desc.get("values", {})]
+    values = [EnumValue(name=item.get("name"), value=item.get("value"), comment=item.get("comment")) for item in type_desc.get("values", {})]
 
     assert size
     return EnumType(
@@ -274,12 +257,11 @@ def _get_enum_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
     )
 
 
-def _get_bitset_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
-                     type_dependencies: set[str]) -> BitsetType:
+def _get_bitset_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> BitsetType:
     type_desc = type_descriptors.get(type_name)
     assert type_desc
 
-    size = _SCALAR_TYPES_INFO["int"]["size"]
+    size = SCALAR_SIZES["int"]
 
     base_type = type_desc.get("base_type", "")
     if base_type:
@@ -289,10 +271,9 @@ def _get_bitset_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
         assert dependency and dependency.size
         size = dependency.size
 
-    bits = [BitsetBit(name=item.get("name"), offset=item.get("offset"), comment=item.get("comment")) for item in
-            type_desc.get("bits", {})]
+    bits = [BitsetBit(name=item.get("name"), offset=item.get("offset"), comment=item.get("comment")) for item in type_desc.get("bits", {})]
 
-    assert size;
+    assert size
     return BitsetType(
         type=type_name,
         type_class=TypeClass.bitset,
@@ -303,8 +284,7 @@ def _get_bitset_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
     )
 
 
-def _get_struct_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
-                     type_dependencies: set[str]) -> StructType:
+def _get_struct_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> StructType:
     type_desc = type_descriptors[type_name]
     type_class = type_desc.get("type_class")
 
@@ -344,8 +324,7 @@ def _get_struct_type(type_name: str, type_descriptors: dict[str, dict[str, Any]]
     return struct_type
 
 
-def _get_external_type(type_name: str, type_descriptors: dict[str, dict[str, Any]],
-                       type_dependencies: set[str]) -> ExternalType:
+def _get_external_type(type_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]) -> ExternalType:
     type_desc = type_descriptors[type_name]
 
     external_type = ExternalType(
@@ -359,7 +338,7 @@ def _get_external_type(type_name: str, type_descriptors: dict[str, dict[str, Any
 
 
 def _get_dependency_type(
-        type_name: str, dependency_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]
+    type_name: str, dependency_name: str, type_descriptors: dict[str, dict[str, Any]], type_dependencies: set[str]
 ) -> tuple[str, MessgenType]:
     if dependency := _value_or_none(_get_type, dependency_name, type_descriptors, type_dependencies):
         return dependency_name, dependency

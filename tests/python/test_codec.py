@@ -13,6 +13,7 @@ from messgen.model import (
     EnumType,
     EnumValue,
     TypeClass,
+    from_schemas,
     get_schema,
 )
 from messgen.dynamic import (
@@ -21,6 +22,7 @@ from messgen.dynamic import (
     EnumConverter,
     MessgenError,
     ScalarConverter,
+    TypeConverter,
 )
 
 path_root = Path(__file__).parents[2]
@@ -487,3 +489,133 @@ def test_type_schema_returns_valid_json(codec):
 def test_type_schema_matches_get_schema(codec):
     converter = codec.type_converter("mynamespace/types/simple_struct")
     assert converter.type_schema() == get_schema(converter.type_definition())
+
+
+def _collect_dependency_schemas(codec: Codec, type_name: str) -> dict[str, str]:
+    """Schemas of the named types (struct, enum, bitset) type_name depends on, recursively.
+
+    Mirrors what a producer publishes next to a type schema: scalars and containers carry no schema.
+    """
+    schemas: dict[str, str] = {}
+    pending = list(codec.type_definition(type_name).dependencies())
+    while pending:
+        name = pending.pop()
+        if name in schemas:
+            continue
+
+        type_def = codec.type_definition(name)
+        if type_def.type_class in (TypeClass.struct, TypeClass.enum, TypeClass.bitset):
+            schemas[name] = codec.type_converter(name).type_schema()
+        pending.extend(type_def.dependencies())
+
+    return schemas
+
+
+@pytest.fixture
+def complex_struct():
+    simple_struct = {
+        "f0": 0x1234567890ABCDEF,
+        "f1": -0x1234567890ABCDEF,
+        "f1_pad": 0x12,
+        "f2": 1.25,
+        "f3": 0x12345678,
+        "f4": -0x12345678,
+        "f5": 2.5,
+        "f6": 0x1234,
+        "f7": 0x12,
+        "f8": -0x12,
+        "f9": True,
+        "e0": "another_value",
+        "b0": ["one", "error"],
+    }
+    var_size_struct = {
+        "f0": 0x1234567890ABCDEF,
+        "f1_vec": [-0x1234567890ABCDEF, 5, 1],
+        "str": "Hello messgen!",
+    }
+
+    return {
+        "bitset0": ["one", "two"],
+        "arr_simple_struct": [simple_struct, simple_struct],
+        "arr_int": [-1, 0, 1, 0x1234567890ABCDEF],
+        "arr_var_size_struct": [var_size_struct, var_size_struct],
+        "vec_float": [1.25, 2.5, -8.75],
+        "vec_enum": ["one_value", "another_value"],
+        "vec_simple_struct": [simple_struct],
+        "vec_vec_var_size_struct": [[var_size_struct], [var_size_struct, var_size_struct]],
+        "vec_arr_vec_int": [[[1, 2], [3], [], [-4]]],
+        "str": "Example String",
+        "bs": b"byte string",
+        "str_vec": ["string1", "string2"],
+        "map_str_by_int": {1: "one", 2: "two"},
+        "map_vec_by_str": {"key1": [1, 2], "key2": []},
+        "array_of_size_zero": [],
+    }
+
+
+def test_collect_dependency_schemas_covers_nested_named_types(codec):
+    schemas = _collect_dependency_schemas(codec, "mynamespace/types/subspace/complex_struct")
+
+    assert set(schemas) == {
+        "mynamespace/types/simple_bitset",
+        "mynamespace/types/simple_enum",
+        "mynamespace/types/simple_struct",
+        "mynamespace/types/var_size_struct",
+    }
+    for type_name, schema in schemas.items():
+        assert json.loads(schema)["type"] == type_name
+
+
+def test_from_schemas_matches_yaml_parsed_types(codec):
+    schemas = []
+    for type_name in codec.types():
+        type_def = codec.type_definition(type_name)
+        if type_def.type_class in (TypeClass.struct, TypeClass.enum, TypeClass.bitset):
+            schemas.append(get_schema(type_def))
+
+    types = from_schemas(schemas)
+
+    assert set(types) >= set(codec.types())
+    for type_name, type_def in types.items():
+        assert type_def == codec.type_definition(type_name)
+
+
+def test_type_converter_from_schema_serializes(codec, complex_struct):
+    schema = codec.type_converter("mynamespace/types/subspace/complex_struct").type_schema()
+    dep_schemas = _collect_dependency_schemas(codec, "mynamespace/types/subspace/complex_struct")
+
+    converter = TypeConverter.from_schema(schema, list(dep_schemas.values()))
+
+    assert converter.type_name() == "mynamespace/types/subspace/complex_struct"
+    assert converter.type_hash() == codec.type_converter("mynamespace/types/subspace/complex_struct").type_hash()
+    assert converter.deserialize(converter.serialize(complex_struct)) == complex_struct
+
+
+def test_type_converter_from_schema_matches_yaml_wire_format(codec, complex_struct):
+    schema = codec.type_converter("mynamespace/types/subspace/complex_struct").type_schema()
+    dep_schemas = _collect_dependency_schemas(codec, "mynamespace/types/subspace/complex_struct")
+
+    converter = TypeConverter.from_schema(schema, list(dep_schemas.values()))
+    yaml_converter = codec.type_converter("mynamespace/types/subspace/complex_struct")
+
+    assert converter.serialize(complex_struct) == yaml_converter.serialize(complex_struct)
+    assert converter.deserialize(yaml_converter.serialize(complex_struct)) == complex_struct
+    assert yaml_converter.deserialize(converter.serialize(complex_struct)) == complex_struct
+
+
+def test_type_converter_from_schema_without_dependencies(codec):
+    schema = codec.type_converter("mynamespace/types/var_size_struct").type_schema()
+    expected_msg = {"f0": 0x1234567890ABCDEF, "f1_vec": [-0x1234567890ABCDEF, 5, 1], "str": "Hello messgen!"}
+
+    converter = TypeConverter.from_schema(schema)
+
+    assert converter.deserialize(converter.serialize(expected_msg)) == expected_msg
+
+
+def test_type_converter_from_schema_requires_dependency_schemas(codec):
+    schema = codec.type_converter("mynamespace/types/subspace/complex_struct").type_schema()
+    dep_schemas = _collect_dependency_schemas(codec, "mynamespace/types/subspace/complex_struct")
+    del dep_schemas["mynamespace/types/simple_struct"]
+
+    with pytest.raises(RuntimeError, match="Missing schema for type=mynamespace/types/simple_struct"):
+        TypeConverter.from_schema(schema, list(dep_schemas.values()))
