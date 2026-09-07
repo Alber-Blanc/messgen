@@ -3,7 +3,24 @@ import json
 
 from dataclasses import dataclass, asdict
 from enum import Enum
-from typing import Union
+from typing import Iterable, Union
+
+from .common import SIZE_TYPE
+
+SCALAR_SIZES = {
+    "bool": 1,
+    "int8": 1,
+    "uint8": 1,
+    "int16": 2,
+    "uint16": 2,
+    "int32": 4,
+    "uint32": 4,
+    "int64": 8,
+    "uint64": 8,
+    "float32": 4,
+    "float64": 8,
+    "int": 4,
+}
 
 
 class TypeClass(str, Enum):
@@ -291,10 +308,116 @@ def get_schema(type_def: MessgenType) -> str:
     return json.dumps(asdict(type_def), separators=(",", ":"))
 
 
+def from_schema(schema: str) -> MessgenType:
+    type_dict = json.loads(schema)
+    type_class_name = type_dict.get("type_class")
+    if not type_class_name:
+        raise RuntimeError("Schema has no type_class")
+
+    if type_class_name not in TypeClass.__members__:
+        raise RuntimeError(f"Invalid type_class={type_class_name}")
+
+    type_class = TypeClass[type_class_name]
+    type_dict["type_class"] = type_class
+
+    if type_class in (TypeClass.scalar, TypeClass.string, TypeClass.bytes):
+        raise RuntimeError(f"{type_class_name} types have no schema")
+
+    if type_class == TypeClass.decimal:
+        return DecimalType(**type_dict)
+
+    if type_class == TypeClass.array:
+        return ArrayType(**type_dict)
+
+    if type_class == TypeClass.vector:
+        return VectorType(**type_dict)
+
+    if type_class == TypeClass.map:
+        return MapType(**type_dict)
+
+    if type_class == TypeClass.enum:
+        type_dict["values"] = [EnumValue(**value) for value in type_dict["values"]]
+        return EnumType(**type_dict)
+
+    if type_class == TypeClass.bitset:
+        type_dict["bits"] = [BitsetBit(**bit) for bit in type_dict["bits"]]
+        return BitsetType(**type_dict)
+
+    if type_class == TypeClass.struct:
+        type_dict["fields"] = [FieldType(**field) for field in type_dict["fields"]]
+        return StructType(**type_dict)
+
+    if type_class == TypeClass.external:
+        return ExternalType(**type_dict)
+
+    raise RuntimeError(f"Unsupported type_class={type_class_name}")
+
+
+_CONTAINERS = (TypeClass.vector, TypeClass.map, TypeClass.string, TypeClass.bytes)
+
+
+def from_schemas(schemas: Iterable[str]) -> dict[str, MessgenType]:
+    """Types described by the schemas plus every type they depend on, keyed by type name.
+
+    Scalars, string, bytes, dec64 and containers are never published as schemas and are
+    derived from their name; a missing named dependency (struct, enum, bitset) is an error.
+    """
+    types: dict[str, MessgenType] = {}
+    for schema in schemas:
+        type_def = from_schema(schema)
+        types[type_def.type] = type_def
+
+    for type_def in list(types.values()):
+        for dependency in type_def.dependencies():
+            _resolve_type(dependency, types)
+
+    if any(type_def.type_class in _CONTAINERS for type_def in types.values()):
+        _resolve_type(SIZE_TYPE, types)
+
+    return types
+
+
+def _resolve_type(type_name: str, types: dict[str, MessgenType]) -> MessgenType:
+    if type_name in types:
+        return types[type_name]
+
+    type_def: MessgenType
+    if size := SCALAR_SIZES.get(type_name):
+        type_def = BasicType(type=type_name, type_class=TypeClass.scalar, size=size)
+
+    elif type_name in ("string", "bytes"):
+        type_def = BasicType(type=type_name, type_class=TypeClass[type_name], size=None)
+
+    elif type_name == "dec64":
+        type_def = DecimalType(type=type_name, type_class=TypeClass.decimal, size=8)
+
+    elif type_name.endswith("[]"):
+        element = _resolve_type(type_name[:-2], types)
+        type_def = VectorType(type=type_name, type_class=TypeClass.vector, element_type=element.type, size=None)
+
+    elif type_name.endswith("]"):
+        element_name, _, array_size = type_name[:-1].rpartition("[")
+        element = _resolve_type(element_name, types)
+        size = element.size * int(array_size) if element.size is not None else None
+        type_def = ArrayType(type=type_name, type_class=TypeClass.array, element_type=element_name, array_size=int(array_size), size=size)
+
+    elif type_name.endswith("}"):
+        value_name, _, key_name = type_name[:-1].rpartition("{")
+        _resolve_type(key_name, types)
+        _resolve_type(value_name, types)
+        type_def = MapType(type=type_name, type_class=TypeClass.map, key_type=key_name, value_type=value_name, size=None)
+
+    else:
+        raise RuntimeError(f"Missing schema for type={type_name}")
+
+    types[type_name] = type_def
+    return type_def
+
+
 def _remove_keys(container: dict | list, key: str):
     if isinstance(container, dict):
         container.pop(key, None)
-        for k, v in container.items():
+        for v in container.values():
             _remove_keys(v, key)
     elif isinstance(container, list):
         for item in container:

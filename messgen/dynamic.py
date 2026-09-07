@@ -26,7 +26,9 @@ from .model import (
     MessgenType,
     StructType,
     TypeClass,
-    VectorType
+    VectorType,
+    from_schema,
+    from_schemas,
 )
 
 STRUCT_TYPES_MAP = {
@@ -66,6 +68,11 @@ class TypeConverter(ABC):
         if not self._type_hash:
             raise MessgenError(f"Invalid type_name={type_name}")
 
+    @staticmethod
+    def from_schema(schema: str, dep_schemas: typing.Sequence[str] = ()) -> "TypeConverter":
+        types = from_schemas((schema, *dep_schemas))
+        return create_type_converter(types, from_schema(schema).type)
+
     def type_name(self) -> str:
         return self._type_name
 
@@ -87,8 +94,7 @@ class TypeConverter(ABC):
         try:
             msg, sz = self._deserialize(data)
         except Exception as e:
-            raise MessgenError(
-                f'Failed to deserialize data_size={len(data)} type_name={self._type_name} error="{e}"') from e
+            raise MessgenError(f'Failed to deserialize data_size={len(data)} type_name={self._type_name} error="{e}"') from e
 
         if sz != len(data):
             raise MessgenError(f"Invalid message size expected={sz} actual={len(data)} type_name={self._type_name}")
@@ -138,7 +144,7 @@ class ScalarConverter(TypeConverter):
 
 
 class DecimalConverter(TypeConverter):
-    _MAX_COEFFICIENT = 10 ** 16 - 1
+    _MAX_COEFFICIENT = 10**16 - 1
     _MAX_EXPONENT = 369
     _MIN_EXPONENT = -398
 
@@ -298,6 +304,7 @@ class EnumConverter(TypeConverter):
         assert isinstance(self._type_def, EnumType)
         return self._type_def.values[0].name
 
+
 class BitsetConverter(TypeConverter):
     def __init__(self, types: dict[str, MessgenType], type_name: str):
         super().__init__(types, type_name)
@@ -330,7 +337,7 @@ class BitsetConverter(TypeConverter):
             # Bitset as collection of bit names
             for b in data:
                 if (offs := self.rev_mapping.get(b)) is not None:
-                    v |= (1 << offs)
+                    v |= 1 << offs
                 else:
                     raise MessgenError(f"Unsupported bit={b} for bitset={self._type_name}")
 
@@ -347,6 +354,7 @@ class BitsetConverter(TypeConverter):
 
     def default_value(self):
         return set()
+
 
 class StructConverter(TypeConverter):
     def __init__(self, types: dict[str, MessgenType], type_name: str):
@@ -488,7 +496,7 @@ class StringConverter(TypeConverter):
     def _deserialize(self, data: memoryview):
         n, n_size = self.size_type._deserialize(data)
         offset = n_size
-        value = struct.unpack(self.struct_fmt % n, data[offset: offset + n])[0]
+        value = struct.unpack(self.struct_fmt % n, data[offset : offset + n])[0]
         offset += n
         return value.decode("utf-8"), offset
 
@@ -509,7 +517,7 @@ class BytesConverter(TypeConverter):
     def _deserialize(self, data: memoryview):
         n, n_size = self.size_type._deserialize(data)
         offset = n_size
-        value = struct.unpack(self.struct_fmt % n, data[offset: offset + n])[0]
+        value = struct.unpack(self.struct_fmt % n, data[offset : offset + n])[0]
         offset += n
         return value, offset
 
