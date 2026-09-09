@@ -325,3 +325,38 @@ def test_from_schemas_does_not_add_size_type_for_fixed_size_dependencies():
 def test_from_schemas_rejects_missing_named_dependency():
     with pytest.raises(RuntimeError, match="Missing schema for type=inner"):
         model.from_schemas([create_struct_schema("outer", ["inner[]"])])
+
+
+def test_struct_hash_matches_pinned_value(simple_struct_type):
+    simple_struct, types = simple_struct_type
+    assert model.hash_type(simple_struct, types) == 3195362254335426325
+
+
+def test_struct_hash_incorporates_dependency_reachable_via_two_paths(simple_struct_type):
+    leaf_struct, types = simple_struct_type
+
+    middle_struct = model.StructType(
+        type="middle_struct",
+        type_class=model.TypeClass.struct,
+        size=None,
+        fields=[model.FieldType(name="leaf", type=leaf_struct.type, comment=None)],
+        comment=None,
+    )
+    diamond_struct = model.StructType(
+        type="diamond_struct",
+        type_class=model.TypeClass.struct,
+        size=None,
+        fields=[
+            model.FieldType(name="direct", type=leaf_struct.type, comment=None),
+            model.FieldType(name="indirect", type=middle_struct.type, comment=None),
+        ],
+        comment=None,
+    )
+    types[middle_struct.type] = middle_struct
+    types[diamond_struct.type] = diamond_struct
+
+    expected = model.hash_type(diamond_struct, types)
+    leaf_struct.fields[0].name += "_modified"
+    actual = model.hash_type(diamond_struct, types)
+
+    assert actual != expected

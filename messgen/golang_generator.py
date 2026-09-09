@@ -764,7 +764,7 @@ def render_protocol(pkg: str, proto_name: str, proto_def: Protocol, resolved_typ
         proto_hash ^= msg_hash
         message_hashes[id] = msg_hash
 
-    yield f"const Hash = {proto_hash}\n"
+    yield f"const Hash = uint64({proto_hash})\n"
 
     maxid = 0
     yield "const ("

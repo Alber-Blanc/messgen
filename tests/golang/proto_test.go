@@ -64,7 +64,7 @@ func TestProtocolHash(t *testing.T) {
 		t.Fatalf("Protocol Name has unexpected value: %s", test_proto.Name)
 	}
 
-	exceptedProtoHash := uint64(1585401056561118099)
+	exceptedProtoHash := uint64(18130136475394198831)
 
 	if test_proto.Hash != exceptedProtoHash {
 		t.Fatalf("Protocol Hash has unexpected value: %d != %d", exceptedProtoHash, test_proto.Hash)

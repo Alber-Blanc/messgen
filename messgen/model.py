@@ -1,5 +1,6 @@
 import hashlib
 import json
+import struct
 
 from dataclasses import dataclass, asdict
 from enum import Enum
@@ -248,10 +249,14 @@ class Protocol:
         return {message.type for message in self.messages.values()}
 
 
+def _hash_combine(hash1: int, hash2: int) -> int:
+    return _hash_bytes(struct.pack("<QQ", hash1, hash2))
+
+
 def hash_type(dt: MessgenType, types: dict[str, MessgenType]) -> int | None:
     combined_hash = _hash_dataclass(dt)
 
-    for dependency in sorted(list(dt.dependencies())):
+    for dependency in sorted(dt.dependencies()):
         if dependency not in types:
             return None
 
@@ -259,7 +264,7 @@ def hash_type(dt: MessgenType, types: dict[str, MessgenType]) -> int | None:
         if dependency_hash is None:
             return None
 
-        combined_hash ^= dependency_hash
+        combined_hash = _hash_combine(combined_hash, dependency_hash)
 
     return combined_hash
 

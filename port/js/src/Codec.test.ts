@@ -133,7 +133,7 @@ describe('Codec', () => {
     it('should get message info by id', () => {
       const messageInfo = codec.messageInfo(1, 1);
 
-      expect(messageInfo.messageHash()).toBe(2291972869429025032n);
+      expect(messageInfo.messageHash()).toBe(13272587043423170596n);
     });
   });
 
