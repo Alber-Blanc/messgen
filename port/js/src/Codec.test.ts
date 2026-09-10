@@ -135,6 +135,18 @@ describe('Codec', () => {
 
       expect(messageInfo.messageHash()).toBe(13272587043423170596n);
     });
+
+    it('should get the name of the protocol the message belongs to', () => {
+      const messageInfo = codec.messageInfo(1, 1);
+
+      expect(messageInfo.protoName()).toBe('mynamespace/proto/test_proto');
+    });
+
+    it('should get the name of the message', () => {
+      const messageInfo = codec.messageInfo(1, 1);
+
+      expect(messageInfo.messageName()).toBe('complex_struct');
+    });
   });
 
   describe('#getTypeConverter', () => {
