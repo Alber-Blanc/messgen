@@ -3,6 +3,7 @@ import type { RawMessage } from './Protocols.types';
 export class MessageInfo {
   constructor(
     private protoId: number,
+    private protocolName: string,
     private message: RawMessage,
     private typeHash: bigint,
   ) {
@@ -10,6 +11,10 @@ export class MessageInfo {
 
   getProtoId(): number {
     return this.protoId;
+  }
+
+  protoName(): string {
+    return this.protocolName;
   }
 
   messageId(): number {

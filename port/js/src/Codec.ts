@@ -9,6 +9,7 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
   private protocolMap: ProtocolMap = new Map();
   private typesMap: TypeByName = new Map();
   private nameById: ProtocolRegistry = new Map();
+  private protoNames = new Map<number, string>();
 
   constructor(rawTypes: RawType[] = [], protocols: Protocol[] = []) {
     this.protocols.load(rawTypes);
@@ -19,8 +20,9 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
       this.typesMap.set(typeName, converter);
     });
 
-    protocols.forEach(({ proto_id: protoId, messages }) => {
+    protocols.forEach(({ proto_id: protoId, name: protoName, messages }) => {
       const typeMap: TypeMap = new Map();
+      this.protoNames.set(protoId, protoName);
 
       for (const message of Object.values(messages)) {
         const { message_id: messageId, type: typeName } = message;
@@ -97,17 +99,18 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
   }
 
   public messageInfo(protoId: number, messageId: number): MessageInfo {
-    const protoNameById = this.nameById.get(protoId);
-    if (!protoNameById) {
+    const messagesById = this.nameById.get(protoId);
+    const protoName = this.protoNames.get(protoId);
+    if (!messagesById || protoName === undefined) {
       throw new Error(`Unsupported proto_id=${protoId}`);
     }
 
-    const message = protoNameById.get(messageId);
+    const message = messagesById.get(messageId);
     if (!message) {
       throw new Error(`Unsupported proto_id=${protoId} message_id=${messageId}`);
     }
 
     const typeHash = this.protocols.getTypeHash(message.type);
-    return new MessageInfo(protoId, message, typeHash);
+    return new MessageInfo(protoId, protoName, message, typeHash);
   }
 }
