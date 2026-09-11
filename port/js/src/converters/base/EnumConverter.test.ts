@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import type { EnumTypeDefinition, EnumValue, BasicType } from '../..';
-import { Buffer, TypeClass, EnumConverter } from '../..';
+import { Cursor, TypeClass, EnumConverter } from '../..';
 import { initGetType } from '../../../tests/utils';
 
 describe('EnumConverter', () => {
   it('should serialize single valued enum', () => {
     const value = 1;
     const converter = intiEnumConverter([{ name: 'Value1', value }]);
-    const buffer = new Buffer(new ArrayBuffer(2));
+    const buffer = new Cursor(new ArrayBuffer(2));
 
     converter.serialize(value, buffer);
 
@@ -17,7 +17,7 @@ describe('EnumConverter', () => {
   it('should deserialize single value enum', () => {
     const value = 1;
     const converter = intiEnumConverter([{ name: 'Value1', value }]);
-    const buffer = new Buffer(new ArrayBuffer(2));
+    const buffer = new Cursor(new ArrayBuffer(2));
     converter.serialize(value, buffer);
     buffer.offset = 0;
 
@@ -32,7 +32,7 @@ describe('EnumConverter', () => {
       { name: 'VALUE2', value: 2 },
       { name: 'VALUE3', value: 3 },
     ]);
-    const buffer = new Buffer(new ArrayBuffer(2));
+    const buffer = new Cursor(new ArrayBuffer(2));
 
     converter.serialize('value2', buffer);
 

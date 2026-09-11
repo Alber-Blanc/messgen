@@ -1,26 +1,9 @@
 import { Buffer as NodeBuffer } from 'node:buffer';
 import { describe, expect, it } from 'vitest';
 import { Cursor } from './Cursor';
-import { Buffer } from './Buffer';
 import { captureError } from '../tests/utils';
 
 describe('Cursor', () => {
-  it('should keep Buffer as an alias of the same constructor', () => {
-    const expected = Cursor;
-
-    const constructor = Buffer;
-
-    expect(constructor).toBe(expected);
-  });
-
-  it('should construct a Cursor through the Buffer alias', () => {
-    const input = new ArrayBuffer(0);
-
-    const cursor = new Buffer(input);
-
-    expect(cursor).toBeInstanceOf(Cursor);
-  });
-
   it('should write little-endian values inside a byte subview', () => {
     const { storage, cursor } = createSubview();
 

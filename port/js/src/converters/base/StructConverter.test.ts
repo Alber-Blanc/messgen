@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { TypeClass, type Field, type StructTypeDefinition } from '../../types';
 import { StructConverter } from './StructConverter';
-import { Buffer } from '../../Buffer';
+import { Cursor } from '../../Cursor';
 import { initGetType } from '../../../tests/utils';
 
 describe('StructConverter', () => {
   it('should serialize an object', () => {
     const structConverter = createStructConverter([{ name: 'field1', type: 'string' }]);
-    const buffer = new Buffer(new ArrayBuffer(10));
+    const buffer = new Cursor(new ArrayBuffer(10));
 
     const serializeFn = () => structConverter.serialize({ field1: 'value1' }, buffer);
 
@@ -20,7 +20,7 @@ describe('StructConverter', () => {
       { name: 'field2', type: 'int8' },
     ]);
     const value = { field1: 'value1', field2: 123 };
-    const buffer = new Buffer(new ArrayBuffer(structConverter.size(value)));
+    const buffer = new Cursor(new ArrayBuffer(structConverter.size(value)));
 
     structConverter.serialize(value, buffer);
 
@@ -33,7 +33,7 @@ describe('StructConverter', () => {
       { name: 'field2', type: 'int8' },
       { name: 'field3', type: 'bool' },
     ]);
-    const buffer = new Buffer(new ArrayBuffer(100));
+    const buffer = new Cursor(new ArrayBuffer(100));
 
     const serialize = () => structConverter.serialize({ field1: 'value1', field2: 123, field3: true }, buffer);
 
@@ -51,7 +51,7 @@ describe('StructConverter', () => {
   it('should serialize an object with an empty schema', () => {
     const structConverter = createStructConverter([]);
     const serializedSize = structConverter.size({});
-    const buffer = new Buffer(new ArrayBuffer(serializedSize));
+    const buffer = new Cursor(new ArrayBuffer(serializedSize));
 
     structConverter.serialize({}, buffer);
 
@@ -61,7 +61,7 @@ describe('StructConverter', () => {
   it('should deserialize input object with an empty schema', () => {
     const structConverter = createStructConverter([]);
     const serializedSize = structConverter.size({});
-    const buffer = new Buffer(new ArrayBuffer(serializedSize));
+    const buffer = new Cursor(new ArrayBuffer(serializedSize));
     structConverter.serialize({}, buffer);
 
     const deserialized = structConverter.deserialize(buffer);
@@ -89,7 +89,7 @@ describe('StructConverter', () => {
       { name: 'comment', type: 'string' },
     ]);
     const value = { name: 'John', type: 'Employee', comment: 'This is a test' };
-    const buffer = new Buffer(new ArrayBuffer(100));
+    const buffer = new Cursor(new ArrayBuffer(100));
 
     structConverter.serialize(value, buffer);
 
@@ -109,7 +109,7 @@ describe('StructConverter', () => {
       { name: 'existingField', type: 'string' },
       { name: 'missingField', type: 'string' },
     ]);
-    const buffer = new Buffer(new ArrayBuffer(100));
+    const buffer = new Cursor(new ArrayBuffer(100));
     const inputObject = { existingField: 'existingValue' };
 
     const serializeFn = () => structConverter.serialize(inputObject, buffer);
@@ -124,7 +124,7 @@ describe('StructConverter', () => {
       { name: 'field3', type: 'bool' },
     ]);
     const value = { field1: null, field2: undefined, field3: true };
-    const buffer = new Buffer(new ArrayBuffer(10));
+    const buffer = new Cursor(new ArrayBuffer(10));
 
     const serializeFn = () => structConverter.serialize(value, buffer);
 

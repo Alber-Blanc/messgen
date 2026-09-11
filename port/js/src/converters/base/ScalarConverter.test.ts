@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Buffer } from '../../Buffer';
+import { Cursor } from '../../Cursor';
 import { ScalarConverter } from './ScalarConverter';
 import type { BasicType } from '../../types';
 import { IS_LITTLE_ENDIAN } from '../../config';
@@ -365,7 +365,7 @@ describe('ScalarConverter', () => {
 
     it('should deserialize bytes', () => {
       const converter = getConverter('bytes');
-      const buffer = new Buffer(new Uint8Array([4, 0, 0, 0, 1, 2, 3, 4]));
+      const buffer = new Cursor(new Uint8Array([4, 0, 0, 0, 1, 2, 3, 4]));
 
       const result = converter.deserialize(buffer);
 
@@ -374,7 +374,7 @@ describe('ScalarConverter', () => {
 
     it('should advance the offset past the decoded bytes', () => {
       const converter = getConverter('bytes');
-      const buffer = new Buffer(new Uint8Array([4, 0, 0, 0, 1, 2, 3, 4]));
+      const buffer = new Cursor(new Uint8Array([4, 0, 0, 0, 1, 2, 3, 4]));
 
       converter.deserialize(buffer);
 
@@ -708,6 +708,6 @@ describe('ScalarConverter', () => {
   }
 
   function getBuffer(size: number) {
-    return new Buffer(new ArrayBuffer(size));
+    return new Cursor(new ArrayBuffer(size));
   }
 });

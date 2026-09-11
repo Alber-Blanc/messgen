@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { ConverterFactory } from './ConverterFactory';
 import type { IType } from '../types';
 import type { Converter } from './Converter';
-import { Buffer } from '../Buffer';
+import { Cursor } from '../Cursor';
 import { Protocols } from '../protocol';
 import type { StructConverter } from './base/StructConverter';
 import { captureError } from '../../tests/utils';
@@ -82,7 +82,7 @@ describe('ConverterFactory', () => {
       loadUpdatedItem(protocols);
       const converter = factory.toConverter('Item[1]');
       const value = [{ value: 'updated' }];
-      const buffer = new Buffer(new ArrayBuffer(converter.size(value)));
+      const buffer = new Cursor(new ArrayBuffer(converter.size(value)));
       converter.serialize(value, buffer);
       buffer.offset = 0;
 
@@ -153,7 +153,7 @@ describe('ConverterFactory', () => {
       const storage = new Uint8Array(32);
       new DataView(storage.buffer).setUint32(0, 3, true);
       const converter = getConverter('uint32[]');
-      const buffer = new Buffer(storage.subarray(0, 8));
+      const buffer = new Cursor(storage.subarray(0, 8));
 
       const deserialize = () => converter.deserialize(buffer);
 
@@ -165,7 +165,7 @@ describe('ConverterFactory', () => {
     const name = 'int32';
     const converter = getConverter(name);
     const value = 42;
-    const buffer = new Buffer(new ArrayBuffer(4));
+    const buffer = new Cursor(new ArrayBuffer(4));
 
     converter.serialize(value, buffer);
 
@@ -176,7 +176,7 @@ describe('ConverterFactory', () => {
     const name = 'int32';
     const converter = getConverter(name);
     const value = 42;
-    const buffer = new Buffer(new ArrayBuffer(4));
+    const buffer = new Cursor(new ArrayBuffer(4));
     converter.serialize(value, buffer);
     buffer.offset = 0;
 
@@ -189,7 +189,7 @@ describe('ConverterFactory', () => {
     const name = 'int32[3]';
     const converter = getConverter(name);
     const value = new Int32Array([1, 2, 3]);
-    const buffer = new Buffer(new ArrayBuffer(converter.size(value)));
+    const buffer = new Cursor(new ArrayBuffer(converter.size(value)));
 
     converter.serialize(value, buffer);
 
@@ -200,7 +200,7 @@ describe('ConverterFactory', () => {
     const name = 'int32[3]';
     const converter = getConverter(name);
     const value = new Int32Array([1, 2, 3]);
-    const buffer = new Buffer(new ArrayBuffer(converter.size(value)));
+    const buffer = new Cursor(new ArrayBuffer(converter.size(value)));
     converter.serialize(value, buffer);
     buffer.offset = 0;
 
@@ -229,7 +229,7 @@ describe('ConverterFactory', () => {
     const converter = getConverter('int32[3][2]');
     const value = [new Int32Array([1, 2, 3]), new Int32Array([4, 5, 4])];
     const size = converter.size(value);
-    const buffer = new Buffer(new ArrayBuffer(size));
+    const buffer = new Cursor(new ArrayBuffer(size));
 
     converter.serialize(value, buffer);
 
@@ -240,7 +240,7 @@ describe('ConverterFactory', () => {
     const converter = getConverter('int32[3][2]');
     const value = [new Int32Array([1, 2, 3]), new Int32Array([4, 5, 4])];
     const size = converter.size(value);
-    const buffer = new Buffer(new ArrayBuffer(size));
+    const buffer = new Cursor(new ArrayBuffer(size));
     converter.serialize(value, buffer);
     buffer.offset = 0;
 
@@ -256,7 +256,7 @@ describe('ConverterFactory', () => {
       [2, 'two'],
       [3, 'three'],
     ]);
-    const buffer = new Buffer(new ArrayBuffer(converter.size(value)));
+    const buffer = new Cursor(new ArrayBuffer(converter.size(value)));
 
     converter.serialize(value, buffer);
 
@@ -270,7 +270,7 @@ describe('ConverterFactory', () => {
       [2, 'two'],
       [3, 'three'],
     ]);
-    const buffer = new Buffer(new ArrayBuffer(converter.size(value)));
+    const buffer = new Cursor(new ArrayBuffer(converter.size(value)));
     converter.serialize(value, buffer);
     buffer.offset = 0;
 
@@ -309,7 +309,7 @@ describe('ConverterFactory', () => {
     const converter = getConverter('int32[3]');
     const value = [1, 2, 3, 4];
 
-    const serialize = () => converter.serialize(value, new Buffer(new ArrayBuffer(converter.size(value))));
+    const serialize = () => converter.serialize(value, new Cursor(new ArrayBuffer(converter.size(value))));
 
     expect(serialize).toThrowError('Array length mismatch: 4 !== 3');
   });
@@ -319,7 +319,7 @@ describe('ConverterFactory', () => {
     const value = new Map<string, Map<string, Int32Array[]>>([
       ['key1', new Map<string, Int32Array[]>([['key2', [new Int32Array([1, 2, 3]), new Int32Array([4, 5, 6])]]])],
     ]);
-    const buffer = new Buffer(new ArrayBuffer(converter.size(value)));
+    const buffer = new Cursor(new ArrayBuffer(converter.size(value)));
 
     converter.serialize(value, buffer);
 
@@ -331,7 +331,7 @@ describe('ConverterFactory', () => {
     const value = new Map<string, Map<string, Int32Array[]>>([
       ['key1', new Map<string, Int32Array[]>([['key2', [new Int32Array([1, 2, 3]), new Int32Array([4, 5, 6])]]])],
     ]);
-    const buffer = new Buffer(new ArrayBuffer(converter.size(value)));
+    const buffer = new Cursor(new ArrayBuffer(converter.size(value)));
     converter.serialize(value, buffer);
     buffer.offset = 0;
 
@@ -399,7 +399,7 @@ describe('ConverterFactory', () => {
     view.setUint8(0, 7);
     view.setFloat32(1, 3.25, true);
     view.setFloat32(5, -7.5, true);
-    return { storage, buffer: new Buffer(view), converter: getConverter('float32[2]') };
+    return { storage, buffer: new Cursor(view), converter: getConverter('float32[2]') };
   }
 
   function getConverter(type: IType): Converter {
