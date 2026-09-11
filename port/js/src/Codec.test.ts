@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-loss-of-precision */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { Codec } from './Codec';
 import { uploadTypes, uploadProtocols } from '../tests/utils';
@@ -80,30 +79,7 @@ describe('Codec', () => {
       const message = codec.serialize(1, 2, rawData);
 
       expect(new Uint8Array(message.buffer)).toEqual(
-        new Uint8Array([
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0, // f0: int64
-          0,
-          0,
-          0,
-          0, // f1_vec: empty vector
-          6,
-          0,
-          0,
-          0,
-          0xe4,
-          0xbd,
-          0xa0,
-          0xe5,
-          0xa5,
-          0xbd, // str: UTF-8 bytes
-        ]),
+        new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0xe4, 0xbd, 0xa0, 0xe5, 0xa5, 0xbd]),
       );
     });
   });

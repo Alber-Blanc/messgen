@@ -11,9 +11,4 @@ export abstract class Converter<Output = unknown, Input = Output> {
   abstract deserialize(cursor: Cursor): Output;
 
   abstract createDefault(): Output;
-
-  /** @deprecated Use createDefault() to obtain an independent value. */
-  default(): Output {
-    return this.createDefault();
-  }
 }

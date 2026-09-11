@@ -1,9 +1,8 @@
 import Decimal from 'decimal.js';
 
 export { Decimal };
-export { Buffer } from './Buffer';
 export { Cursor } from './Cursor';
-export type { BinaryInput, DeserializeOptions } from './Cursor';
+export type { BinaryInput } from './Cursor';
 export { Codec } from './Codec';
 export type { ProtocolMap, TypeMap, TypeByName, ExtractPayload } from './Codec.types';
 

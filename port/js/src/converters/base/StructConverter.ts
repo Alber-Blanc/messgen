@@ -30,7 +30,6 @@ export class StructConverter extends Converter<StructValue> {
     });
   }
 
-  /** @deprecated Use createDefault(); defaults are no longer shared. */
   get parentObject(): StructValue {
     return this.createDefault();
   }

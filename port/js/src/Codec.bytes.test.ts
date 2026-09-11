@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { Codec } from './index';
-import type { DeserializeOptions, Protocol, RawType } from './index';
+import type { Protocol, RawType } from './index';
 
 type Payload = { data: Uint8Array; numbers: Uint16Array };
 type Envelope = { rows: { key: Uint8Array; value: Uint8Array }[]; trailer: number };
@@ -40,55 +40,47 @@ const protocols: Protocol[] = [
 ];
 
 describe.each(['name', 'protocol'] as const)('byte fields through the %s entry point', (entryPoint) => {
-  describe.each([
-    { name: 'default options', options: undefined, copied: true },
-    { name: 'empty options', options: {}, copied: true },
-    { name: 'explicit copies', options: { copyBytes: true }, copied: true },
-    { name: 'byte views', options: { copyBytes: false }, copied: false },
-  ])('$name', ({ options, copied }) => {
-    it('should decode nested fields from a subview', () => {
-      const { codec, input, envelope } = createFixture();
-
-      const result = decodeEnvelope(codec, entryPoint, input, options);
-
-      expect(result).toEqual(envelope);
-    });
-
-    it('should apply the ownership mode to nested byte fields', () => {
-      const { codec, input } = createFixture();
-
-      const result = decodeEnvelope(codec, entryPoint, input, options);
-
-      expect(
-        result.rows.flatMap(({ key, value }) => [key.buffer === input.buffer, value.buffer === input.buffer]),
-      ).toEqual([!copied, !copied, !copied, !copied]);
-    });
-  });
-
-  it('should keep the option local to one call', () => {
-    const { codec, input } = createFixture();
-    decodeEnvelope(codec, entryPoint, input, { copyBytes: false });
+  it('should decode nested fields from a subview', () => {
+    const { codec, input, envelope } = createFixture();
 
     const result = decodeEnvelope(codec, entryPoint, input);
 
-    expect(result.rows[0].value.buffer).not.toBe(input.buffer);
+    expect(result).toEqual(envelope);
+  });
+
+  it('should share the input buffer with all nested byte fields', () => {
+    const { codec, input } = createFixture();
+
+    const result = decodeEnvelope(codec, entryPoint, input);
+
+    expect(
+      result.rows.flatMap(({ key, value }) => [key.buffer === input.buffer, value.buffer === input.buffer]),
+    ).toEqual([true, true, true, true]);
   });
 
   it('should decode a payload directly from a borrowed byte field', () => {
     const { codec, input, payload } = createFixture();
-    const envelope = decodeEnvelope(codec, entryPoint, input, { copyBytes: false });
+    const envelope = decodeEnvelope(codec, entryPoint, input);
 
     const result = codec.deserializeType('Payload', envelope.rows[0].value);
-    input.fill(0);
 
     expect(result).toEqual(payload);
   });
+
+  it('should share the original input buffer with bytes in a decoded payload', () => {
+    const { codec, input } = createFixture();
+    const envelope = decodeEnvelope(codec, entryPoint, input);
+
+    const result = codec.deserializeType('Payload', envelope.rows[0].value);
+
+    expect(result.data.buffer).toBe(input.buffer);
+  });
 });
 
-it('should preserve named payload inference with deserialize options', () => {
+it('should infer the named payload type for a byte view', () => {
   const { codec, input } = createFixture();
 
-  const result = codec.deserializeType('Envelope', input, { copyBytes: false });
+  const result = codec.deserializeType('Envelope', input);
 
   expectTypeOf(result).toEqualTypeOf<Envelope>();
 });
@@ -97,7 +89,7 @@ it('should keep numeric typed arrays independent when bytes are borrowed', () =>
   const { codec, payload } = createFixture();
   const input = new Uint8Array(codec.serializeType('Payload', payload).buffer);
 
-  const result = codec.deserializeType('Payload', input, { copyBytes: false });
+  const result = codec.deserializeType('Payload', input);
   input.fill(0);
 
   expect(result.numbers).toEqual(payload.numbers);
@@ -120,13 +112,8 @@ function createFixture() {
   return { codec, payload, envelope, input: storage.subarray(5, 5 + encoded.size) };
 }
 
-function decodeEnvelope(
-  codec: Codec<Messages>,
-  entryPoint: 'name' | 'protocol',
-  input: Uint8Array,
-  options?: DeserializeOptions,
-): Envelope {
+function decodeEnvelope(codec: Codec<Messages>, entryPoint: 'name' | 'protocol', input: Uint8Array): Envelope {
   return entryPoint === 'name'
-    ? codec.deserializeType('Envelope', input, options)
-    : codec.deserialize<Envelope>(1, 2, new DataView(input.buffer, input.byteOffset, input.byteLength), options);
+    ? codec.deserializeType('Envelope', input)
+    : codec.deserialize<Envelope>(1, 2, new DataView(input.buffer, input.byteOffset, input.byteLength));
 }

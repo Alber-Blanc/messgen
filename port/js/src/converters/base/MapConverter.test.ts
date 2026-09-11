@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Buffer } from '../../Buffer';
+import { Cursor } from '../../Cursor';
 import { ConverterFactory } from '../ConverterFactory';
 
 describe.each(['Map', 'Record'])('MapConverter with %s input', (inputType) => {
@@ -60,6 +60,6 @@ function createFixture(inputType: string) {
     expected.set(`key:${i}:`.padEnd(100, 'k'), `value:${i}:`.padEnd(200, 'v'));
   }
   const input = inputType === 'Map' ? expected : Object.fromEntries(expected);
-  const buffer = new Buffer(new ArrayBuffer(converter.size(input) + 4));
+  const buffer = new Cursor(new ArrayBuffer(converter.size(input) + 4));
   return { converter, nextConverter, input, buffer, expected };
 }

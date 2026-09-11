@@ -1,8 +1,8 @@
 import { type RawType, type Protocol, Protocols, MessageInfo } from './protocol';
 import { type Converter, ConverterFactory } from './converters';
 import type { RawMessage } from './protocol';
-import type { BinaryInput, DeserializeOptions } from './Cursor';
-import { Buffer } from './Buffer';
+import type { BinaryInput } from './Cursor';
+import { Cursor } from './Cursor';
 
 interface RegisteredMessage {
   converter: Converter;
@@ -47,24 +47,23 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
     return converter as Converter<Types[Name]>;
   }
 
-  serialize<T = unknown>(protocolId: number, messageId: number, data: T): Buffer {
+  serialize<T = unknown>(protocolId: number, messageId: number, data: T): Cursor {
     return this.encode(this.getMessage(Number(protocolId), messageId).converter, data);
   }
 
-  deserialize<T = unknown>(protocolId: number, messageId: number, input: BinaryInput, options?: DeserializeOptions): T {
-    return this.getMessage(protocolId, messageId).converter.deserialize(new Buffer(input, options)) as T;
+  deserialize<T = unknown>(protocolId: number, messageId: number, input: BinaryInput): T {
+    return this.getMessage(protocolId, messageId).converter.deserialize(new Cursor(input)) as T;
   }
 
-  serializeType<Name extends keyof Types & string>(typeName: Name, data: Types[Name]): Buffer {
+  serializeType<Name extends keyof Types & string>(typeName: Name, data: Types[Name]): Cursor {
     return this.encode(this.getTypeConverter(typeName), data);
   }
 
   deserializeType<Name extends keyof Types & string = keyof Types & string>(
     typeName: Name,
     input: BinaryInput,
-    options?: DeserializeOptions,
   ): Types[Name] {
-    return this.getTypeConverter(typeName).deserialize(new Buffer(input, options));
+    return this.getTypeConverter(typeName).deserialize(new Cursor(input));
   }
 
   messageInfo(protoId: number, messageId: number): MessageInfo {
@@ -91,8 +90,8 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
     return message;
   }
 
-  private encode(converter: Converter, data: unknown): Buffer {
-    const buffer = new Buffer(new ArrayBuffer(converter.size(data)));
+  private encode(converter: Converter, data: unknown): Cursor {
+    const buffer = new Cursor(new ArrayBuffer(converter.size(data)));
     converter.serialize(data, buffer);
     return buffer;
   }
