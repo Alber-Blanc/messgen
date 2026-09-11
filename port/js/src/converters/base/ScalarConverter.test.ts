@@ -376,6 +376,58 @@ describe('ScalarConverter', () => {
       const result = converter.deserialize(buffer);
 
       expect(result).toEqual(value);
+      expect(buffer.offset).toBe(buffer.size);
+    });
+  });
+
+  describe('::string offsets', () => {
+    it.each(['', 'parameter/value.'.repeat(14), 'Привет 世界 🌍'.repeat(20)])(
+      'should preserve the next field after a string: %j',
+      (value) => {
+        const converter = getConverter('string');
+        const nextConverter = getConverter('uint32');
+        const encoded = new TextEncoder().encode(value);
+        const buffer = getBuffer(3 + 4 + encoded.length + 4);
+        buffer.offset = 3;
+
+        converter.serialize(value, buffer);
+        expect(buffer.offset).toBe(3 + 4 + encoded.length);
+        expect(new Uint8Array(buffer.buffer, 7, encoded.length)).toEqual(encoded);
+        nextConverter.serialize(0x12345678, buffer);
+
+        buffer.offset = 3;
+        expect(converter.deserialize(buffer)).toBe(value);
+        expect(buffer.offset).toBe(3 + 4 + encoded.length);
+        expect(nextConverter.deserialize(buffer)).toBe(0x12345678);
+        expect(buffer.offset).toBe(buffer.size);
+      },
+    );
+
+    it.each([
+      { name: 'UTF-8 BOM', bytes: [0xef, 0xbb, 0xbf, 0x61], value: 'a' },
+      { name: 'invalid UTF-8', bytes: [0xc3, 0x28], value: '\ufffd(' },
+      { name: 'incomplete UTF-8', bytes: [0xf0, 0x9f], value: '\ufffd' },
+    ])('should use the wire length after decoding $name', ({ bytes, value }) => {
+      const converter = getConverter('string');
+      const nextConverter = getConverter('uint32');
+      const buffer = getBuffer(4 + bytes.length + 4);
+      buffer.dataView.setUint32(0, bytes.length, IS_LITTLE_ENDIAN);
+      new Uint8Array(buffer.buffer, 4, bytes.length).set(bytes);
+      buffer.dataView.setUint32(4 + bytes.length, 0x12345678, IS_LITTLE_ENDIAN);
+
+      expect(converter.deserialize(buffer)).toBe(value);
+      expect(buffer.offset).toBe(4 + bytes.length);
+      expect(nextConverter.deserialize(buffer)).toBe(0x12345678);
+      expect(buffer.offset).toBe(buffer.size);
+    });
+
+    it('should reject a string extending past the buffer', () => {
+      const converter = getConverter('string');
+      const buffer = getBuffer(6);
+      buffer.dataView.setUint32(0, 3, IS_LITTLE_ENDIAN);
+
+      expect(() => converter.deserialize(buffer)).toThrow(RangeError);
+      expect(buffer.offset).toBe(0);
     });
   });
 

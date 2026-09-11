@@ -143,12 +143,14 @@ export class ScalarConverter extends Converter {
   }
 
   deserialize(buffer: Buffer): IValue {
-    const value = this.config.read(buffer.dataView, buffer.offset);
+    const { config } = this;
+    const value = config.read(buffer.dataView, buffer.offset);
 
-    if (typeof this.config.size === 'number') {
-      buffer.offset += this.config.size;
+    if (typeof config.size === 'number') {
+      buffer.offset += config.size;
     } else {
-      buffer.offset += this.config.size(value);
+      // Strings and bytes carry their byte length in the prefix; no need to scan the decoded value.
+      buffer.offset += 4 + buffer.dataView.getUint32(buffer.offset, IS_LITTLE_ENDIAN);
     }
 
     return value;
