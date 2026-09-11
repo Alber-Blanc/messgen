@@ -31,7 +31,9 @@ describe('Protocols', () => {
 
   describe('#getType', () => {
     it('should resolve scalar types', () => {
-      const type = protocols.getType('uint64');
+      const typeName = 'uint64';
+
+      const type = protocols.getType(typeName);
 
       expect(type).toEqual({
         type: 'uint64',
@@ -40,7 +42,9 @@ describe('Protocols', () => {
     });
 
     it('should resolve array types', () => {
-      const type = protocols.getType('uint64[4]');
+      const typeName = 'uint64[4]';
+
+      const type = protocols.getType(typeName);
 
       expect(type).toEqual({
         type: 'uint64[4]',
@@ -51,7 +55,9 @@ describe('Protocols', () => {
     });
 
     it('should resolve dynamic array types', () => {
-      const type = protocols.getType('uint64[]');
+      const typeName = 'uint64[]';
+
+      const type = protocols.getType(typeName);
 
       expect(type).toEqual({
         type: 'uint64[]',
@@ -62,7 +68,9 @@ describe('Protocols', () => {
     });
 
     it('should resolve map types', () => {
-      const type = protocols.getType('string{int32}');
+      const typeName = 'string{int32}';
+
+      const type = protocols.getType(typeName);
 
       expect(type).toEqual({
         type: 'string{int32}',
@@ -73,7 +81,9 @@ describe('Protocols', () => {
     });
 
     it('should resolve struct types', () => {
-      const type = protocols.getType('simple_struct');
+      const typeName = 'simple_struct';
+
+      const type = protocols.getType(typeName);
 
       expect(type).toEqual({
         typeClass: 'struct',
@@ -86,7 +96,9 @@ describe('Protocols', () => {
     });
 
     it('should resolve enum types', () => {
-      const type = protocols.getType('simple_enum');
+      const typeName = 'simple_enum';
+
+      const type = protocols.getType(typeName);
 
       expect(type).toEqual({
         typeClass: 'enum',
@@ -100,7 +112,9 @@ describe('Protocols', () => {
     });
 
     it('should resolve decimal types', () => {
-      const type = protocols.getType('dec64');
+      const typeName = 'dec64';
+
+      const type = protocols.getType(typeName);
 
       expect(type).toEqual({
         type: 'dec64',
@@ -109,13 +123,17 @@ describe('Protocols', () => {
     });
 
     it('should throw error for unknown types', () => {
-      expect(() => {
-        protocols.getType('unknown_type');
-      }).toThrow('Unknown type: unknown_type not found');
+      const typeName = 'unknown_type';
+
+      const getType = () => protocols.getType(typeName);
+
+      expect(getType).toThrow('Unknown type: unknown_type not found');
     });
 
     it('should resolve cross-protocol type references', () => {
-      const type = protocols.getType('simple_struct');
+      const typeName = 'simple_struct';
+
+      const type = protocols.getType(typeName);
 
       expect(type.typeClass).toBe('struct');
     });

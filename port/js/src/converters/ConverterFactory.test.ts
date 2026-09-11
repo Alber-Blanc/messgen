@@ -5,100 +5,160 @@ import type { Converter } from './Converter';
 import { Buffer } from '../Buffer';
 import { Protocols } from '../protocol';
 import type { StructConverter } from './base/StructConverter';
+import { captureError } from '../../tests/utils';
 
 describe('ConverterFactory', () => {
-  it('reuses converters within one factory, including nested fields', () => {
-    const protocols = new Protocols();
-    protocols.load([
-      {
-        type: 'Pair',
-        type_class: 'struct',
-        hash: '0',
-        fields: [
-          { name: 'left', type: 'string' },
-          { name: 'right', type: 'string' },
-        ],
-      },
-    ]);
-    const factory = new ConverterFactory(protocols);
-    const pair = factory.toConverter('Pair') as StructConverter;
-    expect(factory.toConverter('Pair')).toBe(pair);
-    expect(pair.convertorsList[0].converter).toBe(factory.toConverter('string'));
-    expect(pair.convertorsList[1].converter).toBe(factory.toConverter('string'));
-    expect(new ConverterFactory(protocols).toConverter('Pair')).not.toBe(pair);
-    expect(pair.parentObject).not.toBe(pair.parentObject);
+  describe('converter cache', () => {
+    it('reuses converters within one factory', () => {
+      const { factory } = createPairFactory();
+      const pair = factory.toConverter('Pair');
+
+      const cached = factory.toConverter('Pair');
+
+      expect(cached).toBe(pair);
+    });
+
+    it.each([0, 1])('reuses the converter for nested field %i', (index) => {
+      const { factory } = createPairFactory();
+      const scalar = factory.toConverter('string');
+
+      const pair = factory.toConverter('Pair') as StructConverter;
+
+      expect(pair.convertorsList[index].converter).toBe(scalar);
+    });
+
+    it('keeps converters independent across factories', () => {
+      const { factory, protocols } = createPairFactory();
+      const pair = factory.toConverter('Pair');
+
+      const other = new ConverterFactory(protocols).toConverter('Pair');
+
+      expect(other).not.toBe(pair);
+    });
+
+    it('creates a fresh parent object on every access', () => {
+      const { factory } = createPairFactory();
+      const pair = factory.toConverter('Pair') as StructConverter;
+      const first = pair.parentObject;
+
+      const second = pair.parentObject;
+
+      expect(second).not.toBe(first);
+    });
+
+    it('uses the initial schema for nested defaults', () => {
+      const { factory } = createItemFactory();
+      const converter = factory.toConverter('Item[1]');
+
+      const value = converter.createDefault();
+
+      expect(value).toEqual([{ value: 0 }]);
+    });
+
+    it('invalidates cached parents after a dependency is reloaded', () => {
+      const { factory, protocols } = createItemFactory();
+      const before = factory.toConverter('Item[1]');
+
+      loadUpdatedItem(protocols);
+      const after = factory.toConverter('Item[1]');
+
+      expect(after).not.toBe(before);
+    });
+
+    it('uses the updated schema for nested defaults', () => {
+      const { factory, protocols } = createItemFactory();
+      factory.toConverter('Item[1]');
+      loadUpdatedItem(protocols);
+      const converter = factory.toConverter('Item[1]');
+
+      const value = converter.createDefault();
+
+      expect(value).toEqual([{ value: '' }]);
+    });
+
+    it('round-trips values using the updated schema', () => {
+      const { factory, protocols } = createItemFactory();
+      factory.toConverter('Item[1]');
+      loadUpdatedItem(protocols);
+      const converter = factory.toConverter('Item[1]');
+      const value = [{ value: 'updated' }];
+      const buffer = new Buffer(new ArrayBuffer(converter.size(value)));
+      converter.serialize(value, buffer);
+      buffer.offset = 0;
+
+      const result = converter.deserialize(buffer);
+
+      expect(result).toEqual(value);
+    });
   });
 
-  it('invalidates cached parents when their schema dependencies are reloaded', () => {
-    const protocols = new Protocols();
-    protocols.load([
-      {
-        type: 'Item',
-        type_class: 'struct',
-        hash: '0',
-        fields: [{ name: 'value', type: 'int8' }],
-      },
-    ]);
-    const factory = new ConverterFactory(protocols);
-    const before = factory.toConverter('Item[1]');
-    expect(before.createDefault()).toEqual([{ value: 0 }]);
+  describe('circular schemas', () => {
+    it('reports a circular dependency', () => {
+      const { factory } = createRecursiveFactory();
 
-    protocols.load([
-      {
-        type: 'Item',
-        type_class: 'struct',
-        hash: '1',
-        fields: [{ name: 'value', type: 'string' }],
-      },
-    ]);
-    const after = factory.toConverter('Item[1]');
-    expect(after).not.toBe(before);
-    expect(after.createDefault()).toEqual([{ value: '' }]);
-    const value = [{ value: 'updated' }];
-    const buffer = new Buffer(new ArrayBuffer(after.size(value)));
-    after.serialize(value, buffer);
-    buffer.offset = 0;
-    expect(after.deserialize(buffer)).toEqual(value);
+      const resolve = () => factory.toConverter('Recursive');
+
+      expect(resolve).toThrow('Circular type dependency: Recursive');
+    });
+
+    it('reports the same dependency after a failed resolution', () => {
+      const { factory } = createRecursiveFactory();
+      captureError(() => factory.toConverter('Recursive'));
+
+      const resolve = () => factory.toConverter('Recursive');
+
+      expect(resolve).toThrow('Circular type dependency: Recursive');
+    });
+
+    it('recovers after the circular schema is replaced', () => {
+      const { factory, protocols } = createRecursiveFactory();
+      captureError(() => factory.toConverter('Recursive'));
+      protocols.load([{ type: 'Recursive', type_class: 'struct', hash: '1', fields: [] }]);
+
+      const value = factory.toConverter('Recursive').createDefault();
+
+      expect(value).toEqual({});
+    });
   });
 
-  it('reports circular schemas and recovers after a failed resolution', () => {
-    const protocols = new Protocols();
-    protocols.load([
-      {
-        type: 'Recursive',
-        type_class: 'struct',
-        hash: '0',
-        fields: [{ name: 'child', type: 'Recursive[]' }],
-      },
-    ]);
-    const factory = new ConverterFactory(protocols);
-    expect(() => factory.toConverter('Recursive')).toThrow('Circular type dependency: Recursive');
-    expect(() => factory.toConverter('Recursive')).toThrow('Circular type dependency: Recursive');
-    protocols.load([{ type: 'Recursive', type_class: 'struct', hash: '1', fields: [] }]);
-    expect(factory.toConverter('Recursive').createDefault()).toEqual({});
-  });
+  describe('typed array subviews', () => {
+    it('reads the field preceding an unaligned array', () => {
+      const { buffer } = createUnalignedArray();
 
-  it('reads an unaligned typed array from a subview and returns an independent copy', () => {
-    const storage = new Uint8Array(32).fill(0xaa);
-    const view = new DataView(storage.buffer, 5, 9);
-    view.setUint8(0, 7);
-    view.setFloat32(1, 3.25, true);
-    view.setFloat32(5, -7.5, true);
-    const converter = new ConverterFactory().toConverter('float32[2]');
-    const buffer = new Buffer(view);
-    expect(buffer.readUint8()).toBe(7);
-    const result = converter.deserialize(buffer);
-    storage.fill(0);
+      const value = buffer.readUint8();
 
-    expect(result).toEqual(new Float32Array([3.25, -7.5]));
-    expect(buffer.offset).toBe(buffer.size);
-  });
+      expect(value).toBe(7);
+    });
 
-  it('rejects a typed array whose declared payload exceeds the view', () => {
-    const storage = new Uint8Array(32);
-    new DataView(storage.buffer).setUint32(0, 3, true);
-    const converter = new ConverterFactory().toConverter('uint32[]');
-    expect(() => converter.deserialize(new Buffer(storage.subarray(0, 8)))).toThrow(RangeError);
+    it('returns an independent copy of an unaligned array', () => {
+      const { buffer, converter, storage } = createUnalignedArray();
+      buffer.readUint8();
+
+      const value = converter.deserialize(buffer);
+      storage.fill(0);
+
+      expect(value).toEqual(new Float32Array([3.25, -7.5]));
+    });
+
+    it('advances the offset to the end of the subview', () => {
+      const { buffer, converter } = createUnalignedArray();
+      buffer.readUint8();
+
+      converter.deserialize(buffer);
+
+      expect(buffer.offset).toBe(buffer.size);
+    });
+
+    it('rejects an array whose declared payload exceeds the view', () => {
+      const storage = new Uint8Array(32);
+      new DataView(storage.buffer).setUint32(0, 3, true);
+      const converter = getConverter('uint32[]');
+      const buffer = new Buffer(storage.subarray(0, 8));
+
+      const deserialize = () => converter.deserialize(buffer);
+
+      expect(deserialize).toThrow(RangeError);
+    });
   });
 
   it('should serialize scalar correctly', () => {
@@ -117,11 +177,12 @@ describe('ConverterFactory', () => {
     const converter = getConverter(name);
     const value = 42;
     const buffer = new Buffer(new ArrayBuffer(4));
-
     converter.serialize(value, buffer);
     buffer.offset = 0;
 
-    expect(converter.deserialize(buffer)).toBe(value);
+    const result = converter.deserialize(buffer);
+
+    expect(result).toBe(value);
   });
 
   it('should serialize sized array of scalar types', () => {
@@ -140,21 +201,28 @@ describe('ConverterFactory', () => {
     const converter = getConverter(name);
     const value = new Int32Array([1, 2, 3]);
     const buffer = new Buffer(new ArrayBuffer(converter.size(value)));
-
     converter.serialize(value, buffer);
     buffer.offset = 0;
 
-    expect(converter.deserialize(buffer)).toEqual(value);
+    const result = converter.deserialize(buffer);
+
+    expect(result).toEqual(value);
   });
 
   it('should throw an error when the basis type is not found in the converters map', () => {
-    expect(() => getConverter('customType')).toThrowError('Unknown type: customType not found');
+    const typeName = 'customType';
+
+    const resolve = () => getConverter(typeName);
+
+    expect(resolve).toThrowError('Unknown type: customType not found');
   });
 
   it('should throw an error when the map key type is not found in the converters map', () => {
-    expect(() => {
-      getConverter('int32{customType}');
-    }).toThrowError('Unknown type: customType not found');
+    const typeName = 'int32{customType}';
+
+    const resolve = () => getConverter(typeName);
+
+    expect(resolve).toThrowError('Unknown type: customType not found');
   });
 
   it('should serialize multidimensional array', () => {
@@ -173,11 +241,12 @@ describe('ConverterFactory', () => {
     const value = [new Int32Array([1, 2, 3]), new Int32Array([4, 5, 4])];
     const size = converter.size(value);
     const buffer = new Buffer(new ArrayBuffer(size));
-
     converter.serialize(value, buffer);
     buffer.offset = 0;
 
-    expect(converter.deserialize(buffer)).toEqual(value);
+    const result = converter.deserialize(buffer);
+
+    expect(result).toEqual(value);
   });
 
   it('should serialize map of scalar typess', () => {
@@ -202,36 +271,44 @@ describe('ConverterFactory', () => {
       [3, 'three'],
     ]);
     const buffer = new Buffer(new ArrayBuffer(converter.size(value)));
-
     converter.serialize(value, buffer);
     buffer.offset = 0;
 
-    expect(converter.deserialize(buffer)).is.deep.eq(value);
+    const result = converter.deserialize(buffer);
+
+    expect(result).toEqual(value);
   });
 
   it('should calculate the correct size for flat array', () => {
     const converter = getConverter('int32[5]');
     const value = new Int32Array([1, 2, 3, 4, 5]);
 
-    expect(converter.size(value)).toBe(4 * 5);
+    const size = converter.size(value);
+
+    expect(size).toBe(4 * 5);
   });
 
   it('should calculate size for nested array', () => {
     const converter = getConverter('int32[3][2]');
     const value = [Int32Array.from([1, 2, 3]), Int32Array.from([4, 5, 6])];
 
-    expect(converter.size(value)).toBe(24);
+    const size = converter.size(value);
+
+    expect(size).toBe(24);
   });
 
   it('should throw an error for unknown map key type', () => {
-    const serializeFn = () => getConverter('int32{undefined}');
+    const typeName = 'int32{undefined}';
 
-    expect(serializeFn).toThrowError('Unknown type: undefined not found');
+    const resolve = () => getConverter(typeName);
+
+    expect(resolve).toThrowError('Unknown type: undefined not found');
   });
 
   it('should throw an error when the array length is out of bounds', () => {
     const converter = getConverter('int32[3]');
     const value = [1, 2, 3, 4]; // Array length is out of bounds
+
     const serialize = () => converter.serialize(value, new Buffer(new ArrayBuffer(converter.size(value))));
 
     expect(serialize).toThrowError('Array length mismatch: 4 !== 3');
@@ -245,6 +322,7 @@ describe('ConverterFactory', () => {
     const buffer = new Buffer(new ArrayBuffer(converter.size(value)));
 
     converter.serialize(value, buffer);
+
     expect(buffer.offset).toEqual(buffer.size);
   });
 
@@ -253,13 +331,76 @@ describe('ConverterFactory', () => {
     const value = new Map<string, Map<string, Int32Array[]>>([
       ['key1', new Map<string, Int32Array[]>([['key2', [new Int32Array([1, 2, 3]), new Int32Array([4, 5, 6])]]])],
     ]);
-
     const buffer = new Buffer(new ArrayBuffer(converter.size(value)));
     converter.serialize(value, buffer);
     buffer.offset = 0;
 
-    expect(converter.deserialize(buffer)).toEqual(value);
+    const result = converter.deserialize(buffer);
+
+    expect(result).toEqual(value);
   });
+
+  function createPairFactory() {
+    const protocols = new Protocols();
+    protocols.load([
+      {
+        type: 'Pair',
+        type_class: 'struct',
+        hash: '0',
+        fields: [
+          { name: 'left', type: 'string' },
+          { name: 'right', type: 'string' },
+        ],
+      },
+    ]);
+    return { protocols, factory: new ConverterFactory(protocols) };
+  }
+
+  function createItemFactory() {
+    const protocols = new Protocols();
+    protocols.load([
+      {
+        type: 'Item',
+        type_class: 'struct',
+        hash: '0',
+        fields: [{ name: 'value', type: 'int8' }],
+      },
+    ]);
+    return { protocols, factory: new ConverterFactory(protocols) };
+  }
+
+  function loadUpdatedItem(protocols: Protocols) {
+    protocols.load([
+      {
+        type: 'Item',
+        type_class: 'struct',
+        hash: '1',
+        fields: [{ name: 'value', type: 'string' }],
+      },
+    ]);
+  }
+
+  function createRecursiveFactory() {
+    const protocols = new Protocols();
+    protocols.load([
+      {
+        type: 'Recursive',
+        type_class: 'struct',
+        hash: '0',
+        fields: [{ name: 'child', type: 'Recursive[]' }],
+      },
+    ]);
+    return { protocols, factory: new ConverterFactory(protocols) };
+  }
+
+  function createUnalignedArray() {
+    const storage = new Uint8Array(32).fill(0xaa);
+    const view = new DataView(storage.buffer, 5, 9);
+    view.setUint8(0, 7);
+    view.setFloat32(1, 3.25, true);
+    view.setFloat32(5, -7.5, true);
+    return { storage, buffer: new Buffer(view), converter: getConverter('float32[2]') };
+  }
 
   function getConverter(type: IType): Converter {
     const factory = new ConverterFactory();

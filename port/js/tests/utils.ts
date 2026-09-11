@@ -28,3 +28,12 @@ export function initGetType() {
   const factory = new ConverterFactory(protocol);
   return factory.toConverter.bind(factory);
 }
+
+export function captureError(action: () => unknown): unknown {
+  try {
+    action();
+  } catch (error) {
+    return error;
+  }
+  return undefined;
+}

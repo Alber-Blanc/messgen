@@ -42,6 +42,7 @@ describe('StructConverter', () => {
 
   it('should calculates size of input object with an empty schema', () => {
     const structConverter = createStructConverter([]);
+
     const result = structConverter.size({});
 
     expect(result).toBe(0);
@@ -54,15 +55,15 @@ describe('StructConverter', () => {
 
     structConverter.serialize({}, buffer);
 
-    expect(serializedSize).toBe(0);
+    expect(buffer.offset).toBe(0);
   });
 
   it('should deserializes input object with an empty schema', () => {
     const structConverter = createStructConverter([]);
     const serializedSize = structConverter.size({});
     const buffer = new Buffer(new ArrayBuffer(serializedSize));
-
     structConverter.serialize({}, buffer);
+
     const deserialized = structConverter.deserialize(buffer);
 
     expect(deserialized).toEqual({});
@@ -96,7 +97,9 @@ describe('StructConverter', () => {
   });
 
   it('should throws an error if a converter for a field type is not found', () => {
-    const createConverterFn = () => createStructConverter([{ name: 'field', type: 'unknownType' }]);
+    const fields = [{ name: 'field', type: 'unknownType' }];
+
+    const createConverterFn = () => createStructConverter(fields);
 
     expect(createConverterFn).toThrowError();
   });
@@ -129,14 +132,15 @@ describe('StructConverter', () => {
   });
 
   it('should handles input object with reserved prototype method names as fields', () => {
-    const serializeFn = () =>
-      createStructConverter([
-        { name: 'toString', type: 'string' },
-        { name: 'valueOf', type: 'int32' },
-        { name: 'hasOwnProperty', type: 'bool' },
-      ]);
+    const fields = [
+      { name: 'toString', type: 'string' },
+      { name: 'valueOf', type: 'int32' },
+      { name: 'hasOwnProperty', type: 'bool' },
+    ];
 
-    expect(serializeFn).toThrow();
+    const createConverter = () => createStructConverter(fields);
+
+    expect(createConverter).toThrow();
   });
 
   function createStructConverter(fields: Field[]): StructConverter {

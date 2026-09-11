@@ -18,15 +18,28 @@ describe('Codec', () => {
   });
 
   it('should load types', () => {
-    expect(new Codec(types, protocols)).toBeDefined();
+    const definitions = types;
+
+    const instance = new Codec(definitions);
+
+    expect(instance).toBeDefined();
   });
 
   it('should load types and protocols', () => {
-    expect(new Codec(types, protocols)).toBeDefined();
+    const definitions = types;
+    const messages = protocols;
+
+    const instance = new Codec(definitions, messages);
+
+    expect(instance).toBeDefined();
   });
 
   it('should load external types', () => {
-    expect(new Codec(fixturesTypes, [])).toBeDefined();
+    const definitions = fixturesTypes;
+
+    const instance = new Codec(definitions, []);
+
+    expect(instance).toBeDefined();
   });
 
   describe('#serialize', () => {
@@ -113,12 +126,13 @@ describe('Codec', () => {
         e0: 0,
         b0: 0,
       };
-
       const message = codec.serialize(1, 0, rawData);
 
-      expect(codec.deserialize(1, 0, message.buffer)).toEqual({
+      const result = codec.deserialize(1, 0, message.buffer);
+
+      expect(result).toEqual({
         ...rawData,
-        f5: expect.closeTo(rawData.f5, 5),
+        f5: Math.fround(rawData.f5),
       });
     });
 
@@ -128,8 +142,9 @@ describe('Codec', () => {
         f1_vec: new BigInt64Array([]),
         str: '你好',
       };
+      const message = codec.serialize(1, 2, rawData);
 
-      const data = codec.deserialize(1, 2, codec.serialize(1, 2, rawData).buffer);
+      const data = codec.deserialize(1, 2, message.buffer);
 
       expect(data).toEqual(rawData);
     });
@@ -142,10 +157,11 @@ describe('Codec', () => {
         f1_vec: new BigInt64Array([-0n, 5n, 1n]),
         str: 'Hello messgen!',
       };
-
       const message = codec.serialize(1, 2, rawData);
 
-      expect(codec.deserializeType('mynamespace/types/var_size_struct', message.buffer)).toEqual(rawData);
+      const result = codec.deserializeType('mynamespace/types/var_size_struct', message.buffer);
+
+      expect(result).toEqual(rawData);
     });
   });
 
@@ -153,30 +169,43 @@ describe('Codec', () => {
     it('should get message info by id', () => {
       const messageInfo = codec.messageInfo(1, 1);
 
-      expect(messageInfo.messageHash()).toBe(13272587043423170596n);
+      const hash = messageInfo.messageHash();
+
+      expect(hash).toBe(13272587043423170596n);
     });
 
     it('should get the name of the protocol the message belongs to', () => {
       const messageInfo = codec.messageInfo(1, 1);
 
-      expect(messageInfo.protoName()).toBe('mynamespace/proto/test_proto');
+      const name = messageInfo.protoName();
+
+      expect(name).toBe('mynamespace/proto/test_proto');
     });
 
     it('should get the name of the message', () => {
       const messageInfo = codec.messageInfo(1, 1);
 
-      expect(messageInfo.messageName()).toBe('complex_struct');
+      const name = messageInfo.messageName();
+
+      expect(name).toBe('complex_struct');
     });
   });
 
   describe('#getTypeConverter', () => {
     it('should get type converter by type name', () => {
-      const converter = codec.getTypeConverter('mynamespace/types/var_size_struct');
-      expect(converter.name).toBe('mynamespace/types/var_size_struct');
+      const typeName = 'mynamespace/types/var_size_struct';
+
+      const converter = codec.getTypeConverter(typeName);
+
+      expect(converter.name).toBe(typeName);
     });
 
     it('should throw error if type converter not found', () => {
-      expect(() => codec.getTypeConverter('non/existent/type')).toThrowError();
+      const typeName = 'non/existent/type';
+
+      const getConverter = () => codec.getTypeConverter(typeName);
+
+      expect(getConverter).toThrowError();
     });
   });
 });

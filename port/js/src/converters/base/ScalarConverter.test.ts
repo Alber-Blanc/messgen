@@ -3,6 +3,7 @@ import { Buffer } from '../../Buffer';
 import { ScalarConverter } from './ScalarConverter';
 import type { BasicType } from '../../types';
 import { IS_LITTLE_ENDIAN } from '../../config';
+import { captureError } from '../../../tests/utils';
 
 describe('ScalarConverter', () => {
   describe('::primitive', () => {
@@ -349,8 +350,7 @@ describe('ScalarConverter', () => {
 
       converter.serialize(value, buffer);
 
-      expect(buffer.dataView.getUint32(0, IS_LITTLE_ENDIAN)).toBe(value.length);
-      expect(buffer.dataView.getInt8(4)).toBe(value.charCodeAt(0));
+      expect(new Uint8Array(buffer.buffer)).toEqual(new Uint8Array([4, 0, 0, 0, 116, 101, 115, 116]));
     });
 
     it('should serilize bytes', () => {
@@ -360,73 +360,138 @@ describe('ScalarConverter', () => {
 
       converter.serialize(value, buffer);
 
-      expect(buffer.dataView.getUint32(0, IS_LITTLE_ENDIAN)).toBe(value.length);
-      expect(buffer.dataView.getUint8(4)).toBe(value[0]);
+      expect(new Uint8Array(buffer.buffer)).toEqual(new Uint8Array([4, 0, 0, 0, 1, 2, 3, 4]));
     });
 
     it('should deserialize bytes', () => {
-      const value = new Uint8Array([1, 2, 3, 4]);
       const converter = getConverter('bytes');
-      const buffer = getBuffer(converter.size(value));
-      buffer.dataView.setUint32(0, value.length, IS_LITTLE_ENDIAN);
-      for (let i = 0; i < value.length; i++) {
-        buffer.dataView.setUint8(4 + i, value[i]);
-      }
+      const buffer = new Buffer(new Uint8Array([4, 0, 0, 0, 1, 2, 3, 4]));
 
       const result = converter.deserialize(buffer);
 
-      expect(result).toEqual(value);
+      expect(result).toEqual(new Uint8Array([1, 2, 3, 4]));
+    });
+
+    it('should advance the offset past the decoded bytes', () => {
+      const converter = getConverter('bytes');
+      const buffer = new Buffer(new Uint8Array([4, 0, 0, 0, 1, 2, 3, 4]));
+
+      converter.deserialize(buffer);
+
       expect(buffer.offset).toBe(buffer.size);
     });
   });
 
   describe('::string offsets', () => {
-    it.each(['', 'parameter/value.'.repeat(14), 'Привет 世界 🌍'.repeat(20)])(
-      'should preserve the next field after a string: %j',
-      (value) => {
-        const converter = getConverter('string');
-        const nextConverter = getConverter('uint32');
-        const encoded = new TextEncoder().encode(value);
-        const buffer = getBuffer(3 + 4 + encoded.length + 4);
-        buffer.offset = 3;
+    describe.each(['', 'parameter/value.'.repeat(14), 'Привет 世界 🌍'.repeat(20)])('string %j', (value) => {
+      it('advances the write offset by the encoded length', () => {
+        const { converter, buffer, encoded } = createStringFixture(value);
 
         converter.serialize(value, buffer);
+
         expect(buffer.offset).toBe(3 + 4 + encoded.length);
+      });
+
+      it('writes the UTF-8 payload at the current offset', () => {
+        const { converter, buffer, encoded } = createStringFixture(value);
+
+        converter.serialize(value, buffer);
+
         expect(new Uint8Array(buffer.buffer, 7, encoded.length)).toEqual(encoded);
-        nextConverter.serialize(0x12345678, buffer);
+      });
 
-        buffer.offset = 3;
-        expect(converter.deserialize(buffer)).toBe(value);
+      it('decodes the string at the current offset', () => {
+        const { converter, buffer } = createSerializedString(value);
+
+        const result = converter.deserialize(buffer);
+
+        expect(result).toBe(value);
+      });
+
+      it('advances the read offset by the encoded length', () => {
+        const { converter, buffer, encoded } = createSerializedString(value);
+
+        converter.deserialize(buffer);
+
         expect(buffer.offset).toBe(3 + 4 + encoded.length);
-        expect(nextConverter.deserialize(buffer)).toBe(0x12345678);
-        expect(buffer.offset).toBe(buffer.size);
-      },
-    );
+      });
 
-    it.each([
+      it('preserves the next field', () => {
+        const { converter, nextConverter, buffer } = createSerializedString(value);
+
+        converter.deserialize(buffer);
+        const next = nextConverter.deserialize(buffer);
+
+        expect(next).toBe(0x12345678);
+      });
+
+      it('consumes the buffer after reading the next field', () => {
+        const { converter, nextConverter, buffer } = createSerializedString(value);
+
+        converter.deserialize(buffer);
+        nextConverter.deserialize(buffer);
+
+        expect(buffer.offset).toBe(buffer.size);
+      });
+    });
+
+    describe.each([
       { name: 'UTF-8 BOM', bytes: [0xef, 0xbb, 0xbf, 0x61], value: 'a' },
       { name: 'invalid UTF-8', bytes: [0xc3, 0x28], value: '\ufffd(' },
       { name: 'incomplete UTF-8', bytes: [0xf0, 0x9f], value: '\ufffd' },
-    ])('should use the wire length after decoding $name', ({ bytes, value }) => {
-      const converter = getConverter('string');
-      const nextConverter = getConverter('uint32');
-      const buffer = getBuffer(4 + bytes.length + 4);
-      buffer.dataView.setUint32(0, bytes.length, IS_LITTLE_ENDIAN);
-      new Uint8Array(buffer.buffer, 4, bytes.length).set(bytes);
-      buffer.dataView.setUint32(4 + bytes.length, 0x12345678, IS_LITTLE_ENDIAN);
+    ])('$name', ({ bytes, value }) => {
+      it('decodes using TextDecoder semantics', () => {
+        const { converter, buffer } = createWireString(bytes);
 
-      expect(converter.deserialize(buffer)).toBe(value);
-      expect(buffer.offset).toBe(4 + bytes.length);
-      expect(nextConverter.deserialize(buffer)).toBe(0x12345678);
-      expect(buffer.offset).toBe(buffer.size);
+        const result = converter.deserialize(buffer);
+
+        expect(result).toBe(value);
+      });
+
+      it('advances the offset using the wire length', () => {
+        const { converter, buffer } = createWireString(bytes);
+
+        converter.deserialize(buffer);
+
+        expect(buffer.offset).toBe(4 + bytes.length);
+      });
+
+      it('preserves the next field', () => {
+        const { converter, nextConverter, buffer } = createWireString(bytes);
+
+        converter.deserialize(buffer);
+        const next = nextConverter.deserialize(buffer);
+
+        expect(next).toBe(0x12345678);
+      });
+
+      it('consumes the buffer after reading the next field', () => {
+        const { converter, nextConverter, buffer } = createWireString(bytes);
+
+        converter.deserialize(buffer);
+        nextConverter.deserialize(buffer);
+
+        expect(buffer.offset).toBe(buffer.size);
+      });
     });
 
-    it('should reject a string extending past the buffer', () => {
+    it('rejects a string extending past the buffer', () => {
       const converter = getConverter('string');
       const buffer = getBuffer(6);
       buffer.dataView.setUint32(0, 3, IS_LITTLE_ENDIAN);
 
-      expect(() => converter.deserialize(buffer)).toThrow(RangeError);
+      const deserialize = () => converter.deserialize(buffer);
+
+      expect(deserialize).toThrow(RangeError);
+    });
+
+    it('preserves the offset after rejecting a truncated string', () => {
+      const converter = getConverter('string');
+      const buffer = getBuffer(6);
+      buffer.dataView.setUint32(0, 3, IS_LITTLE_ENDIAN);
+
+      captureError(() => converter.deserialize(buffer));
+
       expect(buffer.offset).toBe(0);
     });
   });
@@ -608,9 +673,35 @@ describe('ScalarConverter', () => {
     const deserializedValue1 = converter1.deserialize(buffer);
     const deserializedValue2 = converter2.deserialize(buffer);
 
-    expect(deserializedValue1).toBe(value1);
-    expect(deserializedValue2).toBe(value2);
+    expect([deserializedValue1, deserializedValue2]).toEqual([value1, value2]);
   });
+
+  function createStringFixture(value: string) {
+    const converter = getConverter('string');
+    const nextConverter = getConverter('uint32');
+    const encoded = new TextEncoder().encode(value);
+    const buffer = getBuffer(3 + 4 + encoded.length + 4);
+    buffer.offset = 3;
+    return { converter, nextConverter, encoded, buffer };
+  }
+
+  function createSerializedString(value: string) {
+    const fixture = createStringFixture(value);
+    fixture.converter.serialize(value, fixture.buffer);
+    fixture.nextConverter.serialize(0x12345678, fixture.buffer);
+    fixture.buffer.offset = 3;
+    return fixture;
+  }
+
+  function createWireString(bytes: number[]) {
+    const converter = getConverter('string');
+    const nextConverter = getConverter('uint32');
+    const buffer = getBuffer(4 + bytes.length + 4);
+    buffer.dataView.setUint32(0, bytes.length, IS_LITTLE_ENDIAN);
+    new Uint8Array(buffer.buffer, 4, bytes.length).set(bytes);
+    buffer.dataView.setUint32(4 + bytes.length, 0x12345678, IS_LITTLE_ENDIAN);
+    return { converter, nextConverter, buffer };
+  }
 
   function getConverter(name: BasicType) {
     return new ScalarConverter(name);

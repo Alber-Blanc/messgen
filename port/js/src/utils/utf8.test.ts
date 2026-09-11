@@ -1,38 +1,39 @@
 import { describe, expect, it } from 'vitest';
-import { Utf8Codec } from './utf8.js';
+import { Utf8Codec } from './utf8';
 
 describe('Utf8Codec', () => {
-  it('should byte length matches text encoder for ASCII, multibyte, and surrogate pairs', () => {
-    const cases = [
-      'hello',
-      'héllo',
-      '日本語',
-      '𐐷 surrogates 🌍',
-      '',
-      '\ud800',
-      '\udc00',
-      '\ud800x',
-      '\ud800\ud800\udc00',
-    ];
-    const enc = new TextEncoder();
-    for (const s of cases) {
-      expect(Utf8Codec.byteLength(s)).toBe(enc.encode(s).length);
-    }
+  it.each([
+    '',
+    'hello',
+    'héllo',
+    'Привет',
+    '你好',
+    '日本語',
+    '🌍',
+    '𐐷',
+    '𐐷 surrogates 🌍',
+    '\ud800',
+    '\udc00',
+    '\ud800x',
+    '\ud800\ud800\udc00',
+  ])('matches TextEncoder byte length for %j', (value) => {
+    const expected = new TextEncoder().encode(value).length;
+
+    const length = Utf8Codec.byteLength(value);
+
+    expect(length).toBe(expected);
   });
-  describe('#byteLength', () => {
-    it('should return 0 for empty string', () => {
-      expect(Utf8Codec.byteLength('')).toBe(0);
-    });
 
-    it('should calculate byte length for ASCII characters', () => {
-      expect(Utf8Codec.byteLength('hello')).toBe(5);
-    });
+  it.each([
+    { name: 'empty string', value: '', expected: 0 },
+    { name: 'ASCII', value: 'hello', expected: 5 },
+    { name: 'multibyte characters', value: 'héllo', expected: 6 },
+    { name: 'surrogate pair', value: '𐐷', expected: 4 },
+  ])('calculates the byte length of $name', ({ value, expected }) => {
+    const input = value;
 
-    it('should calculate byte length for multibyte characters', () => {
-      expect(Utf8Codec.byteLength('héllo')).toBe(6); // 'é' is 2 bytes
-    });
-    it('should calculate byte length for surrogate pairs', () => {
-      expect(Utf8Codec.byteLength('𐐷')).toBe(4); // '𐐷' is 4 bytes
-    });
+    const length = Utf8Codec.byteLength(input);
+
+    expect(length).toBe(expected);
   });
 });

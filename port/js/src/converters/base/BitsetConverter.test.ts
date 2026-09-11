@@ -69,10 +69,12 @@ describe('BitsetConverter', () => {
     it('should throw on invalid bits set', () => {
       const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
       const buffer = new Buffer(new ArrayBuffer(1));
-
       // Trying to set bit at offset 1 which is not defined
-      const invalidFlags = (1 << 1);
-      expect(() => converter.serialize(invalidFlags, buffer)).toThrowError(/Invalid bits set/);
+      const invalidFlags = 1 << 1;
+
+      const serialize = () => converter.serialize(invalidFlags, buffer);
+
+      expect(serialize).toThrowError(/Invalid bits set/);
     });
 
     it('should accept 0 as valid value', () => {
@@ -127,12 +129,15 @@ describe('BitsetConverter', () => {
     });
 
     it('should handle multiple flags in uint32', () => {
-      const converter = initBitsetConverter([
-        { name: 'BIT_0', offset: 0 },
-        { name: 'BIT_10', offset: 10 },
-        { name: 'BIT_20', offset: 20 },
-        { name: 'BIT_31', offset: 31 },
-      ], 'uint32');
+      const converter = initBitsetConverter(
+        [
+          { name: 'BIT_0', offset: 0 },
+          { name: 'BIT_10', offset: 10 },
+          { name: 'BIT_20', offset: 20 },
+          { name: 'BIT_31', offset: 31 },
+        ],
+        'uint32',
+      );
       const buffer = new Buffer(new ArrayBuffer(4));
       const flags = (1 << 0) | (1 << 10) | (1 << 20) | (1 << 31);
       buffer.dataView.setUint32(0, flags >>> 0, true);
@@ -145,15 +150,19 @@ describe('BitsetConverter', () => {
 
   describe('#edge cases', () => {
     it('should throw on negative offset', () => {
-      expect(() => {
-        initBitsetConverter([{ name: 'NEGATIVE', offset: -1 }]);
-      }).toThrowError(/Invalid bit offset=-1/);
+      const bits = [{ name: 'NEGATIVE', offset: -1 }];
+
+      const createConverter = () => initBitsetConverter(bits);
+
+      expect(createConverter).toThrowError(/Invalid bit offset=-1/);
     });
 
     it('should throw on offset > 31', () => {
-      expect(() => {
-        initBitsetConverter([{ name: 'TOO_HIGH', offset: 32 }]);
-      }).toThrowError(/Invalid bit offset=32/);
+      const bits = [{ name: 'TOO_HIGH', offset: 32 }];
+
+      const createConverter = () => initBitsetConverter(bits);
+
+      expect(createConverter).toThrowError(/Invalid bit offset=32/);
     });
   });
 

@@ -18,9 +18,9 @@ describe('EnumConverter', () => {
     const value = 1;
     const converter = intiEnumConverter([{ name: 'Value1', value }]);
     const buffer = new Buffer(new ArrayBuffer(2));
-
     converter.serialize(value, buffer);
     buffer.offset = 0;
+
     const result = converter.deserialize(buffer);
 
     expect(result).toBe(value);

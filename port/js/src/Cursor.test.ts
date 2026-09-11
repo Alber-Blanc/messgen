@@ -2,116 +2,289 @@ import { Buffer as NodeBuffer } from 'node:buffer';
 import { describe, expect, it } from 'vitest';
 import { Cursor } from './Cursor';
 import { Buffer } from './Buffer';
+import { captureError } from '../tests/utils';
 
 describe('Cursor', () => {
   it('keeps Buffer as an alias of the same constructor', () => {
-    expect(Buffer).toBe(Cursor);
-    expect(new Buffer(new ArrayBuffer(0))).toBeInstanceOf(Cursor);
+    const expected = Cursor;
+
+    const constructor = Buffer;
+
+    expect(constructor).toBe(expected);
   });
 
-  it('reads and writes little-endian values inside a byte subview', () => {
-    const storage = new Uint8Array(64).fill(0xaa);
-    const view = storage.subarray(5, 55);
-    const cursor = new Cursor(view);
-    cursor.writeUint16(0x1234);
-    cursor.writeString('Привет🌍');
-    cursor.writeBytes(new Uint8Array([1, 2, 3]));
-    cursor.writeBigInt64(-123456789n);
-    const end = cursor.offset;
+  it('constructs a Cursor through the Buffer alias', () => {
+    const input = new ArrayBuffer(0);
+
+    const cursor = new Buffer(input);
+
+    expect(cursor).toBeInstanceOf(Cursor);
+  });
+
+  it('writes little-endian values inside a byte subview', () => {
+    const { storage, cursor } = createSubview();
+
+    writeMixedValues(cursor);
 
     expect(Array.from(storage.subarray(5, 7))).toEqual([0x34, 0x12]);
-    expect(storage.subarray(0, 5)).toEqual(new Uint8Array(5).fill(0xaa));
-    expect(storage.subarray(55)).toEqual(new Uint8Array(9).fill(0xaa));
-    expect(cursor.size).toBe(50);
+  });
 
-    const reader = new Cursor(new DataView(storage.buffer, 5, end));
-    expect(reader.readUint16()).toBe(0x1234);
-    expect(reader.readString()).toBe('Привет🌍');
-    expect(reader.readBytes()).toEqual(new Uint8Array([1, 2, 3]));
-    expect(reader.readBigInt64()).toBe(-123456789n);
+  it.each(['before', 'after'] as const)('preserves bytes %s the destination view', (side) => {
+    const { storage, cursor } = createSubview();
+    const outside = side === 'before' ? storage.subarray(0, 5) : storage.subarray(55);
+
+    writeMixedValues(cursor);
+
+    expect(outside).toEqual(new Uint8Array(outside.length).fill(0xaa));
+  });
+
+  it('uses the view size rather than the backing buffer size', () => {
+    const storage = new Uint8Array(64);
+
+    const cursor = new Cursor(storage.subarray(5, 55));
+
+    expect(cursor.size).toBe(50);
+  });
+
+  it('reads mixed values through a DataView with a nonzero byte offset', () => {
+    const { storage, cursor } = createSubview();
+    writeMixedValues(cursor);
+    const reader = new Cursor(new DataView(storage.buffer, 5, cursor.offset));
+
+    const values = [reader.readUint16(), reader.readString(), reader.readBytes(), reader.readBigInt64()];
+
+    expect(values).toEqual([0x1234, 'Привет🌍', new Uint8Array([1, 2, 3]), -123456789n]);
+  });
+
+  it('advances past all mixed values read from a subview', () => {
+    const { storage, cursor } = createSubview();
+    writeMixedValues(cursor);
+    const reader = new Cursor(new DataView(storage.buffer, 5, cursor.offset));
+
+    reader.readUint16();
+    reader.readString();
+    reader.readBytes();
+    reader.readBigInt64();
+
     expect(reader.offset).toBe(reader.size);
   });
 
-  it('supports a sliced Node Buffer without reading its surrounding bytes', () => {
+  it('reads a sliced Node Buffer', () => {
     const storage = NodeBuffer.alloc(32, 0xaa);
     const view = storage.subarray(7, 16);
-    const writer = new Cursor(view);
-    writer.writeString('hello');
+    new Cursor(view).writeString('hello');
 
-    expect(new Cursor(view).readString()).toBe('hello');
-    expect(storage[6]).toBe(0xaa);
-    expect(storage[16]).toBe(0xaa);
+    const value = new Cursor(view).readString();
+
+    expect(value).toBe('hello');
   });
 
-  it.each(['readString', 'readBytes'] as const)('bounds %s by the view, not its backing buffer', (method) => {
-    const storage = new Uint8Array(32);
-    new DataView(storage.buffer).setUint32(5, 8, true);
-    const cursor = new Cursor(storage.subarray(5, 12));
+  it.each([6, 16])('preserves byte %i outside a sliced Node Buffer', (index) => {
+    const storage = NodeBuffer.alloc(32, 0xaa);
+    const cursor = new Cursor(storage.subarray(7, 16));
 
-    expect(() => cursor[method]()).toThrow(RangeError);
-    expect(cursor.offset).toBe(0);
+    cursor.writeString('hello');
+
+    expect(storage[index]).toBe(0xaa);
   });
 
-  it('does not advance after a truncated numeric read or write', () => {
-    const cursor = new Cursor(new ArrayBuffer(3));
-    expect(() => cursor.readUint32()).toThrow(RangeError);
-    expect(() => cursor.writeUint32(42)).toThrow(RangeError);
-    expect(cursor.offset).toBe(0);
+  describe.each(['readString', 'readBytes'] as const)('%s with a truncated view', (method) => {
+    it('rejects a payload extending past the view', () => {
+      const cursor = createTruncatedView();
+
+      const error = captureError(() => cursor[method]());
+
+      expect(error).toBeInstanceOf(RangeError);
+    });
+
+    it('preserves the offset after a failed read', () => {
+      const cursor = createTruncatedView();
+
+      captureError(() => cursor[method]());
+
+      expect(cursor.offset).toBe(0);
+    });
   });
 
-  it('rejects partial string writes', () => {
+  describe.each([
+    ['numeric read', (cursor: Cursor) => cursor.readUint32()],
+    ['numeric write', (cursor: Cursor) => cursor.writeUint32(42)],
+    ['raw buffer read', (cursor: Cursor) => cursor.readBuffer(4)],
+  ] as const)('truncated %s', (_name, operation) => {
+    it('throws a RangeError', () => {
+      const cursor = new Cursor(new Uint8Array(8).subarray(1, 4));
+
+      const error = captureError(() => operation(cursor));
+
+      expect(error).toBeInstanceOf(RangeError);
+    });
+
+    it('preserves the cursor offset', () => {
+      const cursor = new Cursor(new Uint8Array(8).subarray(1, 4));
+
+      captureError(() => operation(cursor));
+
+      expect(cursor.offset).toBe(0);
+    });
+  });
+
+  it('rejects a partial string write', () => {
     const cursor = new Cursor(new ArrayBuffer(6));
-    expect(() => cursor.writeString('abc')).toThrow(RangeError);
+
+    const error = captureError(() => cursor.writeString('abc'));
+
+    expect(error).toBeInstanceOf(RangeError);
+  });
+
+  it('preserves the offset after a partial string write', () => {
+    const cursor = new Cursor(new ArrayBuffer(6));
+
+    captureError(() => cursor.writeString('abc'));
+
     expect(cursor.offset).toBe(0);
   });
 
   it('rejects bytes that do not fit in the destination view', () => {
     const storage = new Uint8Array(32).fill(0xaa);
     const cursor = new Cursor(storage.subarray(3, 8));
-    expect(() => cursor.writeBytes(new Uint8Array([1, 2]))).toThrow(RangeError);
+
+    const error = captureError(() => cursor.writeBytes(new Uint8Array([1, 2])));
+
+    expect(error).toBeInstanceOf(RangeError);
+  });
+
+  it('preserves the offset after a failed byte write', () => {
+    const storage = new Uint8Array(32).fill(0xaa);
+    const cursor = new Cursor(storage.subarray(3, 8));
+
+    captureError(() => cursor.writeBytes(new Uint8Array([1, 2])));
+
     expect(cursor.offset).toBe(0);
+  });
+
+  it('preserves the destination after a failed byte write', () => {
+    const storage = new Uint8Array(32).fill(0xaa);
+    const cursor = new Cursor(storage.subarray(3, 8));
+
+    captureError(() => cursor.writeBytes(new Uint8Array([1, 2])));
+
     expect(storage).toEqual(new Uint8Array(32).fill(0xaa));
   });
 
-  it('returns independent byte and buffer copies', () => {
-    const storage = new Uint8Array([2, 0, 0, 0, 10, 20, 30, 40]);
+  it('returns an independent byte copy', () => {
+    const storage = new Uint8Array([2, 0, 0, 0, 10, 20]);
     const cursor = new Cursor(storage);
-    const bytes = cursor.readBytes();
-    const buffer = new Uint8Array(cursor.readBuffer(2));
+
+    const value = cursor.readBytes();
     storage.fill(0);
 
-    expect(bytes).toEqual(new Uint8Array([10, 20]));
-    expect(buffer).toEqual(new Uint8Array([30, 40]));
+    expect(value).toEqual(new Uint8Array([10, 20]));
+  });
+
+  it('returns an independent raw buffer copy', () => {
+    const storage = new Uint8Array([10, 20, 30, 40]);
+    const cursor = new Cursor(storage.subarray(2));
+
+    const value = cursor.readBuffer(2);
+    storage.fill(0);
+
+    expect(new Uint8Array(value)).toEqual(new Uint8Array([30, 40]));
+  });
+
+  it('advances past byte and raw buffer reads', () => {
+    const cursor = new Cursor(new Uint8Array([2, 0, 0, 0, 10, 20, 30, 40]));
+
+    cursor.readBytes();
+    cursor.readBuffer(2);
+
     expect(cursor.offset).toBe(cursor.size);
   });
 
-  it('rejects truncated raw buffers instead of returning a shorter slice', () => {
-    const cursor = new Cursor(new Uint8Array(8).subarray(1, 4));
-    expect(() => cursor.readBuffer(4)).toThrow(RangeError);
-    expect(cursor.offset).toBe(0);
+  describe.each([-1, 0.5, NaN, Infinity, 5])('invalid offset %s', (offset) => {
+    it('throws a RangeError', () => {
+      const cursor = new Cursor(new ArrayBuffer(4));
+
+      const error = captureError(() => {
+        cursor.offset = offset;
+      });
+
+      expect(error).toBeInstanceOf(RangeError);
+    });
+
+    it('preserves the previous offset', () => {
+      const cursor = new Cursor(new ArrayBuffer(4));
+
+      captureError(() => {
+        cursor.offset = offset;
+      });
+
+      expect(cursor.offset).toBe(0);
+    });
   });
 
-  it.each([-1, 0.5, NaN, Infinity, 5])('rejects invalid offsets: %s', (offset) => {
-    const cursor = new Cursor(new ArrayBuffer(4));
-    expect(() => {
-      cursor.offset = offset;
-    }).toThrow(RangeError);
-    expect(cursor.offset).toBe(0);
-  });
-
-  it.each(['', '\ud800', '\udc00', '\ud800x', '\ud800\ud800\udc00', '你好🌍'])(
-    'writes complete UTF-8 and preserves the following field: %j',
-    (value) => {
+  describe.each(['', '\ud800', '\udc00', '\ud800x', '\ud800\ud800\udc00', '你好🌍'])('UTF-8 %j', (value) => {
+    it('writes the complete string and following field', () => {
       const bytes = new TextEncoder().encode(value);
       const cursor = new Cursor(new ArrayBuffer(4 + bytes.length + 4));
+
       cursor.writeString(value);
       cursor.writeUint32(0x12345678);
-      expect(cursor.offset).toBe(cursor.size);
 
-      cursor.offset = 0;
-      expect(cursor.readString()).toBe(new TextDecoder().decode(bytes));
-      expect(cursor.readUint32()).toBe(0x12345678);
       expect(cursor.offset).toBe(cursor.size);
-    },
-  );
+    });
+
+    it('reads the decoded string', () => {
+      const cursor = createStringWithNextField(value);
+      const expected = new TextDecoder().decode(new TextEncoder().encode(value));
+
+      const result = cursor.readString();
+
+      expect(result).toBe(expected);
+    });
+
+    it('preserves the following field', () => {
+      const cursor = createStringWithNextField(value);
+
+      cursor.readString();
+      const result = cursor.readUint32();
+
+      expect(result).toBe(0x12345678);
+    });
+
+    it('advances past both fields', () => {
+      const cursor = createStringWithNextField(value);
+
+      cursor.readString();
+      cursor.readUint32();
+
+      expect(cursor.offset).toBe(cursor.size);
+    });
+  });
 });
+
+function createSubview() {
+  const storage = new Uint8Array(64).fill(0xaa);
+  return { storage, cursor: new Cursor(storage.subarray(5, 55)) };
+}
+
+function writeMixedValues(cursor: Cursor): void {
+  cursor.writeUint16(0x1234);
+  cursor.writeString('Привет🌍');
+  cursor.writeBytes(new Uint8Array([1, 2, 3]));
+  cursor.writeBigInt64(-123456789n);
+}
+
+function createTruncatedView(): Cursor {
+  const storage = new Uint8Array(32);
+  new DataView(storage.buffer).setUint32(5, 8, true);
+  return new Cursor(storage.subarray(5, 12));
+}
+
+function createStringWithNextField(value: string): Cursor {
+  const bytes = new TextEncoder().encode(value);
+  const cursor = new Cursor(new ArrayBuffer(4 + bytes.length + 4));
+  cursor.writeString(value);
+  cursor.writeUint32(0x12345678);
+  cursor.offset = 0;
+  return cursor;
+}
