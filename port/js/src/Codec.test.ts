@@ -1,7 +1,5 @@
-// eslint-disable-next-line eslint-comments/disable-enable-pair
 /* eslint-disable @typescript-eslint/no-loss-of-precision */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { execSync } from 'child_process';
 import { Codec } from './Codec';
 import { uploadTypes, uploadProtocols } from '../tests/utils';
 import type { Protocol, RawType } from './protocol';
@@ -13,42 +11,52 @@ describe('Codec', () => {
   let codec: Codec;
 
   beforeAll(() => {
-    execSync('npm run gen:json');
-    execSync('npm run gen:fixtures:json');
-    types = uploadTypes('./types.json');
-    fixturesTypes = uploadTypes('./fixtures/generated/types.json');
-    protocols = uploadProtocols('./protocols.json');
+    types = uploadTypes('./fixtures/reference/types.json');
+    fixturesTypes = uploadTypes('./fixtures/reference/fixture-types.json');
+    protocols = uploadProtocols('./fixtures/reference/protocols.json');
     codec = new Codec(types, protocols);
   });
 
   it('should load types', () => {
-    expect(new Codec(types, protocols)).toBeDefined();
+    const definitions = types;
+
+    const instance = new Codec(definitions);
+
+    expect(instance).toBeDefined();
   });
 
   it('should load types and protocols', () => {
-    expect(new Codec(types, protocols)).toBeDefined();
+    const definitions = types;
+    const messages = protocols;
+
+    const instance = new Codec(definitions, messages);
+
+    expect(instance).toBeDefined();
   });
 
   it('should load external types', () => {
-    expect(new Codec(fixturesTypes, [])).toBeDefined();
+    const definitions = fixturesTypes;
+
+    const instance = new Codec(definitions, []);
+
+    expect(instance).toBeDefined();
   });
 
   describe('#serialize', () => {
     it('should serialize and deserialize a message', () => {
       const { buffer } = new Int8Array([
-        -17, -51, -85, -112, 120, 86, 52, 18, -17, -51, -85, -112, 120, 86, 52, 18,
-        18, -5, 89, -116, 66, -54, -64, -13, 63, 120, 86, 52, 18, 120, 86, 52, 18,
-        82, 6, -98, 63, 52, 18, 18, -18, 1, 1, 5,
+        -17, -51, -85, -112, 120, 86, 52, 18, -17, -51, -85, -112, 120, 86, 52, 18, 18, -5, 89, -116, 66, -54, -64, -13,
+        63, 120, 86, 52, 18, 120, 86, 52, 18, 82, 6, -98, 63, 52, 18, 18, -18, 1, 1, 5,
       ]);
       const bigint = BigInt('0x1234567890abcdef');
       const rawData = {
         f0: bigint,
         f1: bigint,
         f1_pad: 0x12,
-        f2: 1.2345678901234567890,
+        f2: 1.234567890123456789,
         f3: 0x12345678,
         f4: 0x12345678,
-        f5: 1.2345678901234567890,
+        f5: 1.234567890123456789,
         f6: 0x1234,
         f7: 0x12,
         f8: -0x12,
@@ -59,10 +67,10 @@ describe('Codec', () => {
 
       const message = codec.serialize(1, 0, rawData);
 
-      expect(message.buffer).toEqual(buffer);
+      expect(new Uint8Array(message.buffer)).toEqual(new Uint8Array(buffer));
     });
 
-    it('should serialize chinese characters', () => {
+    it('should serialize Chinese characters', () => {
       const rawData = {
         f0: 0n,
         f1_vec: new BigInt64Array([]),
@@ -71,7 +79,32 @@ describe('Codec', () => {
 
       const message = codec.serialize(1, 2, rawData);
 
-      expect(message.buffer).toEqual(new Int8Array([-17, -51, -85, -112, 120, 86, 52, 18, 1]).buffer);
+      expect(new Uint8Array(message.buffer)).toEqual(
+        new Uint8Array([
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0, // f0: int64
+          0,
+          0,
+          0,
+          0, // f1_vec: empty vector
+          6,
+          0,
+          0,
+          0,
+          0xe4,
+          0xbd,
+          0xa0,
+          0xe5,
+          0xa5,
+          0xbd, // str: UTF-8 bytes
+        ]),
+      );
     });
   });
 
@@ -82,10 +115,10 @@ describe('Codec', () => {
         f0: bigint,
         f1: bigint,
         f1_pad: 0x12,
-        f2: 1.2345678901234567890,
+        f2: 1.234567890123456789,
         f3: 0x12345678,
         f4: 0x12345678,
-        f5: 1.2345678901234567890,
+        f5: 1.234567890123456789,
         f6: 0x1234,
         f7: 0x12,
         f8: -0x12,
@@ -93,23 +126,25 @@ describe('Codec', () => {
         e0: 0,
         b0: 0,
       };
-
       const message = codec.serialize(1, 0, rawData);
 
-      expect(codec.deserialize(1, 0, message.buffer)).toEqual({
+      const result = codec.deserialize(1, 0, message.buffer);
+
+      expect(result).toEqual({
         ...rawData,
-        f5: expect.closeTo(rawData.f5, 5),
+        f5: Math.fround(rawData.f5),
       });
     });
 
-    it('should deserialize chinese characters', () => {
+    it('should deserialize Chinese characters', () => {
       const rawData = {
         f0: 0n,
         f1_vec: new BigInt64Array([]),
         str: '你好',
       };
+      const message = codec.serialize(1, 2, rawData);
 
-      const data = codec.deserialize(1, 2, codec.serialize(1, 2, rawData).buffer);
+      const data = codec.deserialize(1, 2, message.buffer);
 
       expect(data).toEqual(rawData);
     });
@@ -122,10 +157,11 @@ describe('Codec', () => {
         f1_vec: new BigInt64Array([-0n, 5n, 1n]),
         str: 'Hello messgen!',
       };
-
       const message = codec.serialize(1, 2, rawData);
 
-      expect(codec.deserializeType('mynamespace/types/var_size_struct', message.buffer)).toEqual(rawData);
+      const result = codec.deserializeType('mynamespace/types/var_size_struct', message.buffer);
+
+      expect(result).toEqual(rawData);
     });
   });
 
@@ -133,30 +169,43 @@ describe('Codec', () => {
     it('should get message info by id', () => {
       const messageInfo = codec.messageInfo(1, 1);
 
-      expect(messageInfo.messageHash()).toBe(13272587043423170596n);
+      const hash = messageInfo.messageHash();
+
+      expect(hash).toBe(13272587043423170596n);
     });
 
     it('should get the name of the protocol the message belongs to', () => {
       const messageInfo = codec.messageInfo(1, 1);
 
-      expect(messageInfo.protoName()).toBe('mynamespace/proto/test_proto');
+      const name = messageInfo.protoName();
+
+      expect(name).toBe('mynamespace/proto/test_proto');
     });
 
     it('should get the name of the message', () => {
       const messageInfo = codec.messageInfo(1, 1);
 
-      expect(messageInfo.messageName()).toBe('complex_struct');
+      const name = messageInfo.messageName();
+
+      expect(name).toBe('complex_struct');
     });
   });
 
   describe('#getTypeConverter', () => {
     it('should get type converter by type name', () => {
-      const converter = codec.getTypeConverter('mynamespace/types/var_size_struct');
-      expect(converter.name).toBe('mynamespace/types/var_size_struct');
+      const typeName = 'mynamespace/types/var_size_struct';
+
+      const converter = codec.getTypeConverter(typeName);
+
+      expect(converter.name).toBe(typeName);
     });
 
     it('should throw error if type converter not found', () => {
-      expect(() => codec.getTypeConverter('non/existent/type')).toThrowError();
+      const typeName = 'non/existent/type';
+
+      const getConverter = () => codec.getTypeConverter(typeName);
+
+      expect(getConverter).toThrowError();
     });
   });
 });

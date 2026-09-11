@@ -23,6 +23,11 @@ export class Protocols {
 
   private types = new Map<IName, TypeDefinition>();
   private rawTypes = new Map<IName, RawType>();
+  private _version = 0;
+
+  get version(): number {
+    return this._version;
+  }
 
   load(types: RawType[]): void {
     types.forEach((type) => {
@@ -55,6 +60,7 @@ export class Protocols {
         });
       }
     });
+    this._version++;
   }
 
   getType(typeName: IType): TypeDefinition {
@@ -102,10 +108,7 @@ export class Protocols {
 
   private parseArray(typeName: string): [string, number | undefined] {
     const parts = typeName.slice(0, -1).split('[');
-    return [
-      parts.slice(0, -1).join('['),
-      parts[parts.length - 1] ? parseInt(parts[parts.length - 1], 10) : undefined,
-    ];
+    return [parts.slice(0, -1).join('['), parts[parts.length - 1] ? parseInt(parts[parts.length - 1], 10) : undefined];
   }
 
   private parseMap(typeName: string): [string, string] {

@@ -1,57 +1,51 @@
-import type { IValue, MapTypeDefinition } from '../../types';
+import type { MapTypeDefinition } from '../../types';
 import { Converter } from '../Converter';
-import type { Buffer } from '../../Buffer';
+import type { Cursor } from '../../Cursor';
 import type { GetType } from '../ConverterFactory';
-import { SIZE_TYPE } from '../../config';
 
-export class MapConverter extends Converter {
+type MapValue = Map<unknown, unknown>;
+type MapInput = MapValue | Record<string, unknown>;
+
+export class MapConverter extends Converter<MapValue, MapInput> {
   protected keyConverter: Converter;
   protected valueConverter: Converter;
-  protected dynamicSizeConverter: Converter;
 
   constructor(typeDef: MapTypeDefinition, getType: GetType) {
-    super(typeDef.typeClass);
+    super(typeDef.type);
     this.keyConverter = getType(typeDef.keyType);
     this.valueConverter = getType(typeDef.valueType);
-    this.dynamicSizeConverter = getType(SIZE_TYPE);
   }
 
-  serialize(value: Map<IValue, IValue> | Record<string, IValue>, buffer: Buffer): void {
-    const entries = value instanceof Map ? Array.from(value.entries()) : Object.entries(value);
-    this.dynamicSizeConverter.serialize(entries.length, buffer);
-
+  serialize(value: MapInput, cursor: Cursor): void {
+    const entries = value instanceof Map ? value : Object.entries(value);
+    cursor.writeUint32(entries instanceof Map ? entries.size : entries.length);
     for (const [key, val] of entries) {
-      this.keyConverter.serialize(key, buffer);
-      this.valueConverter.serialize(val, buffer);
+      this.keyConverter.serialize(key, cursor);
+      this.valueConverter.serialize(val, cursor);
     }
   }
 
-  deserialize(buffer: Buffer): Map<IValue, IValue> {
-    const size = this.dynamicSizeConverter.deserialize(buffer);
-    const result = new Map<IValue, IValue>();
-
+  deserialize(cursor: Cursor): MapValue {
+    const size = cursor.readUint32();
+    const result: MapValue = new Map();
     for (let i = 0; i < size; i++) {
-      const key = this.keyConverter.deserialize(buffer);
-      const value = this.valueConverter.deserialize(buffer);
+      const key = this.keyConverter.deserialize(cursor);
+      const value = this.valueConverter.deserialize(cursor);
       result.set(key, value);
     }
-
     return result;
   }
 
-  size(value: Map<IValue, IValue> | Record<string, IValue>): number {
-    const entries = value instanceof Map ? Array.from(value.entries()) : Object.entries(value);
-    let totalSize = this.dynamicSizeConverter.size(entries.length);
-
+  size(value: MapInput): number {
+    let size = 4;
+    const entries = value instanceof Map ? value : Object.entries(value);
     for (const [key, val] of entries) {
-      totalSize += this.keyConverter.size(key);
-      totalSize += this.valueConverter.size(val);
+      size += this.keyConverter.size(key) + this.valueConverter.size(val);
     }
-
-    return totalSize;
+    return size;
   }
 
-  default(): Map<IValue, IValue> {
+  createDefault(): MapValue {
     return new Map();
   }
 }

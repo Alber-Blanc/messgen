@@ -1,0 +1,23 @@
+[
+  {
+    "type": "address_list",
+    "type_class": "struct",
+    "comment": null,
+    "fields": [
+      {
+        "name": "addr_list",
+        "type": "asian_string",
+        "comment": null
+      }
+    ],
+    "size": null,
+    "hash": "16963746092813782288"
+  },
+  {
+    "type": "asian_string",
+    "type_class": "external",
+    "comment": "",
+    "size": null,
+    "hash": "9854398407663398574"
+  }
+]

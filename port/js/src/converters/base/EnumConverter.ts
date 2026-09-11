@@ -1,42 +1,38 @@
 import { Converter } from '../Converter';
-import type { IValue, EnumTypeDefinition } from '../../types';
-import type { Buffer } from '../../Buffer';
-import type { GetType } from './../ConverterFactory';
+import type { EnumTypeDefinition } from '../../types';
+import type { Cursor } from '../../Cursor';
+import type { GetType } from '../ConverterFactory';
 
-export class EnumConverter extends Converter {
-  private converter: Converter;
-  private enumsByName: Record<string, number>;
-  private enumsByValue: string[];
+type EnumValue = number | bigint;
+type EnumInput = EnumValue | string;
+
+export class EnumConverter extends Converter<EnumValue, EnumInput> {
+  private converter: Converter<EnumValue, EnumInput>;
+  private enumsByName: Map<string, number>;
+  private defaultValue: EnumValue;
 
   constructor(typeDef: EnumTypeDefinition, getType: GetType) {
     super(typeDef.typeName);
-
-    this.converter = getType(typeDef.type);
-
-    this.enumsByName = typeDef.values.reduce((acc, value) => {
-      acc[value.name] = value.value;
-      return acc;
-    }, {} as Record<string, number>);
-
-    this.enumsByValue = typeDef.values.reduce((acc, value) => {
-      acc[value.value] = value.name;
-      return acc;
-    }, [] as string[]);
+    this.converter = getType(typeDef.type) as Converter<EnumValue, EnumInput>;
+    this.enumsByName = new Map(typeDef.values.map(({ name, value }) => [name, value]));
+    const firstValue = typeDef.values[0]?.value ?? 0;
+    this.defaultValue = typeof this.converter.createDefault() === 'bigint' ? BigInt(firstValue) : firstValue;
   }
 
-  serialize(value: IValue, buffer: Buffer) {
-    this.converter.serialize(this.enumsByName[value] ?? value, buffer);
+  serialize(value: EnumInput, cursor: Cursor): void {
+    const raw = typeof value === 'string' ? this.enumsByName.get(value) ?? value : value;
+    this.converter.serialize(raw, cursor);
   }
 
-  deserialize(buffer: Buffer) {
-    return this.converter.deserialize(buffer);
+  deserialize(cursor: Cursor): EnumValue {
+    return this.converter.deserialize(cursor);
   }
 
-  size(value: IValue) {
+  size(value: EnumInput): number {
     return this.converter.size(value);
   }
 
-  default() {
-    return this.enumsByValue[0];
+  createDefault(): EnumValue {
+    return this.defaultValue;
   }
 }

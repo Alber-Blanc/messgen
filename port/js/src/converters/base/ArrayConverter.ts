@@ -1,59 +1,53 @@
-import type { Buffer } from '../../Buffer';
-import { SIZE_TYPE } from '../../config';
-import type { ArrayTypeDefinition, IValue } from '../../types';
+import type { Cursor } from '../../Cursor';
+import type { ArrayTypeDefinition } from '../../types';
 import { Converter } from '../Converter';
 import type { GetType } from '../ConverterFactory';
 
-export class ArrayConverter extends Converter {
+export class ArrayConverter extends Converter<unknown[], ArrayLike<unknown>> {
   private converter: Converter;
-  private sizeConverter: Converter;
   private arraySize?: number;
 
   constructor(typeDef: ArrayTypeDefinition, getType: GetType) {
-    super(typeDef.type + typeDef.elementType);
+    super(typeDef.type);
     this.converter = getType(typeDef.elementType);
-    this.sizeConverter = getType(SIZE_TYPE);
     this.arraySize = typeDef.arraySize;
   }
 
-  serialize(value: Array<IValue>, buffer: Buffer): void {
-    const { length } = value;
-    if (this.arraySize !== undefined && length !== this.arraySize) {
-      throw new Error(`Array length mismatch: ${length} !== ${this.arraySize}`);
-    }
-
+  serialize(value: ArrayLike<unknown>, cursor: Cursor): void {
+    this.checkLength(value.length);
     if (this.arraySize === undefined) {
-      this.sizeConverter.serialize(length, buffer);
+      cursor.writeUint32(value.length);
     }
-
-    for (let i = 0; i < length; i++) {
-      this.converter.serialize(value[i], buffer);
+    for (let i = 0; i < value.length; i++) {
+      this.converter.serialize(value[i], cursor);
     }
   }
 
-  deserialize(buffer: Buffer): Array<IValue> {
-    const length = this.arraySize ?? this.sizeConverter.deserialize(buffer);
+  deserialize(cursor: Cursor): unknown[] {
+    const length = this.arraySize ?? cursor.readUint32();
     const result = [];
-
     for (let i = 0; i < length; i++) {
-      result[i] = this.converter.deserialize(buffer);
+      result.push(this.converter.deserialize(cursor));
     }
-
     return result;
   }
 
-  size(value: Array<IValue>): number {
-    const arraySize = value.length;
-    if (this.arraySize !== undefined && arraySize !== this.arraySize) {
-      throw new Error(`Array length mismatch: ${arraySize} !== ${this.arraySize}`);
+  size(value: ArrayLike<unknown>): number {
+    this.checkLength(value.length);
+    let size = this.arraySize === undefined ? 4 : 0;
+    for (let i = 0; i < value.length; i++) {
+      size += this.converter.size(value[i]);
     }
-
-    const size = this.arraySize === undefined ? this.sizeConverter.size(arraySize) : 0;
-
-    return size + value.reduce((acc, item) => acc + this.converter.size(item), 0);
+    return size;
   }
 
-  default(): Array<IValue> {
-    return [];
+  createDefault(): unknown[] {
+    return Array.from({ length: this.arraySize ?? 0 }, () => this.converter.createDefault());
+  }
+
+  private checkLength(length: number): void {
+    if (this.arraySize !== undefined && length !== this.arraySize) {
+      throw new Error(`Array length mismatch: ${length} !== ${this.arraySize}`);
+    }
   }
 }

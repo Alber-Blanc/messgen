@@ -1,40 +1,27 @@
 {
   "compilerOptions": {
     "target": "es2022",
-    "outDir": "dist",
-    "allowJs": false,
-    "noEmit": false,
-    "allowSyntheticDefaultImports": true,
-    "importHelpers": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noImplicitReturns": false,
-    "strict": true,
-    "noFallthroughCasesInSwitch": true,
-    "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true,
-    "experimentalDecorators": true,
     "module": "commonjs",
     "moduleResolution": "node",
+    "rootDir": ".",
+    "strict": true,
+    "isolatedModules": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "declaration": false,
+    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "typeRoots": [
-      "src/types",
-      "node_modules/@types"
-    ],
-    "lib": [
-      "es2022",
-      "ES2021.String"
-    ]
+    "noEmit": true,
+    "lib": ["es2022"],
+    "types": ["node"]
   },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.mts"],
   "exclude": [
-    "node_modules"
-  ],
-  "include": [
-    "src/**/*.ts",
-    "benchmarks/perf-process/index.ts",
-    "tests/**/*.ts",
+    "node_modules",
+    "dist",
+    "coverage",
+    "tests/fixtures/generated",
+    "tests/mynamespace",
+    "tests/types.ts",
+    "tests/protocols.ts"
   ]
 }

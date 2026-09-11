@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+tests/fixtures/reference/
+tests/fixtures/generated/
+tests/mynamespace/
+tests/types.*
+tests/protocols.*
+benchmarks/deserialize-variant/*.js
+docs/*.svg
+package-lock.json
