@@ -7,7 +7,6 @@
     "build": "bunchee",
     "build:watch": "bunchee --watch",
     "test": "vitest run",
-    "benchmark": "vitest bench --run",
     "coverage": "vitest run --coverage",
     "check:lint": "eslint --ext .ts,.mts src tests benchmarks vitest.config.mts",
     "check:types": "tsc --noEmit",
