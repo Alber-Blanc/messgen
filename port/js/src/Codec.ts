@@ -1,7 +1,7 @@
 import { type RawType, type Protocol, Protocols, MessageInfo } from './protocol';
 import { type Converter, ConverterFactory } from './converters';
 import type { RawMessage } from './protocol';
-import type { BinaryInput, DeserializeOptions } from './Cursor';
+import type { BinaryInput } from './Cursor';
 import { Buffer } from './Buffer';
 
 interface RegisteredMessage {
@@ -51,8 +51,8 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
     return this.encode(this.getMessage(Number(protocolId), messageId).converter, data);
   }
 
-  deserialize<T = unknown>(protocolId: number, messageId: number, input: BinaryInput, options?: DeserializeOptions): T {
-    return this.getMessage(protocolId, messageId).converter.deserialize(new Buffer(input, options)) as T;
+  deserialize<T = unknown>(protocolId: number, messageId: number, input: BinaryInput): T {
+    return this.getMessage(protocolId, messageId).converter.deserialize(new Buffer(input)) as T;
   }
 
   serializeType<Name extends keyof Types & string>(typeName: Name, data: Types[Name]): Buffer {
@@ -62,9 +62,8 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
   deserializeType<Name extends keyof Types & string = keyof Types & string>(
     typeName: Name,
     input: BinaryInput,
-    options?: DeserializeOptions,
   ): Types[Name] {
-    return this.getTypeConverter(typeName).deserialize(new Buffer(input, options));
+    return this.getTypeConverter(typeName).deserialize(new Buffer(input));
   }
 
   messageInfo(protoId: number, messageId: number): MessageInfo {

@@ -661,8 +661,8 @@ describe('ScalarConverter', () => {
   });
 
   it('should deserialize multiple types from the same buffer', () => {
-    const value1 = 3; // int8
-    const value2 = 1000; // int16
+    const value1 = 3;
+    const value2 = 1000;
     const converter1 = getConverter('int8');
     const converter2 = getConverter('int16');
     const buffer = getBuffer(converter1.size(value1) + converter2.size(value2));

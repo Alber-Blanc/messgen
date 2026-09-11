@@ -8,7 +8,7 @@ describe('BitsetConverter', () => {
     it('should return default value', () => {
       const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
 
-      const result = converter.default();
+      const result = converter.createDefault();
 
       expect(result).toBe(0);
     });
@@ -30,7 +30,7 @@ describe('BitsetConverter', () => {
         { name: 'ERROR', offset: 2 },
       ]);
       const buffer = new Buffer(new ArrayBuffer(1));
-      const flags = 1 | 4; // 0b101
+      const flags = 1 | 4;
 
       converter.serialize(flags, buffer);
       buffer.offset = 0;
@@ -46,7 +46,6 @@ describe('BitsetConverter', () => {
       ]);
       const buffer = new Buffer(new ArrayBuffer(1));
 
-      // Set only flag at offset 0
       converter.serialize(1, buffer);
       buffer.offset = 0;
 
@@ -69,7 +68,6 @@ describe('BitsetConverter', () => {
     it('should throw on invalid bits set', () => {
       const converter = initBitsetConverter([{ name: 'ONE', offset: 0 }]);
       const buffer = new Buffer(new ArrayBuffer(1));
-      // Trying to set bit at offset 1 which is not defined
       const invalidFlags = 1 << 1;
 
       const serialize = () => converter.serialize(invalidFlags, buffer);
@@ -109,12 +107,10 @@ describe('BitsetConverter', () => {
         { name: 'TWO', offset: 1 },
       ]);
       const buffer = new Buffer(new ArrayBuffer(1));
-      // Set bits 0, 1, and 2, but only 0 and 1 are defined
       buffer.dataView.setUint8(0, 0b111);
 
       const result = converter.deserialize(buffer);
 
-      // Should only return defined bits (0 and 1)
       expect(result).toBe(0b11);
     });
 

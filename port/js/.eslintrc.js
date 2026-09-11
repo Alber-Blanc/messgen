@@ -18,4 +18,14 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     '@typescript-eslint/consistent-type-imports': 'error',
   },
+  overrides: [
+    {
+      files: ['src/types.ts'],
+      rules: { '@typescript-eslint/no-explicit-any': 'off' },
+    },
+    {
+      files: ['src/Codec.test.ts', 'tests/Integration.test.ts'],
+      rules: { '@typescript-eslint/no-loss-of-precision': 'off' },
+    },
+  ],
 };

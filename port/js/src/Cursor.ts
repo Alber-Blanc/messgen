@@ -3,17 +3,11 @@ import { Utf8Codec } from './utils/utf8';
 
 export type BinaryInput = ArrayBufferLike | ArrayBufferView;
 
-export interface DeserializeOptions {
-  copyBytes?: boolean;
-}
-
 export class Cursor {
   dataView: DataView;
-  private copyBytes: boolean;
   private _offset = 0;
 
-  constructor(input: BinaryInput, options?: DeserializeOptions) {
-    this.copyBytes = options?.copyBytes ?? true;
+  constructor(input: BinaryInput) {
     this.dataView = ArrayBuffer.isView(input)
       ? new DataView(input.buffer, input.byteOffset, input.byteLength)
       : new DataView(input);
@@ -167,13 +161,11 @@ export class Cursor {
     this._offset = start + written;
   }
 
-  /** Returns a copy by default, or a view into the input when copyBytes is false. */
   readBytes(): Uint8Array {
     const length = this.dataView.getUint32(this._offset, IS_LITTLE_ENDIAN);
     this.ensureAvailable(4 + length);
     const start = this._offset + 4;
-    const bytes = new Uint8Array(this.buffer, this.dataView.byteOffset + start, length);
-    const value = this.copyBytes ? bytes.slice() : bytes;
+    const value = new Uint8Array(this.buffer, this.dataView.byteOffset + start, length);
     this._offset = start + length;
     return value;
   }
@@ -186,7 +178,6 @@ export class Cursor {
     this._offset = start + value.byteLength;
   }
 
-  /** Returns an independent copy, including when the cursor wraps a subview. */
   readBuffer(byteLength: number): ArrayBufferLike {
     this.ensureAvailable(byteLength);
     const start = this.dataView.byteOffset + this._offset;

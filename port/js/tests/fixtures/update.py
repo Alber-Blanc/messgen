@@ -1,4 +1,3 @@
-"""Regenerate the committed JS test references using the Python implementation."""
 import os
 from pathlib import Path
 import shutil
@@ -24,7 +23,6 @@ with TemporaryDirectory(prefix="messgen-js-fixtures-") as directory:
     temporary = Path(directory)
     binary = temporary / "tests/data/serialized/bin"
     binary.mkdir(parents=True)
-    # The existing Python fixture generator uses paths relative to its cwd.
     shutil.copytree(root / "tests/msg", temporary / "tests/msg")
     run(root / "tests/python/generate_serialized_data.py", cwd=temporary)
 

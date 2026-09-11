@@ -35,14 +35,6 @@ describe('converter defaults', () => {
       expect(value).toEqual(expected);
     });
 
-    it('should support the legacy default method', () => {
-      const converter = new ConverterFactory().toConverter(type);
-
-      const value = converter.default();
-
-      expect(value).toEqual(expected);
-    });
-
     it('should serialize a default into an exact-size buffer', () => {
       const converter = new ConverterFactory().toConverter(type);
       const value = converter.createDefault();
@@ -78,7 +70,7 @@ describe('converter defaults', () => {
     const converter = createParentConverter();
     const first = converter.createDefault();
 
-    const second = converter.default();
+    const second = converter.createDefault();
 
     expect(second.bytes).not.toBe(first.bytes);
   });
@@ -94,7 +86,7 @@ describe('converter defaults', () => {
   it('should keep nested defaults independent between calls', () => {
     const converter = createParentConverter();
     const first = converter.createDefault();
-    const second = converter.default();
+    const second = converter.createDefault();
 
     first.name = 'changed';
     first.children[0].labels.push('changed');

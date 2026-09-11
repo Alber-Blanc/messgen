@@ -19,7 +19,6 @@ const TYPED_ARRAY_MAP = new Map<IType, TypedArrayConstructor>([
 export class TypedArrayConverter extends Converter<TypedArray> {
   private converter: Converter;
   private arraySize?: number;
-  // A common signature avoids incompatible overloads across numeric and bigint arrays.
   private TypedArrayConstructor: {
     BYTES_PER_ELEMENT: number;
     new (length: number): TypedArray;

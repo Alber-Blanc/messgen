@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-loss-of-precision */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Codec } from '../src';
 import { uploadBinary, uploadProtocols, uploadTypes } from './utils';

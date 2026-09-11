@@ -171,14 +171,13 @@ describe('Cursor', () => {
     expect(storage).toEqual(new Uint8Array(32).fill(0xaa));
   });
 
-  it('should return an independent byte copy', () => {
+  it('should return a byte view into an ArrayBuffer', () => {
     const storage = new Uint8Array([2, 0, 0, 0, 10, 20]);
-    const cursor = new Cursor(storage);
+    const cursor = new Cursor(storage.buffer);
 
     const value = cursor.readBytes();
-    storage.fill(0);
 
-    expect(value).toEqual(new Uint8Array([10, 20]));
+    expect(value.buffer).toBe(storage.buffer);
   });
 
   describe('bytes without copying', () => {
@@ -236,7 +235,7 @@ describe('Cursor', () => {
     it.each([3, 8])('should reject a truncated field in a %i-byte view', (length) => {
       const storage = new Uint8Array(32);
       new DataView(storage.buffer).setUint32(5, 8, true);
-      const cursor = new Cursor(storage.subarray(5, 5 + length), { copyBytes: false });
+      const cursor = new Cursor(storage.subarray(5, 5 + length));
 
       const read = () => cursor.readBytes();
 
@@ -246,7 +245,7 @@ describe('Cursor', () => {
     it('should preserve the offset after a truncated read', () => {
       const storage = new Uint8Array(32);
       new DataView(storage.buffer).setUint32(5, 8, true);
-      const cursor = new Cursor(storage.subarray(5, 12), { copyBytes: false });
+      const cursor = new Cursor(storage.subarray(5, 12));
 
       captureError(() => cursor.readBytes());
 
@@ -254,7 +253,7 @@ describe('Cursor', () => {
     });
 
     it('should support an empty byte field', () => {
-      const cursor = new Cursor(new Uint8Array([0, 0, 0, 0, 42]), { copyBytes: false });
+      const cursor = new Cursor(new Uint8Array([0, 0, 0, 0, 42]));
 
       const value = cursor.readBytes();
 
@@ -262,7 +261,7 @@ describe('Cursor', () => {
     });
 
     it('should advance past an empty byte field', () => {
-      const cursor = new Cursor(new Uint8Array([0, 0, 0, 0, 42]), { copyBytes: false });
+      const cursor = new Cursor(new Uint8Array([0, 0, 0, 0, 42]));
 
       cursor.readBytes();
       const next = cursor.readUint8();
@@ -273,7 +272,7 @@ describe('Cursor', () => {
     it('should support shared input buffers', () => {
       const storage = new Uint8Array(new SharedArrayBuffer(8));
       storage.set([2, 0, 0, 0, 10, 20], 1);
-      const cursor = new Cursor(storage.subarray(1, 7), { copyBytes: false });
+      const cursor = new Cursor(storage.subarray(1, 7));
 
       const value = cursor.readBytes();
 
@@ -282,7 +281,7 @@ describe('Cursor', () => {
 
     it('should keep raw buffer reads independent', () => {
       const storage = new Uint8Array([10, 20]);
-      const cursor = new Cursor(storage, { copyBytes: false });
+      const cursor = new Cursor(storage);
 
       const value = cursor.readBuffer(2);
       storage.fill(0);
@@ -380,7 +379,7 @@ function createSubview() {
 function createByteSubview() {
   const storage = new Uint8Array(32).fill(0xaa);
   storage.set([0, 0, 3, 0, 0, 0, 10, 20, 30, 0x78, 0x56, 0x34, 0x12], 5);
-  const cursor = new Cursor(new DataView(storage.buffer, 5, 13), { copyBytes: false });
+  const cursor = new Cursor(new DataView(storage.buffer, 5, 13));
   cursor.offset = 2;
   return { storage, cursor };
 }

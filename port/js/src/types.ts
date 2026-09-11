@@ -1,6 +1,4 @@
 export type IName = string;
-/** @deprecated Use the input and output types of Converter instead. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type IValue = any;
 export type ProtocolId = number;
 export type MessageId = number;

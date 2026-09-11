@@ -307,7 +307,7 @@ describe('ConverterFactory', () => {
 
   it('should throw an error when the array length is out of bounds', () => {
     const converter = getConverter('int32[3]');
-    const value = [1, 2, 3, 4]; // Array length is out of bounds
+    const value = [1, 2, 3, 4];
 
     const serialize = () => converter.serialize(value, new Buffer(new ArrayBuffer(converter.size(value))));
 
