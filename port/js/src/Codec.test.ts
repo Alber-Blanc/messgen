@@ -70,7 +70,7 @@ describe('Codec', () => {
       expect(new Uint8Array(message.buffer)).toEqual(new Uint8Array(buffer));
     });
 
-    it('should serialize chinese characters', () => {
+    it('should serialize Chinese characters', () => {
       const rawData = {
         f0: 0n,
         f1_vec: new BigInt64Array([]),
@@ -136,7 +136,7 @@ describe('Codec', () => {
       });
     });
 
-    it('should deserialize chinese characters', () => {
+    it('should deserialize Chinese characters', () => {
       const rawData = {
         f0: 0n,
         f1_vec: new BigInt64Array([]),

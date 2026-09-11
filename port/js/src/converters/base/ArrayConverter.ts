@@ -3,9 +3,9 @@ import type { ArrayTypeDefinition } from '../../types';
 import { Converter } from '../Converter';
 import type { GetType } from '../ConverterFactory';
 
-export class ArrayConverter extends Converter<unknown[], readonly unknown[]> {
-  private readonly converter: Converter;
-  private readonly arraySize?: number;
+export class ArrayConverter extends Converter<unknown[], ArrayLike<unknown>> {
+  private converter: Converter;
+  private arraySize?: number;
 
   constructor(typeDef: ArrayTypeDefinition, getType: GetType) {
     super(typeDef.type);
@@ -13,13 +13,13 @@ export class ArrayConverter extends Converter<unknown[], readonly unknown[]> {
     this.arraySize = typeDef.arraySize;
   }
 
-  serialize(value: readonly unknown[], cursor: Cursor): void {
+  serialize(value: ArrayLike<unknown>, cursor: Cursor): void {
     this.checkLength(value.length);
     if (this.arraySize === undefined) {
       cursor.writeUint32(value.length);
     }
-    for (const item of value) {
-      this.converter.serialize(item, cursor);
+    for (let i = 0; i < value.length; i++) {
+      this.converter.serialize(value[i], cursor);
     }
   }
 
@@ -32,11 +32,11 @@ export class ArrayConverter extends Converter<unknown[], readonly unknown[]> {
     return result;
   }
 
-  size(value: readonly unknown[]): number {
+  size(value: ArrayLike<unknown>): number {
     this.checkLength(value.length);
     let size = this.arraySize === undefined ? 4 : 0;
-    for (const item of value) {
-      size += this.converter.size(item);
+    for (let i = 0; i < value.length; i++) {
+      size += this.converter.size(value[i]);
     }
     return size;
   }

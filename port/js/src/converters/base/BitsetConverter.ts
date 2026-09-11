@@ -4,8 +4,8 @@ import type { Cursor } from '../../Cursor';
 import type { GetType } from './../ConverterFactory';
 
 export class BitsetConverter extends Converter<number> {
-  private readonly converter: Converter<number>;
-  private readonly mask: number;
+  private converter: Converter<number>;
+  private mask: number;
 
   constructor(typeDef: BitsetTypeDefinition, getType: GetType) {
     super(typeDef.typeName);

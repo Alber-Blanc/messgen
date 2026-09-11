@@ -28,7 +28,7 @@ describe('ScalarConverter', () => {
       expect(result).toBe(value);
     });
 
-    it('should serialize negative in8', () => {
+    it('should serialize negative int8', () => {
       const converter = getConverter('int8');
       const buffer = getBuffer(1);
       const value = -3;
@@ -353,7 +353,7 @@ describe('ScalarConverter', () => {
       expect(new Uint8Array(buffer.buffer)).toEqual(new Uint8Array([4, 0, 0, 0, 116, 101, 115, 116]));
     });
 
-    it('should serilize bytes', () => {
+    it('should serialize bytes', () => {
       const value = new Uint8Array([1, 2, 3, 4]);
       const converter = getConverter('bytes');
       const buffer = getBuffer(converter.size(value));
@@ -384,7 +384,7 @@ describe('ScalarConverter', () => {
 
   describe('::string offsets', () => {
     describe.each(['', 'parameter/value.'.repeat(14), 'Привет 世界 🌍'.repeat(20)])('string %j', (value) => {
-      it('advances the write offset by the encoded length', () => {
+      it('should advance the write offset by the encoded length', () => {
         const { converter, buffer, encoded } = createStringFixture(value);
 
         converter.serialize(value, buffer);
@@ -392,7 +392,7 @@ describe('ScalarConverter', () => {
         expect(buffer.offset).toBe(3 + 4 + encoded.length);
       });
 
-      it('writes the UTF-8 payload at the current offset', () => {
+      it('should write the UTF-8 payload at the current offset', () => {
         const { converter, buffer, encoded } = createStringFixture(value);
 
         converter.serialize(value, buffer);
@@ -400,7 +400,7 @@ describe('ScalarConverter', () => {
         expect(new Uint8Array(buffer.buffer, 7, encoded.length)).toEqual(encoded);
       });
 
-      it('decodes the string at the current offset', () => {
+      it('should decode the string at the current offset', () => {
         const { converter, buffer } = createSerializedString(value);
 
         const result = converter.deserialize(buffer);
@@ -408,7 +408,7 @@ describe('ScalarConverter', () => {
         expect(result).toBe(value);
       });
 
-      it('advances the read offset by the encoded length', () => {
+      it('should advance the read offset by the encoded length', () => {
         const { converter, buffer, encoded } = createSerializedString(value);
 
         converter.deserialize(buffer);
@@ -416,7 +416,7 @@ describe('ScalarConverter', () => {
         expect(buffer.offset).toBe(3 + 4 + encoded.length);
       });
 
-      it('preserves the next field', () => {
+      it('should preserve the next field', () => {
         const { converter, nextConverter, buffer } = createSerializedString(value);
 
         converter.deserialize(buffer);
@@ -425,7 +425,7 @@ describe('ScalarConverter', () => {
         expect(next).toBe(0x12345678);
       });
 
-      it('consumes the buffer after reading the next field', () => {
+      it('should consume the buffer after reading the next field', () => {
         const { converter, nextConverter, buffer } = createSerializedString(value);
 
         converter.deserialize(buffer);
@@ -440,7 +440,7 @@ describe('ScalarConverter', () => {
       { name: 'invalid UTF-8', bytes: [0xc3, 0x28], value: '\ufffd(' },
       { name: 'incomplete UTF-8', bytes: [0xf0, 0x9f], value: '\ufffd' },
     ])('$name', ({ bytes, value }) => {
-      it('decodes using TextDecoder semantics', () => {
+      it('should decode using TextDecoder semantics', () => {
         const { converter, buffer } = createWireString(bytes);
 
         const result = converter.deserialize(buffer);
@@ -448,7 +448,7 @@ describe('ScalarConverter', () => {
         expect(result).toBe(value);
       });
 
-      it('advances the offset using the wire length', () => {
+      it('should advance the offset using the wire length', () => {
         const { converter, buffer } = createWireString(bytes);
 
         converter.deserialize(buffer);
@@ -456,7 +456,7 @@ describe('ScalarConverter', () => {
         expect(buffer.offset).toBe(4 + bytes.length);
       });
 
-      it('preserves the next field', () => {
+      it('should preserve the next field', () => {
         const { converter, nextConverter, buffer } = createWireString(bytes);
 
         converter.deserialize(buffer);
@@ -465,7 +465,7 @@ describe('ScalarConverter', () => {
         expect(next).toBe(0x12345678);
       });
 
-      it('consumes the buffer after reading the next field', () => {
+      it('should consume the buffer after reading the next field', () => {
         const { converter, nextConverter, buffer } = createWireString(bytes);
 
         converter.deserialize(buffer);
@@ -475,7 +475,7 @@ describe('ScalarConverter', () => {
       });
     });
 
-    it('rejects a string extending past the buffer', () => {
+    it('should reject a string extending past the buffer', () => {
       const converter = getConverter('string');
       const buffer = getBuffer(6);
       buffer.dataView.setUint32(0, 3, IS_LITTLE_ENDIAN);
@@ -485,7 +485,7 @@ describe('ScalarConverter', () => {
       expect(deserialize).toThrow(RangeError);
     });
 
-    it('preserves the offset after rejecting a truncated string', () => {
+    it('should preserve the offset after rejecting a truncated string', () => {
       const converter = getConverter('string');
       const buffer = getBuffer(6);
       buffer.dataView.setUint32(0, 3, IS_LITTLE_ENDIAN);

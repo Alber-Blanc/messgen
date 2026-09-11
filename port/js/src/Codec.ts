@@ -5,19 +5,19 @@ import type { BinaryInput, DeserializeOptions } from './Cursor';
 import { Buffer } from './Buffer';
 
 interface RegisteredMessage {
-  readonly converter: Converter;
-  readonly definition: RawMessage;
+  converter: Converter;
+  definition: RawMessage;
 }
 
 interface RegisteredProtocol {
-  readonly name: string;
-  readonly messages: Map<number, RegisteredMessage>;
+  name: string;
+  messages: Map<number, RegisteredMessage>;
 }
 
 export class Codec<Types extends Record<string, unknown> = Record<string, unknown>> {
-  private readonly protocols = new Protocols();
-  private readonly protocolMap = new Map<number, RegisteredProtocol>();
-  private readonly typesMap = new Map<string, Converter>();
+  private protocols = new Protocols();
+  private protocolMap = new Map<number, RegisteredProtocol>();
+  private typesMap = new Map<string, Converter>();
 
   constructor(rawTypes: RawType[] = [], protocols: Protocol[] = []) {
     this.protocols.load(rawTypes);
@@ -44,7 +44,6 @@ export class Codec<Types extends Record<string, unknown> = Record<string, unknow
     if (!converter) {
       throw new Error(`Converter not found for type: ${typeName}`);
     }
-    // The heterogeneous registry is typed at the schema boundary.
     return converter as Converter<Types[Name]>;
   }
 

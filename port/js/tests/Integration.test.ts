@@ -22,7 +22,7 @@ describe('integration with Python reference binaries', () => {
     { name: 'complex_struct', messageId: 1, createValue: createComplexStruct },
     { name: 'flat_struct', messageId: 9, createValue: createFlatStruct },
   ])('$name', ({ name, messageId, createValue }) => {
-    it('serializes to the reference bytes', () => {
+    it('should serialize to the reference bytes', () => {
       const value = createValue(float);
       const reference = uploadBinary('./fixtures/reference/bin/' + name + '.bin');
 
@@ -31,7 +31,7 @@ describe('integration with Python reference binaries', () => {
       expect(new Uint8Array(buffer.buffer)).toEqual(new Uint8Array(reference));
     });
 
-    it('allocates the reference size', () => {
+    it('should allocate the reference size', () => {
       const value = createValue(float);
       const reference = uploadBinary('./fixtures/reference/bin/' + name + '.bin');
 
@@ -40,7 +40,7 @@ describe('integration with Python reference binaries', () => {
       expect(buffer.size).toBe(reference.length);
     });
 
-    it('deserializes the reference bytes', () => {
+    it('should deserialize the reference bytes', () => {
       const reference = uploadBinary('./fixtures/reference/bin/' + name + '.bin');
       const expected = createValue(Math.fround(float));
 

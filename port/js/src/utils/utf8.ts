@@ -1,7 +1,7 @@
 export class Utf8Codec {
-  private static readonly encoder = new TextEncoder();
+  private static encoder = new TextEncoder();
 
-  private static readonly decoder = new TextDecoder('utf-8');
+  private static decoder = new TextDecoder('utf-8');
 
   static byteLength(str: string): number {
     let len = 0;

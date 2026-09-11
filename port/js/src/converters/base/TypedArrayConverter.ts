@@ -17,11 +17,11 @@ const TYPED_ARRAY_MAP = new Map<IType, TypedArrayConstructor>([
 ]);
 
 export class TypedArrayConverter extends Converter<TypedArray> {
-  private readonly converter: Converter;
-  private readonly arraySize?: number;
+  private converter: Converter;
+  private arraySize?: number;
   // A common signature avoids incompatible overloads across numeric and bigint arrays.
-  private readonly TypedArrayConstructor: {
-    readonly BYTES_PER_ELEMENT: number;
+  private TypedArrayConstructor: {
+    BYTES_PER_ELEMENT: number;
     new (length: number): TypedArray;
     new (buffer: ArrayBufferLike): TypedArray;
   };

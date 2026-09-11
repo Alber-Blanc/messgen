@@ -9,7 +9,7 @@ import { captureError } from '../../tests/utils';
 
 describe('ConverterFactory', () => {
   describe('converter cache', () => {
-    it('reuses converters within one factory', () => {
+    it('should reuse converters within one factory', () => {
       const { factory } = createPairFactory();
       const pair = factory.toConverter('Pair');
 
@@ -18,7 +18,7 @@ describe('ConverterFactory', () => {
       expect(cached).toBe(pair);
     });
 
-    it.each([0, 1])('reuses the converter for nested field %i', (index) => {
+    it.each([0, 1])('should reuse the converter for nested field %i', (index) => {
       const { factory } = createPairFactory();
       const scalar = factory.toConverter('string');
 
@@ -27,7 +27,7 @@ describe('ConverterFactory', () => {
       expect(pair.convertorsList[index].converter).toBe(scalar);
     });
 
-    it('keeps converters independent across factories', () => {
+    it('should keep converters independent across factories', () => {
       const { factory, protocols } = createPairFactory();
       const pair = factory.toConverter('Pair');
 
@@ -36,7 +36,7 @@ describe('ConverterFactory', () => {
       expect(other).not.toBe(pair);
     });
 
-    it('creates a fresh parent object on every access', () => {
+    it('should create a fresh parent object on every access', () => {
       const { factory } = createPairFactory();
       const pair = factory.toConverter('Pair') as StructConverter;
       const first = pair.parentObject;
@@ -46,7 +46,7 @@ describe('ConverterFactory', () => {
       expect(second).not.toBe(first);
     });
 
-    it('uses the initial schema for nested defaults', () => {
+    it('should use the initial schema for nested defaults', () => {
       const { factory } = createItemFactory();
       const converter = factory.toConverter('Item[1]');
 
@@ -55,7 +55,7 @@ describe('ConverterFactory', () => {
       expect(value).toEqual([{ value: 0 }]);
     });
 
-    it('invalidates cached parents after a dependency is reloaded', () => {
+    it('should invalidate cached parents after a dependency is reloaded', () => {
       const { factory, protocols } = createItemFactory();
       const before = factory.toConverter('Item[1]');
 
@@ -65,7 +65,7 @@ describe('ConverterFactory', () => {
       expect(after).not.toBe(before);
     });
 
-    it('uses the updated schema for nested defaults', () => {
+    it('should use the updated schema for nested defaults', () => {
       const { factory, protocols } = createItemFactory();
       factory.toConverter('Item[1]');
       loadUpdatedItem(protocols);
@@ -76,7 +76,7 @@ describe('ConverterFactory', () => {
       expect(value).toEqual([{ value: '' }]);
     });
 
-    it('round-trips values using the updated schema', () => {
+    it('should round-trip values using the updated schema', () => {
       const { factory, protocols } = createItemFactory();
       factory.toConverter('Item[1]');
       loadUpdatedItem(protocols);
@@ -93,7 +93,7 @@ describe('ConverterFactory', () => {
   });
 
   describe('circular schemas', () => {
-    it('reports a circular dependency', () => {
+    it('should report a circular dependency', () => {
       const { factory } = createRecursiveFactory();
 
       const resolve = () => factory.toConverter('Recursive');
@@ -101,7 +101,7 @@ describe('ConverterFactory', () => {
       expect(resolve).toThrow('Circular type dependency: Recursive');
     });
 
-    it('reports the same dependency after a failed resolution', () => {
+    it('should report the same dependency after a failed resolution', () => {
       const { factory } = createRecursiveFactory();
       captureError(() => factory.toConverter('Recursive'));
 
@@ -110,7 +110,7 @@ describe('ConverterFactory', () => {
       expect(resolve).toThrow('Circular type dependency: Recursive');
     });
 
-    it('recovers after the circular schema is replaced', () => {
+    it('should recover after the circular schema is replaced', () => {
       const { factory, protocols } = createRecursiveFactory();
       captureError(() => factory.toConverter('Recursive'));
       protocols.load([{ type: 'Recursive', type_class: 'struct', hash: '1', fields: [] }]);
@@ -122,7 +122,7 @@ describe('ConverterFactory', () => {
   });
 
   describe('typed array subviews', () => {
-    it('reads the field preceding an unaligned array', () => {
+    it('should read the field preceding an unaligned array', () => {
       const { buffer } = createUnalignedArray();
 
       const value = buffer.readUint8();
@@ -130,7 +130,7 @@ describe('ConverterFactory', () => {
       expect(value).toBe(7);
     });
 
-    it('returns an independent copy of an unaligned array', () => {
+    it('should return an independent copy of an unaligned array', () => {
       const { buffer, converter, storage } = createUnalignedArray();
       buffer.readUint8();
 
@@ -140,7 +140,7 @@ describe('ConverterFactory', () => {
       expect(value).toEqual(new Float32Array([3.25, -7.5]));
     });
 
-    it('advances the offset to the end of the subview', () => {
+    it('should advance the offset to the end of the subview', () => {
       const { buffer, converter } = createUnalignedArray();
       buffer.readUint8();
 
@@ -149,7 +149,7 @@ describe('ConverterFactory', () => {
       expect(buffer.offset).toBe(buffer.size);
     });
 
-    it('rejects an array whose declared payload exceeds the view', () => {
+    it('should reject an array whose declared payload exceeds the view', () => {
       const storage = new Uint8Array(32);
       new DataView(storage.buffer).setUint32(0, 3, true);
       const converter = getConverter('uint32[]');
@@ -172,7 +172,7 @@ describe('ConverterFactory', () => {
     expect(buffer.offset).toBe(4);
   });
 
-  it('should deserialize scalar type type', () => {
+  it('should deserialize scalar type', () => {
     const name = 'int32';
     const converter = getConverter(name);
     const value = 42;
@@ -196,7 +196,7 @@ describe('ConverterFactory', () => {
     expect(buffer.offset).toEqual(12);
   });
 
-  it('should deserializie sized array of scalar types', () => {
+  it('should deserialize sized array of scalar types', () => {
     const name = 'int32[3]';
     const converter = getConverter(name);
     const value = new Int32Array([1, 2, 3]);
@@ -249,7 +249,7 @@ describe('ConverterFactory', () => {
     expect(result).toEqual(value);
   });
 
-  it('should serialize map of scalar typess', () => {
+  it('should serialize map of scalar types', () => {
     const converter = getConverter('string{int32}');
     const value = new Map<number, string>([
       [1, 'one'],
@@ -314,7 +314,7 @@ describe('ConverterFactory', () => {
     expect(serialize).toThrowError('Array length mismatch: 4 !== 3');
   });
 
-  it('it should serialize nested maps with nested structs', () => {
+  it('should serialize nested maps with nested structs', () => {
     const converter = getConverter('int32[3][]{string}{string}');
     const value = new Map<string, Map<string, Int32Array[]>>([
       ['key1', new Map<string, Int32Array[]>([['key2', [new Int32Array([1, 2, 3]), new Int32Array([4, 5, 6])]]])],
@@ -326,7 +326,7 @@ describe('ConverterFactory', () => {
     expect(buffer.offset).toEqual(buffer.size);
   });
 
-  it('it should deserialize nested maps with nested structs', () => {
+  it('should deserialize nested maps with nested structs', () => {
     const converter = getConverter('int32[3][]{string}{string}');
     const value = new Map<string, Map<string, Int32Array[]>>([
       ['key1', new Map<string, Int32Array[]>([['key2', [new Int32Array([1, 2, 3]), new Int32Array([4, 5, 6])]]])],

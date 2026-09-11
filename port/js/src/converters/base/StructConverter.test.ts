@@ -5,7 +5,7 @@ import { Buffer } from '../../Buffer';
 import { initGetType } from '../../../tests/utils';
 
 describe('StructConverter', () => {
-  it('should serializes an object', () => {
+  it('should serialize an object', () => {
     const structConverter = createStructConverter([{ name: 'field1', type: 'string' }]);
     const buffer = new Buffer(new ArrayBuffer(10));
 
@@ -14,7 +14,7 @@ describe('StructConverter', () => {
     expect(serializeFn).not.toThrow();
   });
 
-  it('should updates the buffer offset', () => {
+  it('should update the buffer offset', () => {
     const structConverter = createStructConverter([
       { name: 'field1', type: 'string' },
       { name: 'field2', type: 'int8' },
@@ -27,7 +27,7 @@ describe('StructConverter', () => {
     expect(buffer.offset).toBe(11);
   });
 
-  it('should serializes an object with multiple fields in the schema', () => {
+  it('should serialize an object with multiple fields in the schema', () => {
     const structConverter = createStructConverter([
       { name: 'field1', type: 'string' },
       { name: 'field2', type: 'int8' },
@@ -40,7 +40,7 @@ describe('StructConverter', () => {
     expect(serialize).not.toThrow();
   });
 
-  it('should calculates size of input object with an empty schema', () => {
+  it('should calculate size of input object with an empty schema', () => {
     const structConverter = createStructConverter([]);
 
     const result = structConverter.size({});
@@ -48,7 +48,7 @@ describe('StructConverter', () => {
     expect(result).toBe(0);
   });
 
-  it('should serializes an object with an empty schema', () => {
+  it('should serialize an object with an empty schema', () => {
     const structConverter = createStructConverter([]);
     const serializedSize = structConverter.size({});
     const buffer = new Buffer(new ArrayBuffer(serializedSize));
@@ -58,7 +58,7 @@ describe('StructConverter', () => {
     expect(buffer.offset).toBe(0);
   });
 
-  it('should deserializes input object with an empty schema', () => {
+  it('should deserialize input object with an empty schema', () => {
     const structConverter = createStructConverter([]);
     const serializedSize = structConverter.size({});
     const buffer = new Buffer(new ArrayBuffer(serializedSize));
@@ -69,7 +69,7 @@ describe('StructConverter', () => {
     expect(deserialized).toEqual({});
   });
 
-  it('should calculates the size of an input object based on the schema', () => {
+  it('should calculate the size of an input object based on the schema', () => {
     const structConverter = createStructConverter([
       { name: 'field1', type: 'string' },
       { name: 'field2', type: 'int8' },
@@ -82,7 +82,7 @@ describe('StructConverter', () => {
     expect(result).toBe(12);
   });
 
-  it('serializes an input object with a schema containing reserved field names', () => {
+  it('should serialize an input object with a schema containing reserved field names', () => {
     const structConverter = createStructConverter([
       { name: 'name', type: 'string' },
       { name: 'type', type: 'string' },
@@ -96,7 +96,7 @@ describe('StructConverter', () => {
     expect(buffer.offset).toBeGreaterThan(0);
   });
 
-  it('should throws an error if a converter for a field type is not found', () => {
+  it('should throw an error if a converter for a field type is not found', () => {
     const fields = [{ name: 'field', type: 'unknownType' }];
 
     const createConverterFn = () => createStructConverter(fields);
@@ -104,7 +104,7 @@ describe('StructConverter', () => {
     expect(createConverterFn).toThrowError();
   });
 
-  it('should throws an error if a required field is missing in the input object', () => {
+  it('should throw an error if a required field is missing in the input object', () => {
     const structConverter = createStructConverter([
       { name: 'existingField', type: 'string' },
       { name: 'missingField', type: 'string' },
@@ -117,7 +117,7 @@ describe('StructConverter', () => {
     expect(serializeFn).toThrowError('Field missingField is not found in testStruct');
   });
 
-  it('should throws an error when input object contains null or undefined values for required fields', () => {
+  it('should throw an error when input object contains null or undefined values for required fields', () => {
     const structConverter = createStructConverter([
       { name: 'field1', type: 'string' },
       { name: 'field2', type: 'int32' },
@@ -131,7 +131,7 @@ describe('StructConverter', () => {
     expect(serializeFn).toThrowError('Field field1 is not found in testStruct');
   });
 
-  it('should handles input object with reserved prototype method names as fields', () => {
+  it('should handle input object with reserved prototype method names as fields', () => {
     const fields = [
       { name: 'toString', type: 'string' },
       { name: 'valueOf', type: 'int32' },

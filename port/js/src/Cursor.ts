@@ -4,14 +4,12 @@ import { Utf8Codec } from './utils/utf8';
 export type BinaryInput = ArrayBufferLike | ArrayBufferView;
 
 export interface DeserializeOptions {
-  /** Copy fields of type `bytes` (default: true). If false, they share the input buffer. */
-  readonly copyBytes?: boolean;
+  copyBytes?: boolean;
 }
 
-/** Owns the byte view and position for a single read or write operation. */
 export class Cursor {
-  readonly dataView: DataView;
-  private readonly copyBytes: boolean;
+  dataView: DataView;
+  private copyBytes: boolean;
   private _offset = 0;
 
   constructor(input: BinaryInput, options?: DeserializeOptions) {

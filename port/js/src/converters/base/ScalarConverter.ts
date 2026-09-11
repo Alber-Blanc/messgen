@@ -6,10 +6,10 @@ import { Utf8Codec } from '../../utils/utf8';
 type ScalarValue = number | bigint | boolean | string | Uint8Array;
 
 interface ScalarTypeConfig {
-  readonly size: number | ((value: ScalarValue) => number);
-  readonly read: (cursor: Cursor) => ScalarValue;
-  readonly write: (cursor: Cursor, value: ScalarValue) => void;
-  readonly createDefault: () => ScalarValue;
+  size: number | ((value: ScalarValue) => number);
+  read: (cursor: Cursor) => ScalarValue;
+  write: (cursor: Cursor, value: ScalarValue) => void;
+  createDefault: () => ScalarValue;
 }
 
 export const SCALAR_TYPES = new Map<BasicType, ScalarTypeConfig>([
@@ -142,7 +142,7 @@ export const SCALAR_TYPES = new Map<BasicType, ScalarTypeConfig>([
 ]);
 
 export class ScalarConverter extends Converter<ScalarValue> {
-  private readonly config: ScalarTypeConfig;
+  private config: ScalarTypeConfig;
 
   constructor(name: BasicType) {
     super(name);

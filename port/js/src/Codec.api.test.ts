@@ -11,7 +11,7 @@ const protocols: Protocol[] = [
 ];
 
 describe('Codec API', () => {
-  it('types the converter for a named payload', () => {
+  it('should type the converter for a named payload', () => {
     const codec = new Codec<Messages>(types, protocols);
 
     const converter = codec.getTypeConverter('Message');
@@ -19,7 +19,7 @@ describe('Codec API', () => {
     expectTypeOf(converter).toEqualTypeOf<Converter<Messages['Message']>>();
   });
 
-  it('restricts serialization to known type names', () => {
+  it('should restrict serialization to known type names', () => {
     const codec = new Codec<Messages>(types, protocols);
 
     const serialize = codec.serializeType;
@@ -27,7 +27,7 @@ describe('Codec API', () => {
     expectTypeOf(serialize).parameter(0).toEqualTypeOf<'Message'>();
   });
 
-  it('infers the decoded payload type', () => {
+  it('should infer the decoded payload type', () => {
     const codec = new Codec<Messages>(types, protocols);
     const encoded = codec.serializeType('Message', { text: '你好🌍' });
 
@@ -36,7 +36,7 @@ describe('Codec API', () => {
     expectTypeOf(decoded).toEqualTypeOf<Messages['Message']>();
   });
 
-  it('shares the converter between named and protocol entry points', () => {
+  it('should share the converter between named and protocol entry points', () => {
     const codec = new Codec<Messages>(types, protocols);
     const serialize = vi.spyOn(codec.getTypeConverter('Message'), 'serialize');
 
@@ -46,7 +46,7 @@ describe('Codec API', () => {
     expect(serialize).toHaveBeenCalledTimes(2);
   });
 
-  it('produces the same bytes through both entry points', () => {
+  it('should produce the same bytes through both entry points', () => {
     const codec = new Codec<Messages>(types, protocols);
     const expected = codec.serializeType('Message', { text: '你好🌍' });
 
@@ -55,7 +55,7 @@ describe('Codec API', () => {
     expect(new Uint8Array(encoded.buffer)).toEqual(new Uint8Array(expected.buffer));
   });
 
-  it('decodes a named Unicode payload', () => {
+  it('should decode a named Unicode payload', () => {
     const codec = new Codec<Messages>(types, protocols);
     const encoded = codec.serializeType('Message', { text: '你好🌍' });
 
@@ -64,7 +64,7 @@ describe('Codec API', () => {
     expect(decoded).toEqual({ text: '你好🌍' });
   });
 
-  it('preserves the message hash', () => {
+  it('should preserve the message hash', () => {
     const codec = new Codec<Messages>(types, protocols);
 
     const hash = codec.messageInfo(1, 2).messageHash();
@@ -72,7 +72,7 @@ describe('Codec API', () => {
     expect(hash).toBe(4n);
   });
 
-  it.each(['name', 'protocol'] as const)('accepts a byte subview through the %s entry point', (entryPoint) => {
+  it.each(['name', 'protocol'] as const)('should accept a byte subview through the %s entry point', (entryPoint) => {
     const codec = new Codec<Messages>(types, protocols);
     const encoded = codec.serializeType('Message', { text: 'hello' });
     const storage = new Uint8Array(encoded.size + 10).fill(0xaa);
@@ -119,7 +119,7 @@ describe('Codec API', () => {
       run: (codec: Codec) => codec.messageInfo(1, 9),
       message: 'Unsupported proto_id=1 message_id=9',
     },
-  ])('reports a missing $name', ({ run, message }) => {
+  ])('should report a missing $name', ({ run, message }) => {
     const codec = new Codec(types, protocols);
 
     const action = () => run(codec);
@@ -127,7 +127,7 @@ describe('Codec API', () => {
     expect(action).toThrow(message);
   });
 
-  it('supports distinct converter input and output types', () => {
+  it('should support distinct converter input and output types', () => {
     const createConverter = () => new DecimalConverter();
 
     const converter = createConverter();
@@ -135,7 +135,7 @@ describe('Codec API', () => {
     expectTypeOf(converter).toMatchTypeOf<Converter<Decimal, Decimal | number | string>>();
   });
 
-  it('decodes a decimal serialized from a string', () => {
+  it('should decode a decimal serialized from a string', () => {
     const converter = new DecimalConverter();
     const cursor = new Cursor(new ArrayBuffer(converter.size()));
     converter.serialize('12.5', cursor);
@@ -146,7 +146,7 @@ describe('Codec API', () => {
     expect(value.equals('12.5')).toBe(true);
   });
 
-  it('provides a null default for an external type', () => {
+  it('should provide a null default for an external type', () => {
     const converter = new ExternalConverter({ typeName: 'External', typeClass: TypeClass.EXTERNAL });
 
     const value = converter.createDefault();
@@ -158,7 +158,7 @@ describe('Codec API', () => {
     { name: 'sizing', run: (converter: ExternalConverter, _cursor: Cursor) => converter.size({}) },
     { name: 'serialization', run: (converter: ExternalConverter, cursor: Cursor) => converter.serialize({}, cursor) },
     { name: 'deserialization', run: (converter: ExternalConverter, cursor: Cursor) => converter.deserialize(cursor) },
-  ])('reports unsupported external $name', ({ run }) => {
+  ])('should report unsupported external $name', ({ run }) => {
     const converter = new ExternalConverter({ typeName: 'External', typeClass: TypeClass.EXTERNAL });
     const cursor = new Cursor(new ArrayBuffer(0));
 

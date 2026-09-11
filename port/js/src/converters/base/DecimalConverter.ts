@@ -3,23 +3,23 @@ import { Converter } from '../Converter';
 import type { Cursor } from '../../Cursor';
 
 export class DecimalConverter extends Converter<Decimal, Input> {
-  private static readonly TYPE_NAME = 'dec64';
+  private static TYPE_NAME = 'dec64';
 
-  private static readonly MAX_COEFFICIENT = 10n ** 16n - 1n;
-  private static readonly MAX_EXPONENT = 369;
-  private static readonly MIN_EXPONENT = -398;
+  private static MAX_COEFFICIENT = 10n ** 16n - 1n;
+  private static MAX_EXPONENT = 369;
+  private static MIN_EXPONENT = -398;
 
-  private static readonly SIGN_BIT_POSITION = 63n;
-  private static readonly COMBINATION_BIT_OFFSET = 58n;
-  private static readonly COMBINATION_MASK = 0b11111n;
+  private static SIGN_BIT_POSITION = 63n;
+  private static COMBINATION_BIT_OFFSET = 58n;
+  private static COMBINATION_MASK = 0b11111n;
 
-  private static readonly SPECIAL_NAN_COMBINATION = 0b11111n;
-  private static readonly SPECIAL_INF_COMBINATION = 0b11110n;
+  private static SPECIAL_NAN_COMBINATION = 0b11111n;
+  private static SPECIAL_INF_COMBINATION = 0b11110n;
 
-  private static readonly EXPONENT_BIT_WIDTH = 10;
-  private static readonly COEFF_BITS_NORMAL = 53;
-  private static readonly COEFF_BITS_COMPACT = 51;
-  private static readonly IMPLICIT_BIT = 0b100n;
+  private static EXPONENT_BIT_WIDTH = 10;
+  private static COEFF_BITS_NORMAL = 53;
+  private static COEFF_BITS_COMPACT = 51;
+  private static IMPLICIT_BIT = 0b100n;
 
   constructor() {
     super(DecimalConverter.TYPE_NAME);

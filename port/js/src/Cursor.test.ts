@@ -5,7 +5,7 @@ import { Buffer } from './Buffer';
 import { captureError } from '../tests/utils';
 
 describe('Cursor', () => {
-  it('keeps Buffer as an alias of the same constructor', () => {
+  it('should keep Buffer as an alias of the same constructor', () => {
     const expected = Cursor;
 
     const constructor = Buffer;
@@ -13,7 +13,7 @@ describe('Cursor', () => {
     expect(constructor).toBe(expected);
   });
 
-  it('constructs a Cursor through the Buffer alias', () => {
+  it('should construct a Cursor through the Buffer alias', () => {
     const input = new ArrayBuffer(0);
 
     const cursor = new Buffer(input);
@@ -21,7 +21,7 @@ describe('Cursor', () => {
     expect(cursor).toBeInstanceOf(Cursor);
   });
 
-  it('writes little-endian values inside a byte subview', () => {
+  it('should write little-endian values inside a byte subview', () => {
     const { storage, cursor } = createSubview();
 
     writeMixedValues(cursor);
@@ -29,7 +29,7 @@ describe('Cursor', () => {
     expect(Array.from(storage.subarray(5, 7))).toEqual([0x34, 0x12]);
   });
 
-  it.each(['before', 'after'] as const)('preserves bytes %s the destination view', (side) => {
+  it.each(['before', 'after'] as const)('should preserve bytes %s the destination view', (side) => {
     const { storage, cursor } = createSubview();
     const outside = side === 'before' ? storage.subarray(0, 5) : storage.subarray(55);
 
@@ -38,7 +38,7 @@ describe('Cursor', () => {
     expect(outside).toEqual(new Uint8Array(outside.length).fill(0xaa));
   });
 
-  it('uses the view size rather than the backing buffer size', () => {
+  it('should use the view size rather than the backing buffer size', () => {
     const storage = new Uint8Array(64);
 
     const cursor = new Cursor(storage.subarray(5, 55));
@@ -46,7 +46,7 @@ describe('Cursor', () => {
     expect(cursor.size).toBe(50);
   });
 
-  it('reads mixed values through a DataView with a nonzero byte offset', () => {
+  it('should read mixed values through a DataView with a nonzero byte offset', () => {
     const { storage, cursor } = createSubview();
     writeMixedValues(cursor);
     const reader = new Cursor(new DataView(storage.buffer, 5, cursor.offset));
@@ -56,7 +56,7 @@ describe('Cursor', () => {
     expect(values).toEqual([0x1234, 'Привет🌍', new Uint8Array([1, 2, 3]), -123456789n]);
   });
 
-  it('advances past all mixed values read from a subview', () => {
+  it('should advance past all mixed values read from a subview', () => {
     const { storage, cursor } = createSubview();
     writeMixedValues(cursor);
     const reader = new Cursor(new DataView(storage.buffer, 5, cursor.offset));
@@ -69,7 +69,7 @@ describe('Cursor', () => {
     expect(reader.offset).toBe(reader.size);
   });
 
-  it('reads a sliced Node Buffer', () => {
+  it('should read a sliced Node Buffer', () => {
     const storage = NodeBuffer.alloc(32, 0xaa);
     const view = storage.subarray(7, 16);
     new Cursor(view).writeString('hello');
@@ -79,7 +79,7 @@ describe('Cursor', () => {
     expect(value).toBe('hello');
   });
 
-  it.each([6, 16])('preserves byte %i outside a sliced Node Buffer', (index) => {
+  it.each([6, 16])('should preserve byte %i outside a sliced Node Buffer', (index) => {
     const storage = NodeBuffer.alloc(32, 0xaa);
     const cursor = new Cursor(storage.subarray(7, 16));
 
@@ -89,7 +89,7 @@ describe('Cursor', () => {
   });
 
   describe.each(['readString', 'readBytes'] as const)('%s with a truncated view', (method) => {
-    it('rejects a payload extending past the view', () => {
+    it('should reject a payload extending past the view', () => {
       const cursor = createTruncatedView();
 
       const error = captureError(() => cursor[method]());
@@ -97,7 +97,7 @@ describe('Cursor', () => {
       expect(error).toBeInstanceOf(RangeError);
     });
 
-    it('preserves the offset after a failed read', () => {
+    it('should preserve the offset after a failed read', () => {
       const cursor = createTruncatedView();
 
       captureError(() => cursor[method]());
@@ -111,7 +111,7 @@ describe('Cursor', () => {
     ['numeric write', (cursor: Cursor) => cursor.writeUint32(42)],
     ['raw buffer read', (cursor: Cursor) => cursor.readBuffer(4)],
   ] as const)('truncated %s', (_name, operation) => {
-    it('throws a RangeError', () => {
+    it('should throw a RangeError', () => {
       const cursor = new Cursor(new Uint8Array(8).subarray(1, 4));
 
       const error = captureError(() => operation(cursor));
@@ -119,7 +119,7 @@ describe('Cursor', () => {
       expect(error).toBeInstanceOf(RangeError);
     });
 
-    it('preserves the cursor offset', () => {
+    it('should preserve the cursor offset', () => {
       const cursor = new Cursor(new Uint8Array(8).subarray(1, 4));
 
       captureError(() => operation(cursor));
@@ -128,7 +128,7 @@ describe('Cursor', () => {
     });
   });
 
-  it('rejects a partial string write', () => {
+  it('should reject a partial string write', () => {
     const cursor = new Cursor(new ArrayBuffer(6));
 
     const error = captureError(() => cursor.writeString('abc'));
@@ -136,7 +136,7 @@ describe('Cursor', () => {
     expect(error).toBeInstanceOf(RangeError);
   });
 
-  it('preserves the offset after a partial string write', () => {
+  it('should preserve the offset after a partial string write', () => {
     const cursor = new Cursor(new ArrayBuffer(6));
 
     captureError(() => cursor.writeString('abc'));
@@ -144,7 +144,7 @@ describe('Cursor', () => {
     expect(cursor.offset).toBe(0);
   });
 
-  it('rejects bytes that do not fit in the destination view', () => {
+  it('should reject bytes that do not fit in the destination view', () => {
     const storage = new Uint8Array(32).fill(0xaa);
     const cursor = new Cursor(storage.subarray(3, 8));
 
@@ -153,7 +153,7 @@ describe('Cursor', () => {
     expect(error).toBeInstanceOf(RangeError);
   });
 
-  it('preserves the offset after a failed byte write', () => {
+  it('should preserve the offset after a failed byte write', () => {
     const storage = new Uint8Array(32).fill(0xaa);
     const cursor = new Cursor(storage.subarray(3, 8));
 
@@ -162,7 +162,7 @@ describe('Cursor', () => {
     expect(cursor.offset).toBe(0);
   });
 
-  it('preserves the destination after a failed byte write', () => {
+  it('should preserve the destination after a failed byte write', () => {
     const storage = new Uint8Array(32).fill(0xaa);
     const cursor = new Cursor(storage.subarray(3, 8));
 
@@ -171,7 +171,7 @@ describe('Cursor', () => {
     expect(storage).toEqual(new Uint8Array(32).fill(0xaa));
   });
 
-  it('returns an independent byte copy', () => {
+  it('should return an independent byte copy', () => {
     const storage = new Uint8Array([2, 0, 0, 0, 10, 20]);
     const cursor = new Cursor(storage);
 
@@ -182,7 +182,7 @@ describe('Cursor', () => {
   });
 
   describe('bytes without copying', () => {
-    it('reads exactly the byte field inside a subview', () => {
+    it('should read exactly the byte field inside a subview', () => {
       const { cursor } = createByteSubview();
 
       const value = cursor.readBytes();
@@ -190,7 +190,7 @@ describe('Cursor', () => {
       expect(value).toEqual(new Uint8Array([10, 20, 30]));
     });
 
-    it('preserves the absolute byte offset of the field', () => {
+    it('should preserve the absolute byte offset of the field', () => {
       const { cursor } = createByteSubview();
 
       const value = cursor.readBytes();
@@ -198,7 +198,7 @@ describe('Cursor', () => {
       expect(value.byteOffset).toBe(11);
     });
 
-    it('shares changes to the source bytes', () => {
+    it('should share changes to the source bytes', () => {
       const { cursor, storage } = createByteSubview();
 
       const value = cursor.readBytes();
@@ -207,7 +207,7 @@ describe('Cursor', () => {
       expect(value).toEqual(new Uint8Array([99, 20, 30]));
     });
 
-    it('writes through to the source bytes', () => {
+    it('should write through to the source bytes', () => {
       const { cursor, storage } = createByteSubview();
 
       const value = cursor.readBytes();
@@ -216,7 +216,7 @@ describe('Cursor', () => {
       expect(storage[11]).toBe(99);
     });
 
-    it('preserves the field following the bytes', () => {
+    it('should preserve the field following the bytes', () => {
       const { cursor } = createByteSubview();
 
       cursor.readBytes();
@@ -225,7 +225,7 @@ describe('Cursor', () => {
       expect(next).toBe(0x12345678);
     });
 
-    it('advances by the prefix and payload length', () => {
+    it('should advance by the prefix and payload length', () => {
       const { cursor } = createByteSubview();
 
       cursor.readBytes();
@@ -233,7 +233,7 @@ describe('Cursor', () => {
       expect(cursor.offset).toBe(9);
     });
 
-    it.each([3, 8])('rejects a truncated field in a %i-byte view', (length) => {
+    it.each([3, 8])('should reject a truncated field in a %i-byte view', (length) => {
       const storage = new Uint8Array(32);
       new DataView(storage.buffer).setUint32(5, 8, true);
       const cursor = new Cursor(storage.subarray(5, 5 + length), { copyBytes: false });
@@ -243,7 +243,7 @@ describe('Cursor', () => {
       expect(read).toThrow(RangeError);
     });
 
-    it('preserves the offset after a truncated read', () => {
+    it('should preserve the offset after a truncated read', () => {
       const storage = new Uint8Array(32);
       new DataView(storage.buffer).setUint32(5, 8, true);
       const cursor = new Cursor(storage.subarray(5, 12), { copyBytes: false });
@@ -253,7 +253,7 @@ describe('Cursor', () => {
       expect(cursor.offset).toBe(0);
     });
 
-    it('supports an empty byte field', () => {
+    it('should support an empty byte field', () => {
       const cursor = new Cursor(new Uint8Array([0, 0, 0, 0, 42]), { copyBytes: false });
 
       const value = cursor.readBytes();
@@ -261,7 +261,7 @@ describe('Cursor', () => {
       expect(value).toEqual(new Uint8Array(0));
     });
 
-    it('advances past an empty byte field', () => {
+    it('should advance past an empty byte field', () => {
       const cursor = new Cursor(new Uint8Array([0, 0, 0, 0, 42]), { copyBytes: false });
 
       cursor.readBytes();
@@ -270,7 +270,7 @@ describe('Cursor', () => {
       expect(next).toBe(42);
     });
 
-    it('supports shared input buffers', () => {
+    it('should support shared input buffers', () => {
       const storage = new Uint8Array(new SharedArrayBuffer(8));
       storage.set([2, 0, 0, 0, 10, 20], 1);
       const cursor = new Cursor(storage.subarray(1, 7), { copyBytes: false });
@@ -280,7 +280,7 @@ describe('Cursor', () => {
       expect(value.buffer).toBe(storage.buffer);
     });
 
-    it('keeps raw buffer reads independent', () => {
+    it('should keep raw buffer reads independent', () => {
       const storage = new Uint8Array([10, 20]);
       const cursor = new Cursor(storage, { copyBytes: false });
 
@@ -291,7 +291,7 @@ describe('Cursor', () => {
     });
   });
 
-  it('returns an independent raw buffer copy', () => {
+  it('should return an independent raw buffer copy', () => {
     const storage = new Uint8Array([10, 20, 30, 40]);
     const cursor = new Cursor(storage.subarray(2));
 
@@ -301,7 +301,7 @@ describe('Cursor', () => {
     expect(new Uint8Array(value)).toEqual(new Uint8Array([30, 40]));
   });
 
-  it('advances past byte and raw buffer reads', () => {
+  it('should advance past byte and raw buffer reads', () => {
     const cursor = new Cursor(new Uint8Array([2, 0, 0, 0, 10, 20, 30, 40]));
 
     cursor.readBytes();
@@ -311,7 +311,7 @@ describe('Cursor', () => {
   });
 
   describe.each([-1, 0.5, NaN, Infinity, 5])('invalid offset %s', (offset) => {
-    it('throws a RangeError', () => {
+    it('should throw a RangeError', () => {
       const cursor = new Cursor(new ArrayBuffer(4));
 
       const error = captureError(() => {
@@ -321,7 +321,7 @@ describe('Cursor', () => {
       expect(error).toBeInstanceOf(RangeError);
     });
 
-    it('preserves the previous offset', () => {
+    it('should preserve the previous offset', () => {
       const cursor = new Cursor(new ArrayBuffer(4));
 
       captureError(() => {
@@ -333,7 +333,7 @@ describe('Cursor', () => {
   });
 
   describe.each(['', '\ud800', '\udc00', '\ud800x', '\ud800\ud800\udc00', '你好🌍'])('UTF-8 %j', (value) => {
-    it('writes the complete string and following field', () => {
+    it('should write the complete string and following field', () => {
       const bytes = new TextEncoder().encode(value);
       const cursor = new Cursor(new ArrayBuffer(4 + bytes.length + 4));
 
@@ -343,7 +343,7 @@ describe('Cursor', () => {
       expect(cursor.offset).toBe(cursor.size);
     });
 
-    it('reads the decoded string', () => {
+    it('should read the decoded string', () => {
       const cursor = createStringWithNextField(value);
       const expected = new TextDecoder().decode(new TextEncoder().encode(value));
 
@@ -352,7 +352,7 @@ describe('Cursor', () => {
       expect(result).toBe(expected);
     });
 
-    it('preserves the following field', () => {
+    it('should preserve the following field', () => {
       const cursor = createStringWithNextField(value);
 
       cursor.readString();
@@ -361,7 +361,7 @@ describe('Cursor', () => {
       expect(result).toBe(0x12345678);
     });
 
-    it('advances past both fields', () => {
+    it('should advance past both fields', () => {
       const cursor = createStringWithNextField(value);
 
       cursor.readString();

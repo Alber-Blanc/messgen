@@ -16,7 +16,7 @@ describe('Utf8Codec', () => {
     '\udc00',
     '\ud800x',
     '\ud800\ud800\udc00',
-  ])('matches TextEncoder byte length for %j', (value) => {
+  ])('should match TextEncoder byte length for %j', (value) => {
     const expected = new TextEncoder().encode(value).length;
 
     const length = Utf8Codec.byteLength(value);
@@ -29,7 +29,7 @@ describe('Utf8Codec', () => {
     { name: 'ASCII', value: 'hello', expected: 5 },
     { name: 'multibyte characters', value: 'héllo', expected: 6 },
     { name: 'surrogate pair', value: '𐐷', expected: 4 },
-  ])('calculates the byte length of $name', ({ value, expected }) => {
+  ])('should calculate the byte length of $name', ({ value, expected }) => {
     const input = value;
 
     const length = Utf8Codec.byteLength(input);

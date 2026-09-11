@@ -7,8 +7,8 @@ type MapValue = Map<unknown, unknown>;
 type MapInput = MapValue | Record<string, unknown>;
 
 export class MapConverter extends Converter<MapValue, MapInput> {
-  protected readonly keyConverter: Converter;
-  protected readonly valueConverter: Converter;
+  protected keyConverter: Converter;
+  protected valueConverter: Converter;
 
   constructor(typeDef: MapTypeDefinition, getType: GetType) {
     super(typeDef.type);

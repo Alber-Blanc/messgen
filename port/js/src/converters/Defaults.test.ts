@@ -27,7 +27,7 @@ const defaults = [
 
 describe('converter defaults', () => {
   describe.each(defaults)('$type', ({ type, expected }) => {
-    it('creates the expected default', () => {
+    it('should create the expected default', () => {
       const converter = new ConverterFactory().toConverter(type);
 
       const value = converter.createDefault();
@@ -35,7 +35,7 @@ describe('converter defaults', () => {
       expect(value).toEqual(expected);
     });
 
-    it('supports the legacy default method', () => {
+    it('should support the legacy default method', () => {
       const converter = new ConverterFactory().toConverter(type);
 
       const value = converter.default();
@@ -43,7 +43,7 @@ describe('converter defaults', () => {
       expect(value).toEqual(expected);
     });
 
-    it('serializes a default into an exact-size buffer', () => {
+    it('should serialize a default into an exact-size buffer', () => {
       const converter = new ConverterFactory().toConverter(type);
       const value = converter.createDefault();
       const cursor = new Cursor(new ArrayBuffer(converter.size(value)));
@@ -53,7 +53,7 @@ describe('converter defaults', () => {
       expect(cursor.offset).toBe(cursor.size);
     });
 
-    it('round-trips the default', () => {
+    it('should round-trip the default', () => {
       const converter = new ConverterFactory().toConverter(type);
       const value = converter.createDefault();
       const cursor = new Cursor(new ArrayBuffer(converter.size(value)));
@@ -66,7 +66,7 @@ describe('converter defaults', () => {
     });
   });
 
-  it('creates the expected nested default', () => {
+  it('should create the expected nested default', () => {
     const converter = createParentConverter();
 
     const value = converter.createDefault();
@@ -74,7 +74,7 @@ describe('converter defaults', () => {
     expect(value).toEqual(createExpectedParent());
   });
 
-  it('creates independent byte containers', () => {
+  it('should create independent byte containers', () => {
     const converter = createParentConverter();
     const first = converter.createDefault();
 
@@ -83,7 +83,7 @@ describe('converter defaults', () => {
     expect(second.bytes).not.toBe(first.bytes);
   });
 
-  it('keeps sibling array elements independent', () => {
+  it('should keep sibling array elements independent', () => {
     const value = createParentConverter().createDefault();
 
     value.children[0].labels.push('changed');
@@ -91,7 +91,7 @@ describe('converter defaults', () => {
     expect(value.children[1].labels).toEqual([]);
   });
 
-  it('keeps nested defaults independent between calls', () => {
+  it('should keep nested defaults independent between calls', () => {
     const converter = createParentConverter();
     const first = converter.createDefault();
     const second = converter.default();
@@ -104,7 +104,7 @@ describe('converter defaults', () => {
     expect(second).toEqual(createExpectedParent());
   });
 
-  it('round-trips the nested default', () => {
+  it('should round-trip the nested default', () => {
     const converter = createParentConverter();
     const value = converter.createDefault();
     const cursor = new Cursor(new ArrayBuffer(converter.size(value)));
@@ -116,7 +116,7 @@ describe('converter defaults', () => {
     expect(decoded).toEqual(createExpectedParent());
   });
 
-  it('advances past the nested default', () => {
+  it('should advance past the nested default', () => {
     const converter = createParentConverter();
     const value = converter.createDefault();
     const cursor = new Cursor(new ArrayBuffer(converter.size(value)));
@@ -129,7 +129,7 @@ describe('converter defaults', () => {
   });
 
   describe.each(['uint16', 'uint64'] as const)('enum based on %s', (type) => {
-    it('uses the first declared numeric value', () => {
+    it('should use the first declared numeric value', () => {
       const converter = createEnumConverter(type);
 
       const value = converter.createDefault();
@@ -137,7 +137,7 @@ describe('converter defaults', () => {
       expect(value).toBe(type === 'uint64' ? 7n : 7);
     });
 
-    it('round-trips the enum default', () => {
+    it('should round-trip the enum default', () => {
       const converter = createEnumConverter(type);
       const value = converter.createDefault();
       const cursor = new Cursor(new ArrayBuffer(converter.size(value)));
@@ -150,7 +150,7 @@ describe('converter defaults', () => {
     });
   });
 
-  it('creates equal decimal defaults', () => {
+  it('should create equal decimal defaults', () => {
     const converter = new ConverterFactory().toConverter('dec64');
     const first = converter.createDefault();
 
@@ -159,7 +159,7 @@ describe('converter defaults', () => {
     expect(second).toEqual(first);
   });
 
-  it('creates independent decimal defaults', () => {
+  it('should create independent decimal defaults', () => {
     const converter = new ConverterFactory().toConverter('dec64');
     const first = converter.createDefault();
 

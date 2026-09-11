@@ -14,17 +14,19 @@ import {
 import type { Converter } from './Converter';
 
 export class ConverterFactory {
-  private readonly converters = new Map<string, Converter>();
-  private readonly resolving = new Set<string>();
-  private readonly getType: GetType = (typeName) => this.toConverter(typeName);
-  private version = -1;
+  private converters = new Map<string, Converter>();
+  private resolving = new Set<string>();
+  private getType: GetType = (typeName) => this.toConverter(typeName);
+  private schemaVersion: number;
 
-  constructor(private readonly protocols: Protocols = new Protocols()) {}
+  constructor(private protocols: Protocols = new Protocols()) {
+    this.schemaVersion = protocols.version;
+  }
 
   toConverter(typeName: string): Converter {
-    if (this.version !== this.protocols.version) {
+    if (this.schemaVersion !== this.protocols.version) {
       this.converters.clear();
-      this.version = this.protocols.version;
+      this.schemaVersion = this.protocols.version;
     }
 
     const cached = this.converters.get(typeName);

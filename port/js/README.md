@@ -9,6 +9,7 @@ npm run dev
 `dev` starts Vitest in watch mode. Add a `*.test.ts` file next to the source it tests; it is discovered automatically.
 Ordinary development, tests, type checking and builds require only Node.js and npm.
 
+Name every test with `it('should ...', ...)`, including cases declared with `it.each`.
 Each test has three sections: setup, action, and expect, separated by blank lines. Use exactly one assertion per test.
 Split independent checks into separate tests; use `it.each` for the same check with different inputs.
 Keep assertions in the test body rather than hiding them in helpers.
@@ -22,8 +23,7 @@ Keep assertions in the test body rather than hiding them in helpers.
 | `npm run build`                  | Build ESM, CommonJS and TypeScript declarations into `dist/` |
 | `npm run build:watch`            | Rebuild the library as source files change                   |
 | `npm run coverage`               | Run tests with coverage thresholds                           |
-| `npm run benchmark`              | Run all benchmarks once                                      |
-| `npm run format`                 | Format source, tests, benchmarks and configuration           |
+| `npm run format`                 | Format source, tests and configuration                       |
 
 Tests use the small, committed files in `tests/fixtures/reference`. They do not invoke generators or change fixtures.
 When a schema or the wire format changes, regenerate those files with the repository's Python environment:
@@ -45,4 +45,3 @@ The runtime has three responsibilities:
   `createDefault`; the latter must return an independent value. The existing `default()` method delegates to it.
 - `ConverterFactory` resolves and caches converters per registry. Calling `Protocols.load()` invalidates that cache.
   `Codec` selects a converter by type name or protocol/message ID and manages the message buffer.
-

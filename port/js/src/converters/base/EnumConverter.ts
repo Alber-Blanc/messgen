@@ -7,9 +7,9 @@ type EnumValue = number | bigint;
 type EnumInput = EnumValue | string;
 
 export class EnumConverter extends Converter<EnumValue, EnumInput> {
-  private readonly converter: Converter<EnumValue, EnumInput>;
-  private readonly enumsByName: ReadonlyMap<string, number>;
-  private readonly defaultValue: EnumValue;
+  private converter: Converter<EnumValue, EnumInput>;
+  private enumsByName: Map<string, number>;
+  private defaultValue: EnumValue;
 
   constructor(typeDef: EnumTypeDefinition, getType: GetType) {
     super(typeDef.typeName);

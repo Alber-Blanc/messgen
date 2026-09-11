@@ -3,7 +3,7 @@ import { Buffer } from '../../Buffer';
 import { ConverterFactory } from '../ConverterFactory';
 
 describe.each(['Map', 'Record'])('MapConverter with %s input', (inputType) => {
-  it('writes the complete map and following field', () => {
+  it('should write the complete map and following field', () => {
     const { converter, nextConverter, input, buffer } = createFixture(inputType);
 
     converter.serialize(input, buffer);
@@ -12,7 +12,7 @@ describe.each(['Map', 'Record'])('MapConverter with %s input', (inputType) => {
     expect(buffer.offset).toBe(buffer.size);
   });
 
-  it('round-trips a large string map', () => {
+  it('should round-trip a large string map', () => {
     const { converter, input, buffer, expected } = createFixture(inputType);
     converter.serialize(input, buffer);
     buffer.offset = 0;
@@ -22,7 +22,7 @@ describe.each(['Map', 'Record'])('MapConverter with %s input', (inputType) => {
     expect(result).toEqual(expected);
   });
 
-  it('preserves the field after a large string map', () => {
+  it('should preserve the field after a large string map', () => {
     const { converter, nextConverter, input, buffer } = createFixture(inputType);
     converter.serialize(input, buffer);
     nextConverter.serialize(0x12345678, buffer);
@@ -34,7 +34,7 @@ describe.each(['Map', 'Record'])('MapConverter with %s input', (inputType) => {
     expect(nextValue).toBe(0x12345678);
   });
 
-  it('advances past the map and following field', () => {
+  it('should advance past the map and following field', () => {
     const { converter, nextConverter, input, buffer } = createFixture(inputType);
     converter.serialize(input, buffer);
     nextConverter.serialize(0x12345678, buffer);

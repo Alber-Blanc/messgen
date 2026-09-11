@@ -5,31 +5,29 @@ import { Converter } from '../Converter';
 import type { GetType } from '../ConverterFactory';
 
 type StructValue = Record<string, unknown>;
-type StructField = Readonly<{ converter: Converter; name: string }>;
+type StructField = { converter: Converter; name: string };
 
 export class StructConverter extends Converter<StructValue> {
-  readonly convertorsList: readonly StructField[];
-  private static readonly RESERVED_WORDS = new Set(Object.getOwnPropertyNames(Object.prototype));
+  convertorsList: StructField[];
+  private static RESERVED_WORDS = new Set(Object.getOwnPropertyNames(Object.prototype));
 
   constructor(typeDef: StructTypeDefinition, getType: GetType) {
     super(typeDef.typeName);
     const fieldsSet = new Set<string>();
 
-    this.convertorsList = Object.freeze(
-      (typeDef.fields ?? []).map((field) => {
-        if (fieldsSet.has(field.name)) {
-          throw new Error(`Field ${field.name} is duplicated in ${this.name}`);
-        }
-        fieldsSet.add(field.name);
+    this.convertorsList = (typeDef.fields ?? []).map((field) => {
+      if (fieldsSet.has(field.name)) {
+        throw new Error(`Field ${field.name} is duplicated in ${this.name}`);
+      }
+      fieldsSet.add(field.name);
 
-        if (StructConverter.RESERVED_WORDS.has(field.name)) {
-          throw new Error(`Field ${field.name} is a reserved word in JavaScript`);
-        }
+      if (StructConverter.RESERVED_WORDS.has(field.name)) {
+        throw new Error(`Field ${field.name} is a reserved word in JavaScript`);
+      }
 
-        const converter = getType(field.type);
-        return Object.freeze({ converter, name: field.name });
-      }),
-    );
+      const converter = getType(field.type);
+      return { converter, name: field.name };
+    });
   }
 
   /** @deprecated Use createDefault(); defaults are no longer shared. */

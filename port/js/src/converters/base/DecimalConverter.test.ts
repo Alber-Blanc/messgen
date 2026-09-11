@@ -35,7 +35,7 @@ describe('DecimalConverter', () => {
       { hex: '0x77FB86F26FC0FFFF', expected: '9999999999999999e369' },
       { hex: '0x600386F26FC0FFFF', expected: '9999999999999999e-398' },
       { hex: '0x5FE05AF3107A4000', expected: '1e+383' },
-    ])('decodes $hex to $expected', ({ hex, expected }) => {
+    ])('should decode $hex to $expected', ({ hex, expected }) => {
       const buffer = new Buffer(toBytes(hex));
       const expectedValue = new Decimal(expected).toString();
 
@@ -48,7 +48,7 @@ describe('DecimalConverter', () => {
       { hex: '0x7800000000000000', expected: 'Infinity', negative: false },
       { hex: '0xF800000000000000', expected: '-Infinity', negative: true },
     ])('infinity $hex', ({ hex, expected, negative }) => {
-      it('decodes the value', () => {
+      it('should decode the value', () => {
         const buffer = new Buffer(toBytes(hex));
 
         const value = converter.deserialize(buffer);
@@ -56,7 +56,7 @@ describe('DecimalConverter', () => {
         expect(value.toString()).toBe(expected);
       });
 
-      it('returns a non-finite value', () => {
+      it('should return a non-finite value', () => {
         const buffer = new Buffer(toBytes(hex));
 
         const value = converter.deserialize(buffer);
@@ -64,7 +64,7 @@ describe('DecimalConverter', () => {
         expect(value.isFinite()).toBe(false);
       });
 
-      it('preserves the sign', () => {
+      it('should preserve the sign', () => {
         const buffer = new Buffer(toBytes(hex));
 
         const value = converter.deserialize(buffer);
@@ -77,7 +77,7 @@ describe('DecimalConverter', () => {
       { hex: '0x0000000000000000', negative: false },
       { hex: '0x8000000000000000', negative: true },
     ])('underflow $hex', ({ hex, negative }) => {
-      it('decodes to zero', () => {
+      it('should decode to zero', () => {
         const buffer = new Buffer(toBytes(hex));
 
         const value = converter.deserialize(buffer);
@@ -85,7 +85,7 @@ describe('DecimalConverter', () => {
         expect(value.isZero()).toBe(true);
       });
 
-      it('preserves the sign', () => {
+      it('should preserve the sign', () => {
         const buffer = new Buffer(toBytes(hex));
 
         const value = converter.deserialize(buffer);
@@ -94,7 +94,7 @@ describe('DecimalConverter', () => {
       });
     });
 
-    it('decodes NaN', () => {
+    it('should decode NaN', () => {
       const buffer = new Buffer(toBytes('0x7C00000000000000'));
 
       const value = converter.deserialize(buffer);
@@ -123,7 +123,7 @@ describe('DecimalConverter', () => {
       { value: Infinity, expectedHex: '0x7800000000000000' },
       { value: -Infinity, expectedHex: '0xF800000000000000' },
       { value: NaN, expectedHex: '0x7C00000000000000' },
-    ])('encodes $value to $expectedHex', ({ value, expectedHex }) => {
+    ])('should encode $value to $expectedHex', ({ value, expectedHex }) => {
       const buffer = new Buffer(new ArrayBuffer(8));
       const expected = BigInt(expectedHex);
 

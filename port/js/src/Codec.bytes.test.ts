@@ -46,7 +46,7 @@ describe.each(['name', 'protocol'] as const)('byte fields through the %s entry p
     { name: 'explicit copies', options: { copyBytes: true }, copied: true },
     { name: 'byte views', options: { copyBytes: false }, copied: false },
   ])('$name', ({ options, copied }) => {
-    it('decodes nested fields from a subview', () => {
+    it('should decode nested fields from a subview', () => {
       const { codec, input, envelope } = createFixture();
 
       const result = decodeEnvelope(codec, entryPoint, input, options);
@@ -54,7 +54,7 @@ describe.each(['name', 'protocol'] as const)('byte fields through the %s entry p
       expect(result).toEqual(envelope);
     });
 
-    it('applies the ownership mode to nested byte fields', () => {
+    it('should apply the ownership mode to nested byte fields', () => {
       const { codec, input } = createFixture();
 
       const result = decodeEnvelope(codec, entryPoint, input, options);
@@ -65,7 +65,7 @@ describe.each(['name', 'protocol'] as const)('byte fields through the %s entry p
     });
   });
 
-  it('keeps the option local to one call', () => {
+  it('should keep the option local to one call', () => {
     const { codec, input } = createFixture();
     decodeEnvelope(codec, entryPoint, input, { copyBytes: false });
 
@@ -74,7 +74,7 @@ describe.each(['name', 'protocol'] as const)('byte fields through the %s entry p
     expect(result.rows[0].value.buffer).not.toBe(input.buffer);
   });
 
-  it('decodes a payload directly from a borrowed byte field', () => {
+  it('should decode a payload directly from a borrowed byte field', () => {
     const { codec, input, payload } = createFixture();
     const envelope = decodeEnvelope(codec, entryPoint, input, { copyBytes: false });
 
@@ -85,7 +85,7 @@ describe.each(['name', 'protocol'] as const)('byte fields through the %s entry p
   });
 });
 
-it('preserves named payload inference with deserialize options', () => {
+it('should preserve named payload inference with deserialize options', () => {
   const { codec, input } = createFixture();
 
   const result = codec.deserializeType('Envelope', input, { copyBytes: false });
@@ -93,7 +93,7 @@ it('preserves named payload inference with deserialize options', () => {
   expectTypeOf(result).toEqualTypeOf<Envelope>();
 });
 
-it('keeps numeric typed arrays independent when bytes are borrowed', () => {
+it('should keep numeric typed arrays independent when bytes are borrowed', () => {
   const { codec, payload } = createFixture();
   const input = new Uint8Array(codec.serializeType('Payload', payload).buffer);
 

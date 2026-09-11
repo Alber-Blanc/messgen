@@ -26,7 +26,7 @@ describe('EnumConverter', () => {
     expect(result).toBe(value);
   });
 
-  it('should serialize  multiple values enum', () => {
+  it('should serialize multiple values enum', () => {
     const converter = intiEnumConverter([
       { name: 'VALUE1', value: 1 },
       { name: 'VALUE2', value: 2 },

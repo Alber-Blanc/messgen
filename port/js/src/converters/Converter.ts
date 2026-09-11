@@ -2,7 +2,7 @@ import type { Cursor } from '../Cursor';
 import type { IType } from '../types';
 
 export abstract class Converter<Output = unknown, Input = Output> {
-  constructor(readonly name: IType) {}
+  constructor(public name: IType) {}
 
   abstract serialize(value: Input, cursor: Cursor): void;
 
