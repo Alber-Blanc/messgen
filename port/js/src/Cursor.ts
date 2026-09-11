@@ -144,6 +144,10 @@ export class Cursor {
 
   readString(): string {
     const length = this.dataView.getUint32(this._offset, IS_LITTLE_ENDIAN);
+    if (!length) {
+      this._offset += 4;
+      return '';
+    }
     this.ensureAvailable(4 + length);
     const start = this._offset + 4;
     const bytes = new Uint8Array(this.buffer, this.dataView.byteOffset + start, length);
