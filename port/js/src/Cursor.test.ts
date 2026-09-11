@@ -181,6 +181,116 @@ describe('Cursor', () => {
     expect(value).toEqual(new Uint8Array([10, 20]));
   });
 
+  describe('bytes without copying', () => {
+    it('reads exactly the byte field inside a subview', () => {
+      const { cursor } = createByteSubview();
+
+      const value = cursor.readBytes();
+
+      expect(value).toEqual(new Uint8Array([10, 20, 30]));
+    });
+
+    it('preserves the absolute byte offset of the field', () => {
+      const { cursor } = createByteSubview();
+
+      const value = cursor.readBytes();
+
+      expect(value.byteOffset).toBe(11);
+    });
+
+    it('shares changes to the source bytes', () => {
+      const { cursor, storage } = createByteSubview();
+
+      const value = cursor.readBytes();
+      storage[11] = 99;
+
+      expect(value).toEqual(new Uint8Array([99, 20, 30]));
+    });
+
+    it('writes through to the source bytes', () => {
+      const { cursor, storage } = createByteSubview();
+
+      const value = cursor.readBytes();
+      value[0] = 99;
+
+      expect(storage[11]).toBe(99);
+    });
+
+    it('preserves the field following the bytes', () => {
+      const { cursor } = createByteSubview();
+
+      cursor.readBytes();
+      const next = cursor.readUint32();
+
+      expect(next).toBe(0x12345678);
+    });
+
+    it('advances by the prefix and payload length', () => {
+      const { cursor } = createByteSubview();
+
+      cursor.readBytes();
+
+      expect(cursor.offset).toBe(9);
+    });
+
+    it.each([3, 8])('rejects a truncated field in a %i-byte view', (length) => {
+      const storage = new Uint8Array(32);
+      new DataView(storage.buffer).setUint32(5, 8, true);
+      const cursor = new Cursor(storage.subarray(5, 5 + length), { copyBytes: false });
+
+      const read = () => cursor.readBytes();
+
+      expect(read).toThrow(RangeError);
+    });
+
+    it('preserves the offset after a truncated read', () => {
+      const storage = new Uint8Array(32);
+      new DataView(storage.buffer).setUint32(5, 8, true);
+      const cursor = new Cursor(storage.subarray(5, 12), { copyBytes: false });
+
+      captureError(() => cursor.readBytes());
+
+      expect(cursor.offset).toBe(0);
+    });
+
+    it('supports an empty byte field', () => {
+      const cursor = new Cursor(new Uint8Array([0, 0, 0, 0, 42]), { copyBytes: false });
+
+      const value = cursor.readBytes();
+
+      expect(value).toEqual(new Uint8Array(0));
+    });
+
+    it('advances past an empty byte field', () => {
+      const cursor = new Cursor(new Uint8Array([0, 0, 0, 0, 42]), { copyBytes: false });
+
+      cursor.readBytes();
+      const next = cursor.readUint8();
+
+      expect(next).toBe(42);
+    });
+
+    it('supports shared input buffers', () => {
+      const storage = new Uint8Array(new SharedArrayBuffer(8));
+      storage.set([2, 0, 0, 0, 10, 20], 1);
+      const cursor = new Cursor(storage.subarray(1, 7), { copyBytes: false });
+
+      const value = cursor.readBytes();
+
+      expect(value.buffer).toBe(storage.buffer);
+    });
+
+    it('keeps raw buffer reads independent', () => {
+      const storage = new Uint8Array([10, 20]);
+      const cursor = new Cursor(storage, { copyBytes: false });
+
+      const value = cursor.readBuffer(2);
+      storage.fill(0);
+
+      expect(new Uint8Array(value)).toEqual(new Uint8Array([10, 20]));
+    });
+  });
+
   it('returns an independent raw buffer copy', () => {
     const storage = new Uint8Array([10, 20, 30, 40]);
     const cursor = new Cursor(storage.subarray(2));
@@ -265,6 +375,14 @@ describe('Cursor', () => {
 function createSubview() {
   const storage = new Uint8Array(64).fill(0xaa);
   return { storage, cursor: new Cursor(storage.subarray(5, 55)) };
+}
+
+function createByteSubview() {
+  const storage = new Uint8Array(32).fill(0xaa);
+  storage.set([0, 0, 3, 0, 0, 0, 10, 20, 30, 0x78, 0x56, 0x34, 0x12], 5);
+  const cursor = new Cursor(new DataView(storage.buffer, 5, 13), { copyBytes: false });
+  cursor.offset = 2;
+  return { storage, cursor };
 }
 
 function writeMixedValues(cursor: Cursor): void {

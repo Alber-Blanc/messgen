@@ -3,12 +3,19 @@ import { Utf8Codec } from './utils/utf8';
 
 export type BinaryInput = ArrayBufferLike | ArrayBufferView;
 
+export interface DeserializeOptions {
+  /** Copy fields of type `bytes` (default: true). If false, they share the input buffer. */
+  readonly copyBytes?: boolean;
+}
+
 /** Owns the byte view and position for a single read or write operation. */
 export class Cursor {
   readonly dataView: DataView;
+  private readonly copyBytes: boolean;
   private _offset = 0;
 
-  constructor(input: BinaryInput) {
+  constructor(input: BinaryInput, options?: DeserializeOptions) {
+    this.copyBytes = options?.copyBytes ?? true;
     this.dataView = ArrayBuffer.isView(input)
       ? new DataView(input.buffer, input.byteOffset, input.byteLength)
       : new DataView(input);
@@ -162,11 +169,13 @@ export class Cursor {
     this._offset = start + written;
   }
 
+  /** Returns a copy by default, or a view into the input when copyBytes is false. */
   readBytes(): Uint8Array {
     const length = this.dataView.getUint32(this._offset, IS_LITTLE_ENDIAN);
     this.ensureAvailable(4 + length);
     const start = this._offset + 4;
-    const value = new Uint8Array(this.buffer, this.dataView.byteOffset + start, length).slice();
+    const bytes = new Uint8Array(this.buffer, this.dataView.byteOffset + start, length);
+    const value = this.copyBytes ? bytes.slice() : bytes;
     this._offset = start + length;
     return value;
   }
