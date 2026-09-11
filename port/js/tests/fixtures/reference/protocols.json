@@ -1,0 +1,72 @@
+[
+  {
+    "name": "mynamespace/proto/subspace/another_proto",
+    "proto_id": 2,
+    "messages": {
+      "0": {
+        "proto_id": 2,
+        "message_id": 0,
+        "name": "simple_struct",
+        "type": "mynamespace/types/simple_struct",
+        "comment": "Simple struct message of another proto",
+        "hash": "3728816451572584825"
+      }
+    },
+    "version": "8c43a2"
+  },
+  {
+    "name": "mynamespace/proto/test_proto",
+    "proto_id": 1,
+    "messages": {
+      "0": {
+        "proto_id": 1,
+        "message_id": 0,
+        "name": "simple_struct",
+        "type": "mynamespace/types/simple_struct",
+        "comment": "Simple struct message",
+        "hash": "6200468090952874858"
+      },
+      "1": {
+        "proto_id": 1,
+        "message_id": 1,
+        "name": "complex_struct",
+        "type": "mynamespace/types/subspace/complex_struct",
+        "comment": "Complex struct message",
+        "hash": "5474957313683353772"
+      },
+      "2": {
+        "proto_id": 1,
+        "message_id": 2,
+        "name": "var_size_struct",
+        "type": "mynamespace/types/var_size_struct",
+        "comment": "Variable size struct message",
+        "hash": "13774925349177433456"
+      },
+      "4": {
+        "proto_id": 1,
+        "message_id": 4,
+        "name": "empty_struct",
+        "type": "mynamespace/types/empty_struct",
+        "comment": "Empty struct message",
+        "hash": "17589849058980161301"
+      },
+      "9": {
+        "proto_id": 1,
+        "message_id": 9,
+        "name": "flat_struct",
+        "type": "mynamespace/types/flat_struct",
+        "comment": "Flat struct message",
+        "hash": "14345336666715163257"
+      },
+      "10": {
+        "proto_id": 1,
+        "message_id": 10,
+        "name": "complex_types_with_flat_groups",
+        "type": "mynamespace/types/complex_types_with_flat_groups",
+        "comment": "A complex struct with complex types and several flag groups",
+        "hash": "3458742419103023757"
+      }
+    },
+    "version": "f3de08"
+  }
+]

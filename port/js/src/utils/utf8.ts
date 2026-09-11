@@ -11,7 +11,7 @@ export class Utf8Codec {
         len += 1;
       } else if (c < 0x800) {
         len += 2;
-      } else if (c >= 0xd800 && c <= 0xdbff) {
+      } else if (c >= 0xd800 && c <= 0xdbff && str.charCodeAt(ci + 1) >= 0xdc00 && str.charCodeAt(ci + 1) <= 0xdfff) {
         len += 4;
         ci++;
       } else {
@@ -22,7 +22,11 @@ export class Utf8Codec {
   }
 
   static encodeInto(str: string, dst: Uint8Array): number {
-    return Utf8Codec.encoder.encodeInto(str, dst).written;
+    const { read, written } = Utf8Codec.encoder.encodeInto(str, dst);
+    if (read !== str.length) {
+      throw new RangeError('Buffer is too small to encode the string');
+    }
+    return written;
   }
 
   static decode(bytes: Uint8Array): string {

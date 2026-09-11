@@ -6,7 +6,7 @@ export type TypeMap = Map<MessageId, Converter>;
 export type TypeByName = Map<string, Converter>;
 
 export type ExtractPayload<
-  Schema extends unknown,
+  Schema,
   Name extends keyof Schema,
   MessageType extends keyof Schema[Name],
 > = Schema[Name][MessageType];

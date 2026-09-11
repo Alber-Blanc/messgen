@@ -1,169 +1,171 @@
-import type { Buffer } from '../../Buffer';
-import type { IValue, BasicType } from '../../types';
-import { Converter } from './../Converter';
-import { IS_LITTLE_ENDIAN } from '../../config';
+import type { Cursor } from '../../Cursor';
+import type { BasicType } from '../../types';
+import { Converter } from '../Converter';
 import { Utf8Codec } from '../../utils/utf8';
 
+type ScalarValue = number | bigint | boolean | string | Uint8Array;
+
 interface ScalarTypeConfig {
-  size: number | ((value: IValue) => number);
-  read: (v: DataView, offset: number) => IValue;
-  write: (v: DataView, offset: number, value: IValue) => void;
-  default: IValue;
-  typedArray?: boolean;
+  readonly size: number | ((value: ScalarValue) => number);
+  readonly read: (cursor: Cursor) => ScalarValue;
+  readonly write: (cursor: Cursor, value: ScalarValue) => void;
+  readonly createDefault: () => ScalarValue;
 }
 
 export const SCALAR_TYPES = new Map<BasicType, ScalarTypeConfig>([
-  ['int8', {
-    size: 1,
-    read: (v, o) => v.getInt8(o),
-    write: (v, o, a) => v.setInt8(o, a as number),
-    default: 0,
-  }],
-  ['uint8', {
-    size: 1,
-    read: (v, o) => v.getUint8(o),
-    write: (v, o, a) => v.setUint8(o, a as number),
-    default: 0,
-  }],
-  ['int16', {
-    size: 2,
-    read: (v, o) => v.getInt16(o, IS_LITTLE_ENDIAN),
-    write: (v, o, a) => v.setInt16(o, a as number, IS_LITTLE_ENDIAN),
-    default: 0,
-  }],
-  ['uint16', {
-    size: 2,
-    read: (v, o) => v.getUint16(o, IS_LITTLE_ENDIAN),
-    write: (v, o, a) => v.setUint16(o, a as number, IS_LITTLE_ENDIAN),
-    default: 0,
-  }],
-  ['int32', {
-    size: 4,
-    read: (v, o) => v.getInt32(o, IS_LITTLE_ENDIAN),
-    write: (v, o, a) => v.setInt32(o, a as number, IS_LITTLE_ENDIAN),
-    default: 0,
-  }],
-  ['uint32', {
-    size: 4,
-    read: (v, o) => v.getUint32(o, IS_LITTLE_ENDIAN),
-    write: (v, o, a) => v.setUint32(o, a as number, IS_LITTLE_ENDIAN),
-    default: 0,
-  }],
-  ['int64', {
-    size: 8,
-    read: (v, o) => v.getBigInt64(o, IS_LITTLE_ENDIAN),
-    write: (v, o, a) => v.setBigInt64(o, BigInt(a), IS_LITTLE_ENDIAN),
-    default: BigInt(0),
-  }],
-  ['uint64', {
-    size: 8,
-    read: (v, o) => v.getBigUint64(o, IS_LITTLE_ENDIAN),
-    write: (v, o, a) => v.setBigUint64(o, BigInt(a), IS_LITTLE_ENDIAN),
-    default: BigInt(0),
-  }],
-  ['float32', {
-    size: 4,
-    read: (v, o) => v.getFloat32(o, IS_LITTLE_ENDIAN),
-    write: (v, o, a) => v.setFloat32(o, a as number, IS_LITTLE_ENDIAN),
-    default: 0.0,
-  }],
-  ['float64', {
-    size: 8,
-    read: (v, o) => v.getFloat64(o, IS_LITTLE_ENDIAN),
-    write: (v, o, a) => v.setFloat64(o, a as number, IS_LITTLE_ENDIAN),
-    default: 0.0,
-  }],
-  ['bool', {
-    size: 1,
-    read: (v, o) => Boolean(v.getUint8(o)),
-    write: (v, o, a) => v.setUint8(o, (a as boolean) ? 1 : 0),
-    default: false,
-  }],
-  ['char', {
-    size: 1,
-    read: (v, o) => String.fromCharCode(v.getUint8(o)),
-    write: (v, o, a) => v.setUint8(o, (a as string).charCodeAt(0)),
-    default: ' ',
-  }],
-  ['string', {
-    size: (value: string) => Utf8Codec.byteLength(value) + 4,
-    read: (v, s) => Utf8Codec.decode(new Uint8Array(v.buffer, s + 4, v.getUint32(s, IS_LITTLE_ENDIAN))),
-    write: (v, s, a: string) => {
-      const dst = new Uint8Array(v.buffer, v.byteOffset + s + 4, v.byteLength - s - 4);
-      const written = Utf8Codec.encodeInto(a, dst);
-      v.setUint32(s, written, IS_LITTLE_ENDIAN);
-      return written + 4;
+  [
+    'int8',
+    {
+      size: 1,
+      read: (cursor) => cursor.readInt8(),
+      write: (cursor, value) => cursor.writeInt8(value as number),
+      createDefault: () => 0,
     },
-    default: () => '',
-  }],
-  ['bytes', {
-    size: (value: IValue) => {
-      const { length } = (value as Uint8Array);
-      return 4 + length;
+  ],
+  [
+    'uint8',
+    {
+      size: 1,
+      read: (cursor) => cursor.readUint8(),
+      write: (cursor, value) => cursor.writeUint8(value as number),
+      createDefault: () => 0,
     },
-    read: (v, o) => {
-      const length = v.getUint32(o, IS_LITTLE_ENDIAN);
-      o += 4;
-      return new Uint8Array(v.buffer, v.byteOffset + o, length).slice();
+  ],
+  [
+    'int16',
+    {
+      size: 2,
+      read: (cursor) => cursor.readInt16(),
+      write: (cursor, value) => cursor.writeInt16(value as number),
+      createDefault: () => 0,
     },
-    write: (v, o, a) => {
-      const bytes = a as Uint8Array;
-      v.setUint32(o, bytes.length, IS_LITTLE_ENDIAN);
-      o += 4;
-      new Uint8Array(v.buffer, v.byteOffset + o, bytes.length).set(bytes);
+  ],
+  [
+    'uint16',
+    {
+      size: 2,
+      read: (cursor) => cursor.readUint16(),
+      write: (cursor, value) => cursor.writeUint16(value as number),
+      createDefault: () => 0,
     },
-    default: new Uint8Array(0),
-  }],
+  ],
+  [
+    'int32',
+    {
+      size: 4,
+      read: (cursor) => cursor.readInt32(),
+      write: (cursor, value) => cursor.writeInt32(value as number),
+      createDefault: () => 0,
+    },
+  ],
+  [
+    'uint32',
+    {
+      size: 4,
+      read: (cursor) => cursor.readUint32(),
+      write: (cursor, value) => cursor.writeUint32(value as number),
+      createDefault: () => 0,
+    },
+  ],
+  [
+    'int64',
+    {
+      size: 8,
+      read: (cursor) => cursor.readBigInt64(),
+      write: (cursor, value) => cursor.writeBigInt64(BigInt(value as number | bigint | string | boolean)),
+      createDefault: () => 0n,
+    },
+  ],
+  [
+    'uint64',
+    {
+      size: 8,
+      read: (cursor) => cursor.readBigUint64(),
+      write: (cursor, value) => cursor.writeBigUint64(BigInt(value as number | bigint | string | boolean)),
+      createDefault: () => 0n,
+    },
+  ],
+  [
+    'float32',
+    {
+      size: 4,
+      read: (cursor) => cursor.readFloat32(),
+      write: (cursor, value) => cursor.writeFloat32(value as number),
+      createDefault: () => 0,
+    },
+  ],
+  [
+    'float64',
+    {
+      size: 8,
+      read: (cursor) => cursor.readFloat64(),
+      write: (cursor, value) => cursor.writeFloat64(value as number),
+      createDefault: () => 0,
+    },
+  ],
+  [
+    'bool',
+    {
+      size: 1,
+      read: (cursor) => Boolean(cursor.readUint8()),
+      write: (cursor, value) => cursor.writeUint8(value ? 1 : 0),
+      createDefault: () => false,
+    },
+  ],
+  [
+    'char',
+    {
+      size: 1,
+      read: (cursor) => String.fromCharCode(cursor.readUint8()),
+      write: (cursor, value) => cursor.writeUint8((value as string).charCodeAt(0)),
+      createDefault: () => ' ',
+    },
+  ],
+  [
+    'string',
+    {
+      size: (value) => Utf8Codec.byteLength(value as string) + 4,
+      read: (cursor) => cursor.readString(),
+      write: (cursor, value) => cursor.writeString(value as string),
+      createDefault: () => '',
+    },
+  ],
+  [
+    'bytes',
+    {
+      size: (value) => 4 + (value as Uint8Array).byteLength,
+      read: (cursor) => cursor.readBytes(),
+      write: (cursor, value) => cursor.writeBytes(value as Uint8Array),
+      createDefault: () => new Uint8Array(0),
+    },
+  ],
 ]);
 
-export class ScalarConverter extends Converter {
-  private config: ScalarTypeConfig;
+export class ScalarConverter extends Converter<ScalarValue> {
+  private readonly config: ScalarTypeConfig;
 
   constructor(name: BasicType) {
     super(name);
-
     const config = SCALAR_TYPES.get(name);
     if (!config) {
       throw new Error(`Unsupported scalar type "${name}"`);
     }
-
     this.config = config;
   }
 
-  serialize(value: IValue, buffer: Buffer): void {
-    const { config } = this;
-
-    this.config.write(buffer.dataView, buffer.offset, value);
-
-    if (typeof config.size === 'number') {
-      buffer.offset += config.size;
-    } else {
-      buffer.offset += config.size(value);
-    }
+  serialize(value: ScalarValue, cursor: Cursor): void {
+    this.config.write(cursor, value);
   }
 
-  deserialize(buffer: Buffer): IValue {
-    const { config } = this;
-    const value = config.read(buffer.dataView, buffer.offset);
-
-    if (typeof config.size === 'number') {
-      buffer.offset += config.size;
-    } else {
-      // Strings and bytes carry their byte length in the prefix; no need to scan the decoded value.
-      buffer.offset += 4 + buffer.dataView.getUint32(buffer.offset, IS_LITTLE_ENDIAN);
-    }
-
-    return value;
+  deserialize(cursor: Cursor): ScalarValue {
+    return this.config.read(cursor);
   }
 
-  size(value: IValue): number {
-    if (typeof this.config.size === 'number') {
-      return this.config.size;
-    }
-    return this.config.size(value);
+  size(value: ScalarValue): number {
+    return typeof this.config.size === 'number' ? this.config.size : this.config.size(value);
   }
 
-  default(): IValue {
-    return this.config.default;
+  createDefault(): ScalarValue {
+    return this.config.createDefault();
   }
 }

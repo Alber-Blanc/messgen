@@ -1,7 +1,5 @@
-// eslint-disable-next-line eslint-comments/disable-enable-pair
 /* eslint-disable @typescript-eslint/no-loss-of-precision */
 import { beforeAll, describe, expect, it } from 'vitest';
-import { execSync } from 'child_process';
 import { Codec } from '../src';
 import { uploadBinary, uploadProtocols, uploadTypes } from './utils';
 
@@ -10,10 +8,8 @@ describe('integration', () => {
   const bigint = BigInt('0x1234567890abcdef');
 
   beforeAll(() => {
-    execSync(' npm run generate-bit');
-    execSync('npm run gen:json');
-    const types = uploadTypes('./types.json');
-    const protocols = uploadProtocols('./protocols.json');
+    const types = uploadTypes('./fixtures/reference/types.json');
+    const protocols = uploadProtocols('./fixtures/reference/protocols.json');
     codec = new Codec(types, protocols);
   });
 
@@ -22,10 +18,10 @@ describe('integration', () => {
       f0: bigint,
       f1: bigint,
       f1_pad: 0x12,
-      f2: 1.2345678901234567890,
+      f2: 1.234567890123456789,
       f3: 0x12345678,
       f4: 0x12345678,
-      f5: 1.2345678901234567890,
+      f5: 1.234567890123456789,
       f6: 0x1234,
       f7: 0x12,
       f8: -0x12,
@@ -33,14 +29,14 @@ describe('integration', () => {
       e0: 0,
       b0: 0,
     };
-    const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/simple_struct.bin');
+    const rawDataBit = uploadBinary('./fixtures/reference/bin/simple_struct.bin');
 
     const buffer = codec.serialize(1, 0, raw);
     const result = codec.deserialize(1, 0, new Uint8Array(rawDataBit).buffer);
 
     expect(result).toEqual({ ...raw, f5: expect.closeTo(raw.f5, 5) });
     expect(buffer.size).toEqual(rawDataBit.length);
-    expect((new Uint8Array(buffer.dataView.buffer))).toEqual((new Uint8Array(rawDataBit)));
+    expect(new Uint8Array(buffer.dataView.buffer)).toEqual(new Uint8Array(rawDataBit));
   });
 
   it('should parse var_size_struct.bin', () => {
@@ -49,26 +45,26 @@ describe('integration', () => {
       f1_vec: new BigInt64Array([-bigint, BigInt(5), BigInt(1)]),
       str: 'Hello messgen!',
     };
-    const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/var_size_struct.bin');
+    const rawDataBit = uploadBinary('./fixtures/reference/bin/var_size_struct.bin');
 
     const buffer = codec.serialize(1, 2, raw);
     const result = codec.deserialize(1, 2, new Uint8Array(rawDataBit).buffer);
 
     expect(result).toEqual(raw);
     expect(buffer.size).toEqual(rawDataBit.length);
-    expect((new Uint8Array(buffer.dataView.buffer))).toEqual((new Uint8Array(rawDataBit)));
+    expect(new Uint8Array(buffer.dataView.buffer)).toEqual(new Uint8Array(rawDataBit));
   });
 
   it('should parse empty structure', () => {
     const raw = {};
-    const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/empty_struct.bin');
+    const rawDataBit = uploadBinary('./fixtures/reference/bin/empty_struct.bin');
 
     const buffer = codec.serialize(1, 4, raw);
     const result = codec.deserialize(1, 4, new Uint8Array(rawDataBit).buffer);
 
     expect(result).toEqual(raw);
     expect(buffer.size).toEqual(rawDataBit.length);
-    expect((new Uint8Array(buffer.dataView.buffer))).toEqual((new Uint8Array(rawDataBit)));
+    expect(new Uint8Array(buffer.dataView.buffer)).toEqual(new Uint8Array(rawDataBit));
   });
 
   it('should parse complex_struct', () => {
@@ -76,10 +72,10 @@ describe('integration', () => {
       f0: BigInt('0x1234567890abcdef'),
       f1: BigInt('0x1234567890abcdef'),
       f1_pad: 0x12,
-      f2: 1.2345678901234567890,
+      f2: 1.234567890123456789,
       f3: 0x12345678,
       f4: 0x12345678,
-      f5: 1.2345678901234567890,
+      f5: 1.234567890123456789,
       f6: 0x1234,
       f7: 0x12,
       f8: -0x12,
@@ -96,7 +92,7 @@ describe('integration', () => {
         f1_vec: new BigInt64Array([BigInt('0x1234567890abcdef'), BigInt(5), BigInt(1)]),
         str: 'Hello messgen!',
       }),
-      vec_float: new Float64Array(3).fill(1.2345678901234567890),
+      vec_float: new Float64Array(3).fill(1.234567890123456789),
       vec_enum: [0, 1],
       vec_simple_struct: Array(3).fill(simpleStruct),
       vec_vec_var_size_struct: [],
@@ -109,7 +105,7 @@ describe('integration', () => {
       bitset0: 1 | 4,
       array_of_size_zero: new Int32Array(0),
     };
-    const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/complex_struct.bin');
+    const rawDataBit = uploadBinary('./fixtures/reference/bin/complex_struct.bin');
 
     const buffer = codec.serialize(1, 1, raw);
     const result = codec.deserialize(1, 1, new Uint8Array(rawDataBit).buffer);
@@ -117,24 +113,22 @@ describe('integration', () => {
     simpleStruct.f5 = expect.closeTo(simpleStruct.f5, 4);
     expect(result).toEqual(raw);
     expect(buffer.size).toEqual(rawDataBit.length);
-    expect((new Uint8Array(buffer.dataView.buffer))).toEqual((new Uint8Array(
-      rawDataBit,
-    )));
+    expect(new Uint8Array(buffer.dataView.buffer)).toEqual(new Uint8Array(rawDataBit));
   });
 
   it('should parse flat structure flat_struct', () => {
     const raw = {
       f0: bigint,
       f1: bigint,
-      f2: 1.2345678901234567890,
+      f2: 1.234567890123456789,
       f3: 0x12345678,
       f4: 0x12345678,
-      f5: 1.2345678901234567890,
+      f5: 1.234567890123456789,
       f6: 0x1234,
       f7: 0x12,
       f8: -0x12,
     };
-    const rawDataBit = uploadBinary('../../../tests/data/serialized/bin/flat_struct.bin');
+    const rawDataBit = uploadBinary('./fixtures/reference/bin/flat_struct.bin');
 
     const buffer = codec.serialize(1, 9, raw);
     const result = codec.deserialize(1, 9, new Uint8Array(rawDataBit).buffer);
@@ -142,6 +136,6 @@ describe('integration', () => {
     raw.f5 = expect.closeTo(raw.f5, 5);
     expect(result).toEqual(raw);
     expect(buffer.size).toEqual(rawDataBit.length);
-    expect((new Uint8Array(buffer.dataView.buffer))).toEqual((new Uint8Array(rawDataBit)));
+    expect(new Uint8Array(buffer.dataView.buffer)).toEqual(new Uint8Array(rawDataBit));
   });
 });

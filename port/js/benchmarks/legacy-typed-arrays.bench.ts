@@ -1,7 +1,7 @@
-import { bench, describe } from 'vitest';
-// @ts-ignore
-import { Buffer, Struct } from './deserialize-variant/messgen-old.js';
-import type { StructTypeDefinition } from '../src/types.js';
+import { Buffer } from '../src/Buffer';
+import { bench, describe, expect } from 'vitest';
+import { Buffer as LegacyBuffer, Struct } from './deserialize-variant/messgen-old.js';
+import { TypeClass, type StructTypeDefinition } from '../src/types.js';
 import { initGetType } from '../tests/utils.js';
 import { StructConverter } from '../src/converters/base/StructConverter.js';
 
@@ -40,7 +40,6 @@ const srcStruct = new Struct({
     { name: 'type_Uint64_as', type: 'Uint64[1000]' },
     { name: 'type_String_as', type: 'String[1000]' },
     { name: 'type_Double_as', type: 'Double[1000]' },
-
   ],
 });
 
@@ -80,12 +79,10 @@ const srcDataFn = () => ({
   type_Double_as: array.map((i) => Math.PI * i),
 });
 const srcData = srcDataFn();
-// @ts-ignore
-srcData.__SIZE__ = Buffer.calcSize(Buffer.createValueArray(srcStruct.fields, srcData));
-const b = Buffer.serializeObj(srcStruct.schema.fields, srcData);
+const b = LegacyBuffer.serializeObj(srcStruct.schema.fields, srcData);
 
 const schema: StructTypeDefinition = {
-  typeClass: 'struct',
+  typeClass: TypeClass.STRUCT,
   typeName: 'testStruct',
   fields: [
     { name: 'type_Int8', type: 'int8' },
@@ -127,38 +124,46 @@ const getType = initGetType();
 const structConverter = new StructConverter(schema, getType);
 const size = structConverter.size(srcData);
 const buffer = new Buffer(new ArrayBuffer(size));
+structConverter.serialize(srcData, buffer);
+expect(new Uint8Array(buffer.buffer)).toEqual(new Uint8Array(b));
 
 describe('calculate size with typedArray', () => {
-  bench('old', () => {
-    // @ts-ignore
-    Buffer.calcSize(Buffer.createValueArray(srcStruct.fields, srcDataFn()));
-  }, { time: 1000 });
+  bench(
+    'legacy',
+    () => {
+      LegacyBuffer.calcSize(LegacyBuffer.createValueArray(srcStruct.fields, srcData));
+    },
+    { time: 1000 },
+  );
 
-  bench('v1', () => {
-    structConverter.size(srcDataFn());
+  bench('current', () => {
+    structConverter.size(srcData);
   });
 });
 describe('serialize Obj with typedArray', () => {
-  bench('Old', () => {
-    Buffer.serializeObj(srcStruct.schema.fields, srcDataFn());
-  }, { time: 1000 });
-  bench('v1', () => {
-    // @ts-ignore
-    buffer.offset = 0;
-    // @ts-ignore
-    structConverter.serialize(srcDataFn(), buffer);
+  bench(
+    'legacy',
+    () => {
+      LegacyBuffer.serializeObj(srcStruct.schema.fields, srcData);
+    },
+    { time: 1000 },
+  );
+  bench('current', () => {
+    const destination = new Buffer(new ArrayBuffer(structConverter.size(srcData)));
+    structConverter.serialize(srcData, destination);
   });
 });
 
 describe('deserialize object with typedArray', () => {
-  bench('Old', () => {
-    new Buffer(b).deserialize(srcStruct);
-  }, { time: 1000 });
+  bench(
+    'legacy',
+    () => {
+      new LegacyBuffer(b, true).deserialize(srcStruct);
+    },
+    { time: 1000 },
+  );
 
-  bench('v1', () => {
-    // @ts-ignore
-    buffer.offset = 0;
-    // @ts-ignore
-    structConverter.deserialize(buffer);
+  bench('current', () => {
+    structConverter.deserialize(new Buffer(buffer.buffer));
   });
 });

@@ -129,18 +129,17 @@ describe('StructConverter', () => {
   });
 
   it('should handles input object with reserved prototype method names as fields', () => {
-    const serializeFn = () => createStructConverter([
-      { name: 'toString', type: 'string' },
-      { name: 'valueOf', type: 'int32' },
-      { name: 'hasOwnProperty', type: 'bool' },
-    ]);
+    const serializeFn = () =>
+      createStructConverter([
+        { name: 'toString', type: 'string' },
+        { name: 'valueOf', type: 'int32' },
+        { name: 'hasOwnProperty', type: 'bool' },
+      ]);
 
     expect(serializeFn).toThrow();
   });
 
-  function createStructConverter(
-    fields: Field[],
-  ): StructConverter {
+  function createStructConverter(fields: Field[]): StructConverter {
     const schema = createSchema(fields);
     const getType = initGetType();
     return new StructConverter(schema, getType);

@@ -83,12 +83,12 @@ const structConverter = new StructConverter(schema, initGetType());
 const size = structConverter.size(srcData);
 const buffer = new Buffer(new ArrayBuffer(size));
 
-// run with 'node --inspect=9229 --require ts-node/register ./src/index.ts"
+// Run with: node --inspect --require ts-node/register benchmarks/perf-process/index.ts
 // to debug performance issues with structure serialization/deserialization
 const run = async (): Promise<void> => {
   structConverter.serialize(srcData, buffer);
   let counter = 0;
-  while (true) {
+  for (;;) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     counter += 1;
 

@@ -3,7 +3,17 @@ import { Utf8Codec } from './utf8.js';
 
 describe('Utf8Codec', () => {
   it('should byte length matches text encoder for ASCII, multibyte, and surrogate pairs', () => {
-    const cases = ['hello', 'héllo', '日本語', '𐐷 surrogates 🌍', ''];
+    const cases = [
+      'hello',
+      'héllo',
+      '日本語',
+      '𐐷 surrogates 🌍',
+      '',
+      '\ud800',
+      '\udc00',
+      '\ud800x',
+      '\ud800\ud800\udc00',
+    ];
     const enc = new TextEncoder();
     for (const s of cases) {
       expect(Utf8Codec.byteLength(s)).toBe(enc.encode(s).length);

@@ -1,4 +1,5 @@
 export type IName = string;
+/** @deprecated Use the input and output types of Converter instead. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type IValue = any;
 export type ProtocolId = number;
@@ -19,20 +20,9 @@ export type NumberType =
 
 export type DecimalType = 'dec64';
 
-export type BasicType =
-  NumberType |
-  'string' |
-  'bool' |
-  'char' |
-  'bytes';
+export type BasicType = NumberType | 'string' | 'bool' | 'char' | 'bytes';
 
-type ArrayDynamicSize = '[]';
-type ArrayFixSize = `[${number}]`;
-type MapType = `{${BasicType}}`;
-
-type SubType = ArrayDynamicSize | ArrayFixSize | MapType | '';
-
-export type IType = `${IName | BasicType | DecimalType}${SubType}${SubType}${SubType}`;
+export type IType = string;
 
 export enum TypeClass {
   SCALAR = 'scalar',
@@ -47,8 +37,8 @@ export enum TypeClass {
 }
 
 export interface Field {
-  name: IName
-  type: IType
+  name: IName;
+  type: IType;
 }
 
 export interface EnumValue {

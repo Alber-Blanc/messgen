@@ -1,12 +1,19 @@
 {
   "name": "messgen",
-  "version": "0.11.0",
+  "version": "1.0.0",
   "repository": "https://github.com/Alber-Blanc/messgen",
   "scripts": {
+    "dev": "vitest",
     "build": "bunchee",
-    "test": "vitest",
-    "benchmark": "vitest bench",
+    "build:watch": "bunchee --watch",
+    "test": "vitest run",
+    "benchmark": "vitest bench --run",
     "coverage": "vitest run --coverage",
+    "check:lint": "eslint --ext .ts,.mts src tests benchmarks vitest.config.mts",
+    "check:types": "tsc --noEmit",
+    "check": "npm run check:types && npm run check:lint && npm test && npm run build",
+    "format": "prettier --write src tests benchmarks *.json *.js *.mts README.md",
+    "fixtures:update": "python3 tests/fixtures/update.py",
     "gen:exec": "python3 ../../messgen-generate.py",
     "gen": "npm run gen:exec -- --types ../../tests/msg/types --protocol ../../tests/msg/protocols:mynamespace/proto/test_proto --protocol ../../tests/msg/protocols:mynamespace/proto/subspace/another_proto --outdir ./tests",
     "gen:json": "npm run gen -- --lang json",
@@ -14,36 +21,27 @@
     "gen:md": "npm run gen -- --lang md",
     "gen:fixtures:ts": "npm run gen:exec -- --lang ts --types ./tests/fixtures/types --outdir ./tests/fixtures/generated",
     "gen:fixtures:json": "npm run gen:exec -- --lang json --types ./tests/fixtures/types --outdir ./tests/fixtures/generated",
-    "generate-bit": "cd ../.. && python3 tests/python/generate_serialized_data.py",
-    "check:lint": "eslint --ext .ts src",
-    "check:types": "npm run gen:ts && npm run gen:fixtures:ts && tsc --noEmit"
+    "generate-bit": "cd ../.. && python3 tests/python/generate_serialized_data.py"
   },
   "devDependencies": {
-    "@rollup/plugin-terser": "^0.4.4",
-    "@types/crypto-js": "4.2.2",
     "@types/node": "^20.12.7",
+    "@typescript-eslint/eslint-plugin": "6.21.0",
+    "@typescript-eslint/parser": "6.21.0",
     "@vitest/coverage-v8": "2.1.5",
     "bunchee": "6.3.1",
     "eslint": "8.57.0",
-    "eslint-config-airbnb": "19.0.4",
-    "eslint-config-airbnb-typescript": "17.1.0",
-    "eslint-import-resolver-typescript": "3.6.1",
-    "eslint-plugin-eslint-comments": "3.2.0",
-    "eslint-plugin-import": "2.26.0",
     "prettier": "3.2.5",
-    "tinybench": "^2.7.0",
     "ts-node": "10.9.2",
     "tslib": "2.8.1",
-    "tsup": "8.3.5",
     "typescript": "5.7.2",
     "vite": "5.4.11",
     "vitest": "2.1.5"
   },
   "exports": {
     ".": {
-      "import": "./dist/es/index.js",
-      "require": "./dist/cjs/index.cjs",
-      "types": "./dist/types/index.d.ts"
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/es/index.mjs",
+      "require": "./dist/cjs/index.cjs"
     }
   },
   "typesVersions": {

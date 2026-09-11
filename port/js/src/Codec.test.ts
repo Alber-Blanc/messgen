@@ -1,7 +1,5 @@
-// eslint-disable-next-line eslint-comments/disable-enable-pair
 /* eslint-disable @typescript-eslint/no-loss-of-precision */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { execSync } from 'child_process';
 import { Codec } from './Codec';
 import { uploadTypes, uploadProtocols } from '../tests/utils';
 import type { Protocol, RawType } from './protocol';
@@ -13,11 +11,9 @@ describe('Codec', () => {
   let codec: Codec;
 
   beforeAll(() => {
-    execSync('npm run gen:json');
-    execSync('npm run gen:fixtures:json');
-    types = uploadTypes('./types.json');
-    fixturesTypes = uploadTypes('./fixtures/generated/types.json');
-    protocols = uploadProtocols('./protocols.json');
+    types = uploadTypes('./fixtures/reference/types.json');
+    fixturesTypes = uploadTypes('./fixtures/reference/fixture-types.json');
+    protocols = uploadProtocols('./fixtures/reference/protocols.json');
     codec = new Codec(types, protocols);
   });
 
@@ -36,19 +32,18 @@ describe('Codec', () => {
   describe('#serialize', () => {
     it('should serialize and deserialize a message', () => {
       const { buffer } = new Int8Array([
-        -17, -51, -85, -112, 120, 86, 52, 18, -17, -51, -85, -112, 120, 86, 52, 18,
-        18, -5, 89, -116, 66, -54, -64, -13, 63, 120, 86, 52, 18, 120, 86, 52, 18,
-        82, 6, -98, 63, 52, 18, 18, -18, 1, 1, 5,
+        -17, -51, -85, -112, 120, 86, 52, 18, -17, -51, -85, -112, 120, 86, 52, 18, 18, -5, 89, -116, 66, -54, -64, -13,
+        63, 120, 86, 52, 18, 120, 86, 52, 18, 82, 6, -98, 63, 52, 18, 18, -18, 1, 1, 5,
       ]);
       const bigint = BigInt('0x1234567890abcdef');
       const rawData = {
         f0: bigint,
         f1: bigint,
         f1_pad: 0x12,
-        f2: 1.2345678901234567890,
+        f2: 1.234567890123456789,
         f3: 0x12345678,
         f4: 0x12345678,
-        f5: 1.2345678901234567890,
+        f5: 1.234567890123456789,
         f6: 0x1234,
         f7: 0x12,
         f8: -0x12,
@@ -59,7 +54,7 @@ describe('Codec', () => {
 
       const message = codec.serialize(1, 0, rawData);
 
-      expect(message.buffer).toEqual(buffer);
+      expect(new Uint8Array(message.buffer)).toEqual(new Uint8Array(buffer));
     });
 
     it('should serialize chinese characters', () => {
@@ -71,7 +66,32 @@ describe('Codec', () => {
 
       const message = codec.serialize(1, 2, rawData);
 
-      expect(message.buffer).toEqual(new Int8Array([-17, -51, -85, -112, 120, 86, 52, 18, 1]).buffer);
+      expect(new Uint8Array(message.buffer)).toEqual(
+        new Uint8Array([
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0, // f0: int64
+          0,
+          0,
+          0,
+          0, // f1_vec: empty vector
+          6,
+          0,
+          0,
+          0,
+          0xe4,
+          0xbd,
+          0xa0,
+          0xe5,
+          0xa5,
+          0xbd, // str: UTF-8 bytes
+        ]),
+      );
     });
   });
 
@@ -82,10 +102,10 @@ describe('Codec', () => {
         f0: bigint,
         f1: bigint,
         f1_pad: 0x12,
-        f2: 1.2345678901234567890,
+        f2: 1.234567890123456789,
         f3: 0x12345678,
         f4: 0x12345678,
-        f5: 1.2345678901234567890,
+        f5: 1.234567890123456789,
         f6: 0x1234,
         f7: 0x12,
         f8: -0x12,

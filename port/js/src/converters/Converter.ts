@@ -1,26 +1,19 @@
-import type { Buffer } from '../Buffer';
-import type { IType, IValue } from '../types';
+import type { Cursor } from '../Cursor';
+import type { IType } from '../types';
 
-export abstract class Converter {
-  name: IType;
+export abstract class Converter<Output = unknown, Input = Output> {
+  constructor(readonly name: IType) {}
 
-  constructor(name: IType) {
-    this.name = name;
-  }
+  abstract serialize(value: Input, cursor: Cursor): void;
 
-  serialize(_value: IValue, _buffer: Buffer) {
-    throw new Error(`Not implemented in abstract class ${this.name} `);
-  }
+  abstract size(value: Input): number;
 
-  size(_value: IValue): number {
-    throw new Error(`Not implemented in abstract class ${this.name} `);
-  }
+  abstract deserialize(cursor: Cursor): Output;
 
-  deserialize(_buffer: Buffer): IValue {
-    throw new Error(`Not implemented in abstract class ${this.name} `);
-  }
+  abstract createDefault(): Output;
 
-  default(): IValue {
-    return null;
+  /** @deprecated Use createDefault() to obtain an independent value. */
+  default(): Output {
+    return this.createDefault();
   }
 }
