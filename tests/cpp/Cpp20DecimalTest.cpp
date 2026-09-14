@@ -8,6 +8,8 @@
 
 #include <gtest/gtest.h>
 
+#include <vector>
+
 using namespace messgen;
 
 class CppDecimalTest : public ::testing::Test {};
@@ -145,6 +147,59 @@ TEST_F(CppDecimalTest, Comparison) {
     // Positive infinity must be greater than any positive finite value
     EXPECT_GT(decimal64::infinity(), 999999.999_dd);
     EXPECT_LT(999999.999_dd, decimal64::infinity());
+}
+
+// Tests for the same-exponent comparison helpers against the operators
+TEST_F(CppDecimalTest, SameExponentLikelyComparison) {
+    const auto values = std::vector<decimal64>{101.25_dd,
+                                               101.50_dd,
+                                               -101.25_dd,
+                                               -101.50_dd,
+                                               0_dd,
+                                               0.00_dd,
+                                               -0.0_dd,
+                                               0.01_dd,
+                                               -0.01_dd,
+                                               (decimal64{100, 0}),
+                                               (decimal64{10, 1}),
+                                               (decimal64{99, 0}),
+                                               (decimal64{1001, -1}),
+                                               (decimal64{1, 2}),
+                                               decimal64::infinity(),
+                                               -decimal64::infinity(),
+                                               *decimal64::from_string("nan"),
+                                               999999.999_dd,
+                                               -5.0_dd,
+                                               1_dd};
+    for (const auto &lhs : values) {
+        for (const auto &rhs : values) {
+            EXPECT_EQ(LessSameExpLikely{}(lhs, rhs), lhs < rhs) << lhs << " < " << rhs;
+            EXPECT_EQ(EqSameExpLikely{}(lhs, rhs), lhs == rhs) << lhs << " == " << rhs;
+        }
+    }
+
+    // Same exponent: coefficient order, reversed for negatives
+    EXPECT_TRUE(LessSameExpLikely{}(101.25_dd, 101.50_dd));
+    EXPECT_FALSE(LessSameExpLikely{}(101.50_dd, 101.25_dd));
+    EXPECT_TRUE(LessSameExpLikely{}(-101.50_dd, -101.25_dd));
+    EXPECT_FALSE(LessSameExpLikely{}(-101.25_dd, -101.25_dd));
+    EXPECT_FALSE(EqSameExpLikely{}(101.25_dd, 101.50_dd));
+    EXPECT_TRUE(EqSameExpLikely{}(101.25_dd, 101.25_dd));
+
+    // Different exponents fall back to the full comparison
+    EXPECT_TRUE(EqSameExpLikely{}((decimal64{100, 0}), (decimal64{10, 1})));
+    EXPECT_TRUE(LessSameExpLikely{}((decimal64{99, 0}), (decimal64{10, 1})));
+    EXPECT_FALSE(LessSameExpLikely{}((decimal64{10, 1}), (decimal64{100, 0})));
+
+    // Zero test ignores the exponent and rejects infinities and NaN
+    EXPECT_TRUE((0_dd).is_zero());
+    EXPECT_TRUE((0.00_dd).is_zero());
+    EXPECT_TRUE((-0.0_dd).is_zero());
+    EXPECT_TRUE((decimal64{0, -2}).is_zero());
+    EXPECT_FALSE((0.01_dd).is_zero());
+    EXPECT_FALSE(decimal64::infinity().is_zero());
+    EXPECT_FALSE((-decimal64::infinity()).is_zero());
+    EXPECT_FALSE(decimal64::from_string("nan")->is_zero());
 }
 
 TEST_F(CppDecimalTest, Conversions) {

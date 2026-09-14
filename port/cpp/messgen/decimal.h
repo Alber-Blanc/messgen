@@ -13,6 +13,7 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <type_traits>
 
 #ifndef MESSGEN_DEC_FP
 #define MESSGEN_DEC_FP
@@ -168,6 +169,14 @@ struct decimal64 {
     friend constexpr bool operator<=(const decimal64 &lhs, const decimal64 &rhs) noexcept;
     friend constexpr bool operator>=(const decimal64 &lhs, const decimal64 &rhs) noexcept;
     friend constexpr bool operator!=(const decimal64 &lhs, const decimal64 &rhs) noexcept;
+
+    /// @brief Checks if this decimal represents a finite zero
+    ///
+    /// @return bool True if the value is finite and its coefficient is zero, false otherwise
+    [[nodiscard]] constexpr bool is_zero() const noexcept;
+
+    friend struct LessSameExpLikely;
+    friend struct EqSameExpLikely;
 
     /// @brief Writes a decimal64 to an output stream
     ///
@@ -567,6 +576,81 @@ constexpr inline decimal64::decimal64(value_type value) noexcept
     : _value(value) {
 }
 
+/// @brief Less-than comparison for decimal64 values that usually share sign and exponent
+///
+/// When both operands are finite and their sign and exponent bits match, the
+/// coefficients are compared directly. Every other pair falls back to operator<
+/// in an out-of-line cold function, which keeps the inlined code small at each
+/// call site. The result is always identical to operator<.
+struct LessSameExpLikely {
+    /// @brief Compares two decimals
+    ///
+    /// @param lhs The left-hand operand
+    /// @param rhs The right-hand operand
+    /// @return bool True if lhs is less than rhs, false otherwise
+    [[nodiscard]] constexpr bool operator()(const decimal64 &lhs, const decimal64 &rhs) const noexcept {
+        const auto lhs_sign_exp = lhs._value >> decimal64::DEC_EXPONENT_SHIFT;
+        const auto rhs_sign_exp = rhs._value >> decimal64::DEC_EXPONENT_SHIFT;
+        if (lhs_sign_exp == rhs_sign_exp && (lhs._value & decimal64::DEC_INF_MASK) != decimal64::DEC_INF_MASK) [[likely]] {
+            const auto lhs_coeff = lhs._value & decimal64::DEC_MAX_COEFFICIENT;
+            const auto rhs_coeff = rhs._value & decimal64::DEC_MAX_COEFFICIENT;
+            return lhs.is_negative() ? rhs_coeff < lhs_coeff : lhs_coeff < rhs_coeff;
+        }
+        if (std::is_constant_evaluated()) {
+            return lhs < rhs;
+        }
+        return slow(lhs, rhs);
+    }
+
+private:
+    /// @brief Full comparison for operands that differ in sign or exponent, or are not finite
+    ///
+    /// @param lhs The left-hand operand
+    /// @param rhs The right-hand operand
+    /// @return bool True if lhs is less than rhs, false otherwise
+    [[nodiscard, gnu::noinline, gnu::cold]] static bool slow(const decimal64 &lhs, const decimal64 &rhs) noexcept {
+        return lhs < rhs;
+    }
+};
+
+/// @brief Equality comparison for decimal64 values that usually share sign and exponent
+///
+/// When both operands are finite and their sign and exponent bits match, they
+/// are equal only if their coefficients are. Every other pair falls back to
+/// operator== in an out-of-line cold function, which keeps the inlined code
+/// small at each call site. The result is always identical to operator==.
+struct EqSameExpLikely {
+    /// @brief Compares two decimals for equality
+    ///
+    /// @param lhs The left-hand operand
+    /// @param rhs The right-hand operand
+    /// @return bool True if both values are equal, false otherwise
+    [[nodiscard]] constexpr bool operator()(const decimal64 &lhs, const decimal64 &rhs) const noexcept {
+        if (lhs._value == rhs._value) {
+            return !lhs.is_nan();
+        }
+        const auto lhs_sign_exp = lhs._value >> decimal64::DEC_EXPONENT_SHIFT;
+        const auto rhs_sign_exp = rhs._value >> decimal64::DEC_EXPONENT_SHIFT;
+        if (lhs_sign_exp == rhs_sign_exp && (lhs._value & decimal64::DEC_INF_MASK) != decimal64::DEC_INF_MASK) [[likely]] {
+            return false;
+        }
+        if (std::is_constant_evaluated()) {
+            return lhs == rhs;
+        }
+        return slow(lhs, rhs);
+    }
+
+private:
+    /// @brief Full comparison for operands that differ in sign or exponent, or are not finite
+    ///
+    /// @param lhs The left-hand operand
+    /// @param rhs The right-hand operand
+    /// @return bool True if both values are equal, false otherwise
+    [[nodiscard, gnu::noinline, gnu::cold]] static bool slow(const decimal64 &lhs, const decimal64 &rhs) noexcept {
+        return lhs == rhs;
+    }
+};
+
 constexpr decimal64 decimal64::infinity() noexcept {
     return decimal64{DEC_INF_MASK};
 }
@@ -701,6 +785,10 @@ constexpr inline std::pair<uint64_t, int16_t> decimal64::normalize(uint64_t coef
 
 [[nodiscard]] constexpr inline bool operator!=(const decimal64 &lhs, const decimal64 &rhs) noexcept {
     return !(lhs == rhs);
+}
+
+[[nodiscard]] constexpr inline bool decimal64::is_zero() const noexcept {
+    return (_value & DEC_MAX_COEFFICIENT) == 0 && (_value & DEC_INF_MASK) != DEC_INF_MASK;
 }
 
 inline std::ostream &operator<<(std::ostream &os, decimal64 dec) {
