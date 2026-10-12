@@ -2,7 +2,7 @@ import hashlib
 import json
 import struct
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, replace
 from enum import Enum
 from typing import Iterable, Union
 
@@ -362,11 +362,6 @@ _CONTAINERS = (TypeClass.vector, TypeClass.map, TypeClass.string, TypeClass.byte
 
 
 def from_schemas(schemas: Iterable[str]) -> dict[str, MessgenType]:
-    """Types described by the schemas plus every type they depend on, keyed by type name.
-
-    Scalars, string, bytes, dec64 and containers are never published as schemas and are
-    derived from their name; a missing named dependency (struct, enum, bitset) is an error.
-    """
     types: dict[str, MessgenType] = {}
     for schema in schemas:
         type_def = from_schema(schema)
@@ -427,3 +422,122 @@ def _remove_keys(container: dict | list, key: str):
     elif isinstance(container, list):
         for item in container:
             _remove_keys(item, key)
+
+
+def merge_types(
+    lhs: tuple[MessgenType, dict[str, MessgenType]],
+    rhs: tuple[MessgenType, dict[str, MessgenType]],
+) -> tuple[MessgenType, dict[str, MessgenType]] | None:
+    lhs_main, lhs_deps = lhs
+    rhs_main, rhs_deps = rhs
+
+    if lhs_main.type != rhs_main.type:
+        raise RuntimeError(f"Attempting to merge unrelated types lhs_type={lhs_main.type} rhs_type={rhs_main.type}")
+
+    if type(lhs_main) != type(rhs_main):
+        raise RuntimeError(
+            f"Attempting to merge types of different type_class lhs_type_class={lhs_main.type_class} rhs_type_class={rhs_main.type_class}"
+        )
+
+    merged_deps: dict[str, MessgenType] = {}
+    for name in sorted(lhs_deps.keys() & rhs_deps.keys()):
+        if _merge_dependency(name, lhs_deps, rhs_deps, merged_deps) is None:
+            return None
+
+    merged_main = _merge_types(lhs_main, rhs_main, lhs_deps, rhs_deps, merged_deps)
+    if merged_main is None:
+        return None
+
+    return merged_main, {**lhs_deps, **rhs_deps, **merged_deps}
+
+
+def _merge_types(
+    lhs: MessgenType,
+    rhs: MessgenType,
+    lhs_deps: dict[str, MessgenType],
+    rhs_deps: dict[str, MessgenType],
+    merged_deps: dict[str, MessgenType],
+) -> MessgenType | None:
+    if type(lhs) is not type(rhs):
+        return None
+
+    if (cached := merged_deps.get(lhs.type)) is not None:
+        return cached
+
+    result: MessgenType | None
+    if isinstance(lhs, StructType) and isinstance(rhs, StructType):
+        result = _merge_structs(lhs, rhs, lhs_deps, rhs_deps, merged_deps)
+    elif isinstance(lhs, EnumType) and isinstance(rhs, EnumType):
+        result = _merge_enums(lhs, rhs)
+    elif lhs != rhs or any(_merge_dependency(d, lhs_deps, rhs_deps, merged_deps) is None for d in lhs.dependencies()):
+        result = None
+    else:
+        result = lhs
+
+    if result is not None:
+        merged_deps[result.type] = result
+
+    return result
+
+
+def _merge_dependency(
+    name: str,
+    lhs_deps: dict[str, MessgenType],
+    rhs_deps: dict[str, MessgenType],
+    merged_deps: dict[str, MessgenType],
+) -> MessgenType | None:
+    return _merge_types(_get_by_name(name, lhs_deps), _get_by_name(name, rhs_deps), lhs_deps, rhs_deps, merged_deps)
+
+
+def _merge_structs(
+    lhs: StructType,
+    rhs: StructType,
+    lhs_deps: dict[str, MessgenType],
+    rhs_deps: dict[str, MessgenType],
+    merged_deps: dict[str, MessgenType],
+) -> StructType | None:
+    lhs_names = {f.name for f in lhs.fields}
+    rhs_fields = {f.name: f for f in rhs.fields}
+    common = lhs_names & rhs_fields.keys()
+
+    if [f.name for f in lhs.fields if f.name in common] != [f.name for f in rhs.fields if f.name in common]:
+        return None
+
+    fields: list[FieldType] = []
+    size: int | None = 0
+    for field in lhs.fields + [f for f in rhs.fields if f.name not in common]:
+        if field.name in common:
+            if rhs_fields[field.name].type != field.type:
+                return None
+            field_type = _merge_dependency(field.type, lhs_deps, rhs_deps, merged_deps)
+            if field_type is None:
+                return None
+        else:
+            field_type = _get_by_name(field.type, lhs_deps if field.name in lhs_names else rhs_deps)
+
+        fields.append(replace(field))
+        if size is not None:
+            size = None if field_type.size is None else size + field_type.size
+
+    return replace(lhs, fields=fields, size=size)
+
+
+def _merge_enums(lhs: EnumType, rhs: EnumType) -> EnumType | None:
+    if lhs.base_type.startswith("u") != rhs.base_type.startswith("u"):
+        return None
+
+    pairs = {(ev.name, ev.value) for ev in lhs.values} | {(ev.name, ev.value) for ev in rhs.values}
+    if len({name for name, _ in pairs}) != len(pairs) or len({value for _, value in pairs}) != len(pairs):
+        return None
+
+    lhs_values = {ev.value for ev in lhs.values}
+    values = [replace(ev) for ev in lhs.values] + [replace(ev) for ev in rhs.values if ev.value not in lhs_values]
+
+    larger = lhs if lhs.size >= rhs.size else rhs
+    return replace(lhs, base_type=larger.base_type, size=larger.size, values=values)
+
+
+def _get_by_name(name: str, deps: dict[str, MessgenType]) -> MessgenType:
+    if (dep := deps.get(name)) is None:
+        raise RuntimeError(f"Missing dependency type={name} while merging types")
+    return dep
