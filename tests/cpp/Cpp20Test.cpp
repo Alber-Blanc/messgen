@@ -5,6 +5,8 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+
 using namespace messgen;
 
 class CppTest20 : public ::testing::Test {};
@@ -37,6 +39,13 @@ TEST_F(CppTest20, MessageRecvConcept) {
     EXPECT_FALSE(message_recv<mynamespace::proto::test_proto::complex_struct::send>);
     EXPECT_TRUE(message_recv<mynamespace::proto::test_proto::complex_struct::recv>);
     EXPECT_TRUE(message_recv<mynamespace::proto::test_proto::simple_struct::recv>);
+}
+
+TEST_F(CppTest20, MessageRecvExposesItsPayload) {
+    const std::array<uint8_t, 7> payload{};
+    const auto msg = mynamespace::proto::test_proto::complex_struct::recv{bytes{payload.data(), payload.size()}};
+    EXPECT_EQ(msg.data(), payload.data());
+    EXPECT_EQ(msg.size(), payload.size());
 }
 
 TEST_F(CppTest20, MessageSendConcept) {

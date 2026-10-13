@@ -294,6 +294,10 @@ class CppGenerator:
                             return _buf.data();
                         }}
 
+                        [[nodiscard]] size_t size() const noexcept {{
+                            return _buf.size();
+                        }}
+
                         """,
                 )
             )
