@@ -14,3 +14,4 @@ build-golang-test/
 build-dart-test/
 .dart_tool/
 build
+*.egg-info/
