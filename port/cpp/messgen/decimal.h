@@ -445,6 +445,7 @@ private:
     // fractional part till leading zeros
     auto mul = int64_t{1};
     auto print_frac = int64_t{0};
+    auto frac_digits = 0;
     auto print_exp = 0;
     auto print_int = int64_t{0};
 
@@ -453,6 +454,7 @@ private:
         coeff /= 10;
         mul *= 10;
         exp += 1;
+        ++frac_digits;
     }
 
     // leading zeros of fractional part
@@ -474,16 +476,16 @@ private:
         --exp;
     }
 
-    print_int *= sign;
+    const auto *minus = sign < 0 && (print_int != 0 || print_frac != 0) ? "-" : "";
 
     // convert to string
     char buff[128];
     if (print_exp != 0) {
-        sprintf(buff, "%ld.%lde%d", print_int, print_frac, print_exp);
+        snprintf(buff, sizeof(buff), "%s%ld.%0*lde%d", minus, print_int, frac_digits, print_frac, print_exp);
     } else if (print_frac != 0) {
-        sprintf(buff, "%ld.%ld", print_int, print_frac);
+        snprintf(buff, sizeof(buff), "%s%ld.%0*ld", minus, print_int, frac_digits, print_frac);
     } else {
-        sprintf(buff, "%ld", print_int);
+        snprintf(buff, sizeof(buff), "%s%ld", minus, print_int);
     }
 
     return buff;

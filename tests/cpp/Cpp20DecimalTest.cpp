@@ -429,6 +429,17 @@ TEST_F(CppDecimalTest, ToString) {
     EXPECT_EQ("0.5e-1", (0.05_dd).to_string());
     EXPECT_EQ("0.5e-2", (0.005_dd).to_string());
 
+    // Leading zeros of the fractional part
+    EXPECT_EQ("1.05", (1.05_dd).to_string());
+    EXPECT_EQ("1.005", (1.005_dd).to_string());
+    EXPECT_EQ("1028.06", (1028.06_dd).to_string());
+    EXPECT_EQ("-1.05", (-1.05_dd).to_string());
+
+    // Sign of values with a zero integral part
+    EXPECT_EQ("-0.5", (-0.5_dd).to_string());
+    EXPECT_EQ("-0.5e-1", (-0.05_dd).to_string());
+    EXPECT_EQ("-0.105e-1", (-0.0105_dd).to_string());
+
     // Trailing zeros handling
     EXPECT_EQ("123.4", (123.40_dd).to_string());
     EXPECT_EQ("123", (123.0_dd).to_string());
