@@ -2,6 +2,7 @@
 
 #include "reflect.h"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <charconv>
@@ -426,67 +427,71 @@ private:
 }
 
 [[nodiscard]] constexpr inline std::string decimal64::to_string() const {
-    if (is_infinite()) [[unlikely]] {
-        return *this < decimal64::from_integer(0) ? "-inf" : "inf";
-    }
-
     if (is_nan()) [[unlikely]] {
         return "nan";
     }
 
     auto [sign, coeff, exp] = decompose();
+    if (is_infinite()) [[unlikely]] {
+        return sign < 0 ? "-inf" : "inf";
+    }
 
-    // normalize exponent
-    while (coeff % 10 == 0 && exp != 0) {
-        coeff /= 10;
+    if (coeff == 0) {
+        return "0";
+    }
+
+    // Digits are moved with fixed-size copies, which are faster than variable-length ones,
+    // so the buffers have room for copying past the last digit.
+    constexpr auto MAX_DIGITS = 16;
+    static_assert(DEC_MAX_COEFFICIENT < 10'000'000'000'000'000ULL);
+
+    // coefficient digits without trailing zeros of the fractional part
+    char digits[2 * MAX_DIGITS] = {};
+    auto end = std::to_chars(digits, digits + MAX_DIGITS, coeff).ptr;
+    while (exp < 0 && end[-1] == '0') {
+        --end;
         ++exp;
     }
 
-    // fractional part till leading zeros
-    auto mul = int64_t{1};
-    auto print_frac = int64_t{0};
-    auto print_exp = 0;
-    auto print_int = int64_t{0};
+    // value is 0.<digits> * 10^int_digits
+    auto n_digits = int(end - digits);
+    auto int_digits = n_digits + exp;
 
-    while (exp < 0 && coeff) {
-        print_frac += mul * (coeff % 10);
-        coeff /= 10;
-        mul *= 10;
-        exp += 1;
-    }
+    // sign is always written and skipped for positive values
+    char buf[1 + MAX_DIGITS + DEC_MAX_EXPONENT];
+    buf[0] = '-';
+    auto out = buf + 1;
 
-    // leading zeros of fractional part
-    while (exp < 0) {
-        print_exp -= 1;
-        exp += 1;
-    }
-
-    // integral part
-    mul = 1;
-    while (coeff) {
-        print_int += mul * (coeff % 10);
-        coeff /= 10;
-        mul *= 10;
-    };
-
-    while (exp > 0) {
-        print_int *= 10;
-        --exp;
-    }
-
-    print_int *= sign;
-
-    // convert to string
-    char buff[128];
-    if (print_exp != 0) {
-        sprintf(buff, "%ld.%lde%d", print_int, print_frac, print_exp);
-    } else if (print_frac != 0) {
-        sprintf(buff, "%ld.%ld", print_int, print_frac);
+    if (exp >= 0) {
+        // integer: 123, 1200
+        std::copy_n(digits, MAX_DIGITS, out);
+        out += n_digits;
+        if (exp > DEC_MAX_EXPONENT) [[unlikely]] {
+            // can't be constructed, only come from raw bits (e.g. deserialized data)
+            return std::string(buf + (sign > 0), out).append(size_t(exp), '0');
+        }
+        std::fill_n(out, DEC_MAX_EXPONENT, '0');
+        out += exp;
+    } else if (int_digits > 0) {
+        // integral and fractional parts: 1.05
+        std::copy_n(digits, MAX_DIGITS, out);
+        std::copy_n(digits + int_digits, MAX_DIGITS, out + int_digits + 1);
+        out[int_digits] = '.';
+        out += n_digits + 1;
     } else {
-        sprintf(buff, "%ld", print_int);
+        // fractional part only, leading zeros go to the exponent: 0.5, 0.5e-1
+        out[0] = '0';
+        out[1] = '.';
+        std::copy_n(digits, MAX_DIGITS, out + 2);
+        out += n_digits + 2;
+        if (int_digits < 0) {
+            out[0] = 'e';
+            out[1] = '-';
+            out = std::to_chars(out + 2, std::end(buf), -int_digits).ptr;
+        }
     }
 
-    return buff;
+    return std::string(buf + (sign > 0), out);
 }
 
 [[nodiscard]] constexpr inline bool decimal64::is_infinite() const noexcept {
